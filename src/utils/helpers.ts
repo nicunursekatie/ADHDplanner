@@ -8,12 +8,18 @@ export const generateId = (): string => {
 
 // Format date to YYYY-MM-DD
 export const formatDate = (date: Date): string => {
-  return date.toISOString().split('T')[0];
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 // Format date for display (e.g., "Mon, Jan 15")
 export const formatDateForDisplay = (dateString: string): string => {
-  const date = new Date(dateString);
+  // Parse the date in YYYY-MM-DD format
+  const [year, month, day] = dateString.split('-').map(num => parseInt(num, 10));
+  const date = new Date(year, month - 1, day); // Month is 0-indexed in JavaScript Date
+  
   return date.toLocaleDateString('en-US', {
     weekday: 'short',
     month: 'short',

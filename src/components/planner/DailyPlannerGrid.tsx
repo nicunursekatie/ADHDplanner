@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { DndContext, DragEndEvent, DragOverlay, useSensor, useSensors, PointerSensor, DragStartEvent, useDroppable, useDraggable } from '@dnd-kit/core';
 import { Task, TimeBlock } from '../../types';
 import { useAppContext } from '../../context/AppContext';
-import { Plus, Clock, X, Save, GripVertical } from 'lucide-react';
+import { Plus, Clock, GripVertical, Edit } from 'lucide-react';
 import Button from '../common/Button';
 import TaskCard from '../tasks/TaskCard';
 import Empty from '../common/Empty';
 import { generateId } from '../../utils/helpers';
+import TimeBlockModal from './TimeBlockModal';
 
 interface DailyPlannerGridProps {
   date: string;
@@ -15,7 +16,8 @@ interface DailyPlannerGridProps {
 const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
   const { tasks, projects, categories, getDailyPlan, saveDailyPlan, deleteTask } = useAppContext();
   const [selectedBlock, setSelectedBlock] = useState<TimeBlock | null>(null);
-  const [editingBlock, setEditingBlock] = useState<TimeBlock | null>(null);
+  const [modalBlock, setModalBlock] = useState<TimeBlock | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   
   // Get time blocks for the current date
@@ -68,6 +70,7 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
     setActiveId(null);
   };
   
+
   const handleAddBlock = () => {
     const newBlock: TimeBlock = {
       id: generateId(),
@@ -78,14 +81,13 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
       description: '',
     };
     
-    saveDailyPlan({
-      id: date,
-      date,
-      timeBlocks: [...timeBlocks, newBlock],
-    });
-    
-    setSelectedBlock(newBlock);
-    setEditingBlock(newBlock);
+    setModalBlock(newBlock);
+    setIsModalOpen(true);
+  };
+  
+  const handleEditBlock = (block: TimeBlock) => {
+    setModalBlock(block);
+    setIsModalOpen(true);
   };
   
   const handleDeleteBlock = (blockId: string) => {
@@ -95,19 +97,21 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
       timeBlocks: timeBlocks.filter(block => block.id !== blockId),
     });
     setSelectedBlock(null);
-    setEditingBlock(null);
   };
   
-  const handleUpdateBlock = (blockId: string, updates: Partial<TimeBlock>) => {
-    setEditingBlock(prev => prev ? { ...prev, ...updates } : null);
-  };
-  
-  const handleSaveBlock = () => {
-    if (!editingBlock) return;
+  const handleSaveBlock = (updatedBlock: TimeBlock) => {
+    let updatedBlocks;
     
-    const updatedBlocks = timeBlocks.map(block => 
-      block.id === editingBlock.id ? editingBlock : block
-    );
+    // Check if this is a new block or an existing one
+    if (timeBlocks.some(block => block.id === updatedBlock.id)) {
+      // Update existing block
+      updatedBlocks = timeBlocks.map(block => 
+        block.id === updatedBlock.id ? updatedBlock : block
+      );
+    } else {
+      // Add new block
+      updatedBlocks = [...timeBlocks, updatedBlock];
+    }
     
     saveDailyPlan({
       id: date,
@@ -115,8 +119,7 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
       timeBlocks: updatedBlocks,
     });
     
-    setSelectedBlock(editingBlock);
-    setEditingBlock(null);
+    setSelectedBlock(updatedBlock);
   };
   
   const handleDeleteTask = (taskId: string) => {
@@ -132,9 +135,13 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
   };
   
   const handleBlockClick = (block: TimeBlock) => {
-    if (editingBlock) return;
-    setSelectedBlock(selectedBlock?.id === block.id ? null : block);
-    setEditingBlock(selectedBlock?.id === block.id ? null : block);
+    const isCurrentlySelected = selectedBlock?.id === block.id;
+    
+    if (!isCurrentlySelected) {
+      setSelectedBlock(block);
+    } else {
+      setSelectedBlock(null);
+    }
   };
 
   const DroppableTimeBlock = ({ block, children }: { block: TimeBlock; children: React.ReactNode }) => {
@@ -175,11 +182,20 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
   };
   
   return (
-    <DndContext 
-      sensors={sensors}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-    >
+    <>
+      <TimeBlockModal
+        block={modalBlock}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSaveBlock}
+        onDelete={handleDeleteBlock}
+      />
+      
+      <DndContext 
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
       <div className="grid grid-cols-4 gap-6 h-[calc(100vh-16rem)]">
         {/* Time Blocks */}
         <div className="col-span-3 bg-gray-50 rounded-lg overflow-hidden flex flex-col">
@@ -219,8 +235,6 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
                 {timeBlocks.map(block => {
                   const task = tasks.find(t => t.id === block.taskId);
                   const isSelected = selectedBlock?.id === block.id;
-                  const isEditing = editingBlock?.id === block.id;
-                  const currentBlock = isEditing ? editingBlock : block;
                   
                   return (
                     <DroppableTimeBlock key={block.id} block={block}>
@@ -231,113 +245,41 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
                         onClick={() => handleBlockClick(block)}
                       >
                         <div className="p-4">
-                          {isEditing ? (
-                            <div className="space-y-4" onClick={e => e.stopPropagation()}>
-                              <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Start Time
-                                  </label>
-                                  <input
-                                    type="time"
-                                    value={currentBlock.startTime}
-                                    onChange={e => handleUpdateBlock(block.id, { startTime: e.target.value })}
-                                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    End Time
-                                  </label>
-                                  <input
-                                    type="time"
-                                    value={currentBlock.endTime}
-                                    onChange={e => handleUpdateBlock(block.id, { endTime: e.target.value })}
-                                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                  />
-                                </div>
-                              </div>
+                          <div className="flex justify-between items-start mb-2">
+                            <h3 className="font-medium text-gray-900">{block.title}</h3>
+                            <div className="flex items-center">
+                              <span className="text-sm text-gray-500 mr-2">
+                                {block.startTime} - {block.endTime}
+                              </span>
+                              <button 
+                                className="p-1 rounded-full hover:bg-gray-100"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditBlock(block);
+                                }}
+                              >
+                                <Edit size={14} className="text-gray-500" />
+                              </button>
+                            </div>
+                          </div>
+                          
+                          {block.description && (
+                            <p className="text-sm text-gray-600 mb-2">{block.description}</p>
+                          )}
                               
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                  Title
-                                </label>
-                                <input
-                                  type="text"
-                                  value={currentBlock.title}
-                                  onChange={e => handleUpdateBlock(block.id, { title: e.target.value })}
-                                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                  placeholder="Block title"
-                                />
-                              </div>
-                              
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                  Description (Optional)
-                                </label>
-                                <textarea
-                                  value={currentBlock.description}
-                                  onChange={e => handleUpdateBlock(block.id, { description: e.target.value })}
-                                  rows={2}
-                                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                  placeholder="Add details about this time block"
-                                />
-                              </div>
-                              
-                              <div className="flex justify-between">
-                                <Button
-                                  variant="danger"
-                                  size="sm"
-                                  icon={<X size={16} />}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteBlock(block.id);
-                                  }}
-                                >
-                                  Delete Block
-                                </Button>
-                                
-                                <Button
-                                  variant="primary"
-                                  size="sm"
-                                  icon={<Save size={16} />}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleSaveBlock();
-                                  }}
-                                >
-                                  Save Changes
-                                </Button>
-                              </div>
+                          {task ? (
+                            <div className="mt-3">
+                              <TaskCard
+                                task={task}
+                                projects={projects}
+                                categories={categories}
+                                onDelete={() => handleDeleteTask(task.id)}
+                              />
                             </div>
                           ) : (
-                            <>
-                              <div className="flex justify-between items-start mb-2">
-                                <h3 className="font-medium text-gray-900">{currentBlock.title}</h3>
-                                <span className="text-sm text-gray-500">
-                                  {currentBlock.startTime} - {currentBlock.endTime}
-                                </span>
-                              </div>
-                              
-                              {currentBlock.description && (
-                                <p className="text-sm text-gray-600 mb-2">{currentBlock.description}</p>
-                              )}
-                              
-                              {task ? (
-                                <div className="mt-3">
-                                  <TaskCard
-                                    task={task}
-                                    projects={projects}
-                                    categories={categories}
-                                    onDelete={() => handleDeleteTask(task.id)}
-                                  />
-                                </div>
-                              ) : (
-                                <div className="mt-3 p-4 border-2 border-dashed border-gray-200 rounded-lg text-center text-sm text-gray-500">
-                                  Drag a task here to schedule it
-                                </div>
-                              )}
-                            </>
+                            <div className="mt-3 p-4 border-2 border-dashed border-gray-200 rounded-lg text-center text-sm text-gray-500">
+                              Drag a task here to schedule it
+                            </div>
                           )}
                         </div>
                       </div>
@@ -385,6 +327,7 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
         ) : null}
       </DragOverlay>
     </DndContext>
+    </>
   );
 };
 

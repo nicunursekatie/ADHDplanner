@@ -7,4 +7,15 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
+  base: process.env.GITHUB_PAGES === 'true' ? '/ADHDplanner/' : '/',
+  build: {
+    outDir: 'dist',
+    sourcemap: true,
+    // Ensure that index.html is copied to dist
+    rollupOptions: {
+      input: {
+        main: 'index.html',
+      },
+    },
+  },
 });
