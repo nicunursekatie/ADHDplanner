@@ -15,6 +15,7 @@ interface AppContextType {
   updateTask: (task: Task) => void;
   deleteTask: (taskId: string) => void;
   completeTask: (taskId: string) => void;
+  archiveCompletedTasks: () => void;
   undoDelete: () => void;
   hasRecentlyDeleted: boolean;
   
@@ -103,6 +104,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       title: '',
       description: '',
       completed: false,
+      archived: false,
       dueDate: null,
       projectId: null,
       categoryIds: [],
@@ -235,6 +237,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     localStorage.saveTasks(updatedTasks);
   }, [tasks]);
   
+  const archiveCompletedTasks = useCallback(() => {
+    const timestamp = new Date().toISOString();
+    
+    // Find all completed tasks and set them as archived
+    const updatedTasks = tasks.map(task => {
+      if (task.completed && !task.archived) {
+        return {
+          ...task,
+          archived: true,
+          updatedAt: timestamp,
+        };
+      }
+      return task;
+    });
+    
+    setTasks(updatedTasks);
+    localStorage.saveTasks(updatedTasks);
+  }, [tasks]);
+  
   // Projects
   const addProject = useCallback((projectData: Partial<Project>): Project => {
     const timestamp = new Date().toISOString();
@@ -327,7 +348,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const deleteCategory = useCallback((categoryId: string) => {
     // Remove category from tasks
     const updatedTasks = tasks.map(task => {
-      if (task.categoryIds.includes(categoryId)) {
+      if (task.categoryIds?.includes(categoryId) || false) {
         return {
           ...task,
           categoryIds: task.categoryIds.filter(id => id !== categoryId),
@@ -443,6 +464,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     updateTask,
     deleteTask,
     completeTask,
+    archiveCompletedTasks,
     undoDelete,
     hasRecentlyDeleted,
     

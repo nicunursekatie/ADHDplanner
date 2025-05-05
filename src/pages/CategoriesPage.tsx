@@ -46,7 +46,7 @@ const CategoriesPage: React.FC = () => {
   
   // Count tasks for each category
   const getTaskCount = (categoryId: string): number => {
-    return tasks.filter(task => task.categoryIds.includes(categoryId)).length;
+    return tasks.filter(task => task.categoryIds?.includes(categoryId) || false).length;
   };
   
   return (

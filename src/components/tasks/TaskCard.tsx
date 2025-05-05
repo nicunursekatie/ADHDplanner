@@ -30,11 +30,11 @@ const TaskCard: React.FC<TaskCardProps> = ({
     : null;
   
   const taskCategories = categories.filter(c => 
-    task.categoryIds.includes(c.id)
+    task.categoryIds?.includes(c.id) || false
   );
   
   const subtasks = tasks.filter(t => 
-    task.subtasks.includes(t.id)
+    task.subtasks?.includes(t.id) || false
   );
   
   const toggleExpand = () => {
@@ -136,7 +136,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
             </div>
           </div>
           
-          {task.subtasks.length > 0 && (
+          {task.subtasks?.length > 0 && (
             <div className="mt-3">
               <button
                 className="flex items-center text-sm text-gray-500 hover:text-gray-700"
@@ -148,7 +148,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
                   <ChevronRight size={16} className="mr-1" />
                 )}
                 <span>
-                  {task.subtasks.length} subtask{task.subtasks.length !== 1 ? 's' : ''}
+                  {task.subtasks?.length} subtask{task.subtasks?.length !== 1 ? 's' : ''}
                 </span>
               </button>
               

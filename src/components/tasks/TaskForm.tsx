@@ -26,6 +26,10 @@ const TaskForm: React.FC<TaskFormProps> = ({
     projectId: parentTask?.projectId || null,
     categoryIds: [],
     parentTaskId: parentTask?.id || null,
+    priority: 'medium',
+    energyLevel: 'medium',
+    size: 'medium',
+    estimatedMinutes: 30,
     ...task,
   };
   
@@ -206,12 +210,12 @@ const TaskForm: React.FC<TaskFormProps> = ({
                 key={category.id}
                 className={`inline-flex items-center px-3 py-1 rounded-full text-sm 
                   ${
-                    formData.categoryIds?.includes(category.id)
+                    (formData.categoryIds?.includes(category.id) || false)
                       ? 'bg-opacity-100 text-white'
                       : 'bg-opacity-25 text-gray-700'
                   }`}
                 style={{ 
-                  backgroundColor: formData.categoryIds?.includes(category.id) 
+                  backgroundColor: (formData.categoryIds?.includes(category.id) || false)
                     ? category.color 
                     : `${category.color}40`
                 }}

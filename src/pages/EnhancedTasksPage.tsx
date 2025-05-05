@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { Task } from '../types';
-import TaskCard from '../components/tasks/TaskCard';
+import EnhancedTaskCard from '../components/tasks/EnhancedTaskCard';
 import TaskForm from '../components/tasks/TaskForm';
+import HierarchicalTaskView from '../components/tasks/HierarchicalTaskView';
+import QuickTaskInput from '../components/tasks/QuickTaskInput';
 import Modal from '../components/common/Modal';
 import Button from '../components/common/Button';
 import Card from '../components/common/Card';
 import Empty from '../components/common/Empty';
-import { Plus, Filter, CheckSquare, Clock, X, Undo2, Archive, AlertTriangle, CalendarDays, Calendar, Layers } from 'lucide-react';
+import { Plus, Filter, List, Calendar, CheckSquare, Clock, X, Undo2, Archive, 
+         AlertTriangle, CalendarDays, Layers, Network } from 'lucide-react';
 import { formatDate, getOverdueTasks, getTasksDueToday, getTasksDueThisWeek } from '../utils/helpers';
 
-const TasksPage: React.FC = () => {
+const EnhancedTasksPage: React.FC = () => {
   const { tasks, projects, categories, deleteTask, undoDelete, hasRecentlyDeleted, archiveCompletedTasks } = useAppContext();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -27,6 +30,7 @@ const TasksPage: React.FC = () => {
   
   // View state
   const [activeTab, setActiveTab] = useState<'today' | 'tomorrow' | 'week' | 'overdue' | 'all'>('today');
+  const [viewMode, setViewMode] = useState<'list' | 'hierarchical'>('list');
   
   // Show undo notification when a task is deleted
   useEffect(() => {
@@ -176,8 +180,10 @@ const TasksPage: React.FC = () => {
     }
   };
   
-  // Group tasks by parent/child for the active list
+  // Filtered tasks for current view
   const activeTaskList = getActiveTaskList();
+  
+  // Group tasks by parent/child for list view
   const parentTasks = activeTaskList.filter(task => !task.parentTaskId);
   
   return (
@@ -191,7 +197,24 @@ const TasksPage: React.FC = () => {
             {(filterProjectId || filterCategoryId) && ' (filtered)'}
           </p>
         </div>
-        <div className="mt-4 md:mt-0 flex space-x-2">
+        <div className="mt-4 md:mt-0 flex flex-wrap space-x-2">
+          <div className="flex space-x-1 bg-gray-100 rounded-md p-1">
+            <button
+              className={`px-2 py-1 rounded-md ${viewMode === 'list' ? 'bg-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              onClick={() => setViewMode('list')}
+              title="List View"
+            >
+              <List size={16} />
+            </button>
+            <button
+              className={`px-2 py-1 rounded-md ${viewMode === 'hierarchical' ? 'bg-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              onClick={() => setViewMode('hierarchical')}
+              title="Hierarchical View"
+            >
+              <Network size={16} />
+            </button>
+          </div>
+          
           <Button
             variant="secondary"
             icon={<Archive size={16} />}
@@ -215,6 +238,13 @@ const TasksPage: React.FC = () => {
           </Button>
         </div>
       </div>
+      
+      {/* Quick Add Task */}
+      <QuickTaskInput 
+        defaultDueDate={activeTab === 'today' ? formatDate(new Date()) : 
+                       activeTab === 'tomorrow' ? getTomorrowDate() : 
+                       null}
+      />
       
       {/* Tab navigation */}
       <div className="flex flex-wrap border-b border-gray-200">
@@ -441,152 +471,170 @@ const TasksPage: React.FC = () => {
         
         {/* Tasks */}
         <div className="space-y-4">
-          {parentTasks.length > 0 ? (
+          {activeTaskList.length > 0 ? (
             <div>
-              {/* For 'All' tab, group by categories */}
-              {activeTab === 'all' && (
-                <div className="space-y-6">
-                  {/* Overdue section */}
-                  {overdueTasks.length > 0 && (
-                    <div>
-                      <h3 className="text-lg font-medium text-red-600 mb-3 flex items-center">
-                        <AlertTriangle size={16} className="mr-2" />
-                        Overdue
-                      </h3>
-                      <div className="space-y-2">
-                        {overdueTasks
-                          .filter(task => !task.parentTaskId)
-                          .map(task => (
-                            <TaskCard
-                              key={task.id}
-                              task={task}
-                              projects={projects}
-                              categories={categories}
-                              onEdit={handleOpenModal}
-                              onDelete={handleDeleteTask}
-                            />
-                          ))
-                        }
-                      </div>
+              {/* Choose view based on view mode */}
+              {viewMode === 'list' ? (
+                <div>
+                  {/* For 'All' tab, group by categories */}
+                  {activeTab === 'all' && (
+                    <div className="space-y-6">
+                      {/* Overdue section */}
+                      {overdueTasks.length > 0 && (
+                        <div>
+                          <h3 className="text-lg font-medium text-red-600 mb-3 flex items-center">
+                            <AlertTriangle size={16} className="mr-2" />
+                            Overdue
+                          </h3>
+                          <div className="space-y-2">
+                            {overdueTasks
+                              .filter(task => !task.parentTaskId)
+                              .map(task => (
+                                <EnhancedTaskCard
+                                  key={task.id}
+                                  task={task}
+                                  projects={projects}
+                                  categories={categories}
+                                  onEdit={handleOpenModal}
+                                  onDelete={handleDeleteTask}
+                                />
+                              ))
+                            }
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Today section */}
+                      {todayTasks.length > 0 && (
+                        <div>
+                          <h3 className="text-lg font-medium text-indigo-600 mb-3 flex items-center">
+                            <Calendar size={16} className="mr-2" />
+                            Today
+                          </h3>
+                          <div className="space-y-2">
+                            {todayTasks
+                              .filter(task => !task.parentTaskId)
+                              .map(task => (
+                                <EnhancedTaskCard
+                                  key={task.id}
+                                  task={task}
+                                  projects={projects}
+                                  categories={categories}
+                                  onEdit={handleOpenModal}
+                                  onDelete={handleDeleteTask}
+                                />
+                              ))
+                            }
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Tomorrow section */}
+                      {tomorrowTasks.length > 0 && (
+                        <div>
+                          <h3 className="text-lg font-medium text-indigo-600 mb-3 flex items-center">
+                            <CalendarDays size={16} className="mr-2" />
+                            Tomorrow
+                          </h3>
+                          <div className="space-y-2">
+                            {tomorrowTasks
+                              .filter(task => !task.parentTaskId)
+                              .map(task => (
+                                <EnhancedTaskCard
+                                  key={task.id}
+                                  task={task}
+                                  projects={projects}
+                                  categories={categories}
+                                  onEdit={handleOpenModal}
+                                  onDelete={handleDeleteTask}
+                                />
+                              ))
+                            }
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* This week section */}
+                      {thisWeekTasks.length > 0 && (
+                        <div>
+                          <h3 className="text-lg font-medium text-indigo-600 mb-3 flex items-center">
+                            <CalendarDays size={16} className="mr-2" />
+                            This Week
+                          </h3>
+                          <div className="space-y-2">
+                            {thisWeekTasks
+                              .filter(task => !task.parentTaskId)
+                              .map(task => (
+                                <EnhancedTaskCard
+                                  key={task.id}
+                                  task={task}
+                                  projects={projects}
+                                  categories={categories}
+                                  onEdit={handleOpenModal}
+                                  onDelete={handleDeleteTask}
+                                />
+                              ))
+                            }
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Other tasks section */}
+                      {otherTasks.filter(t => !t.parentTaskId).length > 0 && (
+                        <div>
+                          <h3 className="text-lg font-medium text-gray-700 mb-3 flex items-center">
+                            <Layers size={16} className="mr-2" />
+                            Other Tasks
+                          </h3>
+                          <div className="space-y-2">
+                            {otherTasks
+                              .filter(task => !task.parentTaskId)
+                              .map(task => (
+                                <EnhancedTaskCard
+                                  key={task.id}
+                                  task={task}
+                                  projects={projects}
+                                  categories={categories}
+                                  onEdit={handleOpenModal}
+                                  onDelete={handleDeleteTask}
+                                />
+                              ))
+                            }
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                   
-                  {/* Today section */}
-                  {todayTasks.length > 0 && (
-                    <div>
-                      <h3 className="text-lg font-medium text-indigo-600 mb-3 flex items-center">
-                        <Calendar size={16} className="mr-2" />
-                        Today
-                      </h3>
-                      <div className="space-y-2">
-                        {todayTasks
-                          .filter(task => !task.parentTaskId)
-                          .map(task => (
-                            <TaskCard
-                              key={task.id}
-                              task={task}
-                              projects={projects}
-                              categories={categories}
-                              onEdit={handleOpenModal}
-                              onDelete={handleDeleteTask}
-                            />
-                          ))
-                        }
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Tomorrow section */}
-                  {tomorrowTasks.length > 0 && (
-                    <div>
-                      <h3 className="text-lg font-medium text-indigo-600 mb-3 flex items-center">
-                        <CalendarDays size={16} className="mr-2" />
-                        Tomorrow
-                      </h3>
-                      <div className="space-y-2">
-                        {tomorrowTasks
-                          .filter(task => !task.parentTaskId)
-                          .map(task => (
-                            <TaskCard
-                              key={task.id}
-                              task={task}
-                              projects={projects}
-                              categories={categories}
-                              onEdit={handleOpenModal}
-                              onDelete={handleDeleteTask}
-                            />
-                          ))
-                        }
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* This week section */}
-                  {thisWeekTasks.length > 0 && (
-                    <div>
-                      <h3 className="text-lg font-medium text-indigo-600 mb-3 flex items-center">
-                        <CalendarDays size={16} className="mr-2" />
-                        This Week
-                      </h3>
-                      <div className="space-y-2">
-                        {thisWeekTasks
-                          .filter(task => !task.parentTaskId)
-                          .map(task => (
-                            <TaskCard
-                              key={task.id}
-                              task={task}
-                              projects={projects}
-                              categories={categories}
-                              onEdit={handleOpenModal}
-                              onDelete={handleDeleteTask}
-                            />
-                          ))
-                        }
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Other tasks section */}
-                  {otherTasks.filter(t => !t.parentTaskId).length > 0 && (
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-700 mb-3 flex items-center">
-                        <Layers size={16} className="mr-2" />
-                        Other Tasks
-                      </h3>
-                      <div className="space-y-2">
-                        {otherTasks
-                          .filter(task => !task.parentTaskId)
-                          .map(task => (
-                            <TaskCard
-                              key={task.id}
-                              task={task}
-                              projects={projects}
-                              categories={categories}
-                              onEdit={handleOpenModal}
-                              onDelete={handleDeleteTask}
-                            />
-                          ))
-                        }
-                      </div>
+                  {/* Standard view for specific tabs */}
+                  {activeTab !== 'all' && (
+                    <div className="space-y-2">
+                      {parentTasks.map(task => (
+                        <EnhancedTaskCard
+                          key={task.id}
+                          task={task}
+                          projects={projects}
+                          categories={categories}
+                          onEdit={handleOpenModal}
+                          onDelete={handleDeleteTask}
+                        />
+                      ))}
                     </div>
                   )}
                 </div>
-              )}
-              
-              {/* Standard view for specific tabs */}
-              {activeTab !== 'all' && (
-                <div className="space-y-2">
-                  {parentTasks.map(task => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      projects={projects}
-                      categories={categories}
-                      onEdit={handleOpenModal}
-                      onDelete={handleDeleteTask}
-                    />
-                  ))}
-                </div>
+              ) : (
+                /* Hierarchical View */
+                <HierarchicalTaskView 
+                  tasks={activeTaskList}
+                  projects={projects}
+                  categories={categories}
+                  onEditTask={handleOpenModal}
+                  onAddSubtask={(parentTask) => {
+                    setEditingTask(null);
+                    setIsModalOpen(true);
+                    // Note: we'd need to update TaskForm to accept a parentTask prop
+                  }}
+                />
               )}
             </div>
           ) : (
@@ -628,6 +676,7 @@ const TasksPage: React.FC = () => {
       >
         <TaskForm
           task={editingTask || undefined}
+          parentTask={null}
           onClose={handleCloseModal}
           isEdit={!!editingTask}
         />
@@ -665,4 +714,4 @@ const TasksPage: React.FC = () => {
   );
 };
 
-export default TasksPage;
+export default EnhancedTasksPage;

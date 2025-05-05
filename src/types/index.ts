@@ -3,11 +3,16 @@ export interface Task {
   title: string;
   description: string;
   completed: boolean;
+  archived: boolean;
   dueDate: string | null;
   projectId: string | null;
   categoryIds: string[];
   parentTaskId: string | null;
   subtasks: string[]; // IDs of subtasks
+  priority?: 'low' | 'medium' | 'high';
+  energyLevel?: 'low' | 'medium' | 'high';
+  size?: 'small' | 'medium' | 'large';
+  estimatedMinutes?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -39,7 +44,8 @@ export interface TimeBlock {
   id: string;
   startTime: string;
   endTime: string;
-  taskId: string | null;
+  taskId: string | null; // Kept for backward compatibility
+  taskIds: string[]; // New field to support multiple tasks
   title: string;
   description: string;
 }

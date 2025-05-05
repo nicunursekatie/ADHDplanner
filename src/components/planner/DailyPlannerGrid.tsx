@@ -14,7 +14,7 @@ interface DailyPlannerGridProps {
 }
 
 const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
-  const { tasks, projects, categories, getDailyPlan, saveDailyPlan, deleteTask } = useAppContext();
+  const { tasks, projects, categories, getDailyPlan, saveDailyPlan } = useAppContext();
   const [selectedBlock, setSelectedBlock] = useState<TimeBlock | null>(null);
   const [modalBlock, setModalBlock] = useState<TimeBlock | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -25,7 +25,10 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
   
   // Get unscheduled tasks (tasks without time blocks)
   const unscheduledTasks = tasks.filter(task => {
-    const hasTimeBlock = timeBlocks.some(block => block.taskId === task.id);
+    // Check if the task is in any block's taskIds array or the legacy taskId field
+    const hasTimeBlock = timeBlocks.some(block => 
+      block.taskId === task.id || (block.taskIds && block.taskIds.includes(task.id))
+    );
     const isIncomplete = !task.completed;
     const taskDate = task.dueDate ? new Date(task.dueDate + 'T00:00:00').toISOString().split('T')[0] : null;
     const isDueOnOrBefore = !taskDate || taskDate <= date;
@@ -55,7 +58,24 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
       
       const updatedBlocks = timeBlocks.map(block => {
         if (block.id === blockId) {
-          return { ...block, taskId };
+          // Initialize taskIds array if it doesn't exist
+          const taskIds = block.taskIds || [];
+          
+          // If using legacy taskId field, migrate to taskIds
+          if (block.taskId && !taskIds.includes(block.taskId)) {
+            taskIds.push(block.taskId);
+          }
+          
+          // Add the new task if it's not already in the array
+          if (!taskIds.includes(taskId)) {
+            taskIds.push(taskId);
+          }
+          
+          return { 
+            ...block, 
+            taskId: null, // Clear legacy field
+            taskIds: taskIds 
+          };
         }
         return block;
       });
@@ -77,6 +97,7 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
       startTime: '09:00',
       endTime: '10:00',
       taskId: null,
+      taskIds: [],
       title: 'New Block',
       description: '',
     };
@@ -122,16 +143,29 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
     setSelectedBlock(updatedBlock);
   };
   
-  const handleDeleteTask = (taskId: string) => {
+  const handleRemoveTaskFromBlock = (taskId: string) => {
     saveDailyPlan({
       id: date,
       date,
-      timeBlocks: timeBlocks.map(block => 
-        block.taskId === taskId ? { ...block, taskId: null } : block
-      ),
+      timeBlocks: timeBlocks.map(block => {
+        // Remove from legacy taskId field
+        if (block.taskId === taskId) {
+          return { ...block, taskId: null };
+        }
+        
+        // Remove from taskIds array if present
+        if (block.taskIds && block.taskIds.includes(taskId)) {
+          return { 
+            ...block, 
+            taskIds: block.taskIds.filter(id => id !== taskId) 
+          };
+        }
+        
+        return block;
+      }),
     });
     
-    deleteTask(taskId);
+    // Task is only removed from time block, not deleted from the app
   };
   
   const handleBlockClick = (block: TimeBlock) => {
@@ -175,7 +209,7 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
           task={task}
           projects={projects}
           categories={categories}
-          onDelete={() => handleDeleteTask(task.id)}
+          onDelete={() => handleRemoveTaskFromBlock(task.id)}
         />
       </div>
     );
@@ -233,7 +267,6 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
             ) : (
               <div className="space-y-4">
                 {timeBlocks.map(block => {
-                  const task = tasks.find(t => t.id === block.taskId);
                   const isSelected = selectedBlock?.id === block.id;
                   
                   return (
@@ -267,20 +300,46 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
                             <p className="text-sm text-gray-600 mb-2">{block.description}</p>
                           )}
                               
-                          {task ? (
-                            <div className="mt-3">
-                              <TaskCard
-                                task={task}
-                                projects={projects}
-                                categories={categories}
-                                onDelete={() => handleDeleteTask(task.id)}
-                              />
-                            </div>
-                          ) : (
-                            <div className="mt-3 p-4 border-2 border-dashed border-gray-200 rounded-lg text-center text-sm text-gray-500">
-                              Drag a task here to schedule it
-                            </div>
-                          )}
+                          {(() => {
+                            // Get all tasks for this block
+                            const blockTasks: Task[] = [];
+                            
+                            // Add task from legacy taskId field if present
+                            if (block.taskId) {
+                              const legacyTask = tasks.find(t => t.id === block.taskId);
+                              if (legacyTask) blockTasks.push(legacyTask);
+                            }
+                            
+                            // Add tasks from taskIds array
+                            if (block.taskIds && block.taskIds.length > 0) {
+                              block.taskIds.forEach(id => {
+                                const task = tasks.find(t => t.id === id);
+                                if (task && !blockTasks.some(t => t.id === id)) blockTasks.push(task);
+                              });
+                            }
+                            
+                            if (blockTasks.length > 0) {
+                              return (
+                                <div className="mt-3 space-y-2">
+                                  {blockTasks.map(task => (
+                                    <TaskCard
+                                      key={task.id}
+                                      task={task}
+                                      projects={projects}
+                                      categories={categories}
+                                      onDelete={() => handleRemoveTaskFromBlock(task.id)}
+                                    />
+                                  ))}
+                                </div>
+                              );
+                            } else {
+                              return (
+                                <div className="mt-3 p-4 border-2 border-dashed border-gray-200 rounded-lg text-center text-sm text-gray-500">
+                                  Drag a task here to schedule it
+                                </div>
+                              );
+                            }
+                          })()}
                         </div>
                       </div>
                     </DroppableTimeBlock>
