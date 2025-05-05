@@ -16,6 +16,7 @@ import Button from '../components/common/Button';
 import TaskCard from '../components/tasks/TaskCard';
 import Modal from '../components/common/Modal';
 import TaskForm from '../components/tasks/TaskForm';
+import { EnhancedQuickCapture } from '../components/tasks/EnhancedQuickCapture';
 import { 
   getTasksDueToday, 
   getTasksDueThisWeek, 
@@ -119,6 +120,13 @@ const Dashboard: React.FC = () => {
             </Button>
           </Link>
         </div>
+      </div>
+      
+      {/* Quick Task Input */}
+      <div className="mb-6">
+        <EnhancedQuickCapture 
+          placeholder="Add a new task... (try !today, !tomorrow, !high)"
+        />
       </div>
       
       {/* Stats */}

@@ -7,6 +7,8 @@ import Modal from '../components/common/Modal';
 import Button from '../components/common/Button';
 import Card from '../components/common/Card';
 import Empty from '../components/common/Empty';
+import { QuickCapture } from '../components/tasks/QuickCapture';
+import { EnhancedQuickCapture } from '../components/tasks/EnhancedQuickCapture';
 import { Plus, Filter, CheckSquare, Clock, X, Undo2, Archive, AlertTriangle, CalendarDays, Calendar, Layers } from 'lucide-react';
 import { formatDate, getOverdueTasks, getTasksDueToday, getTasksDueThisWeek } from '../utils/helpers';
 
@@ -214,6 +216,25 @@ const TasksPage: React.FC = () => {
             New Task
           </Button>
         </div>
+      </div>
+      
+      {/* Quick Task Input */}
+      <div className="mb-6">
+        <EnhancedQuickCapture 
+          placeholder="Add a task quickly... (try !today, !tomorrow, !high)"
+          defaultProjectId={filterProjectId}
+          onTaskAdded={() => {
+            // Force re-render to show the new task
+            if (activeTab === 'today') {
+              // Stay on today tab
+            } else if (activeTab === 'all') {
+              // Stay on all tab
+            } else {
+              // Switch to all to ensure the user sees their new task
+              setActiveTab('all');
+            }
+          }}
+        />
       </div>
       
       {/* Tab navigation */}

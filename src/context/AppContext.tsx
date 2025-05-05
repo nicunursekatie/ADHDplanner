@@ -12,6 +12,7 @@ interface AppContextType {
   // Tasks
   tasks: Task[];
   addTask: (task: Partial<Task>) => Task;
+  quickAddTask: (title: string, projectId?: string | null) => Task;
   updateTask: (task: Task) => void;
   deleteTask: (taskId: string) => void;
   completeTask: (taskId: string) => void;
@@ -458,9 +459,58 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsDataInitialized(true);
   }, []);
   
+  // Simple task creation with smart text parsing
+  const quickAddTask = useCallback((title: string, projectId: string | null = null): Task => {
+    let processedTitle = title.trim();
+    let dueDate: string | null = null;
+    let priority: 'low' | 'medium' | 'high' = 'medium';
+    let categoryIds: string[] = [];
+    
+    // Extract date patterns
+    if (processedTitle.includes('!today')) {
+      const today = new Date();
+      dueDate = today.toISOString().split('T')[0];
+      processedTitle = processedTitle.replace('!today', '').trim();
+    } else if (processedTitle.includes('!tomorrow')) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      dueDate = tomorrow.toISOString().split('T')[0];
+      processedTitle = processedTitle.replace('!tomorrow', '').trim();
+    } else if (processedTitle.match(/!(\d+)d/)) {
+      const match = processedTitle.match(/!(\d+)d/);
+      if (match && match[1]) {
+        const days = parseInt(match[1], 10);
+        const date = new Date();
+        date.setDate(date.getDate() + days);
+        dueDate = date.toISOString().split('T')[0];
+        processedTitle = processedTitle.replace(/!(\d+)d/, '').trim();
+      }
+    }
+    
+    // Extract priority
+    if (processedTitle.includes('!high')) {
+      priority = 'high';
+      processedTitle = processedTitle.replace('!high', '').trim();
+    } else if (processedTitle.includes('!low')) {
+      priority = 'low';
+      processedTitle = processedTitle.replace('!low', '').trim();
+    }
+    
+    // Create and return the task
+    return addTask({
+      title: processedTitle,
+      dueDate,
+      priority,
+      projectId,
+      categoryIds,
+      completed: false
+    });
+  }, [addTask]);
+
   const contextValue: AppContextType = {
     tasks,
     addTask,
+    quickAddTask,
     updateTask,
     deleteTask,
     completeTask,
