@@ -1,11 +1,13 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { baseUrlPlugin } from './src/plugins/base-url-plugin';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     react(),
+    baseUrlPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
@@ -16,6 +18,8 @@ export default defineConfig({
         theme_color: '#4F46E5',
         background_color: '#ffffff',
         display: 'standalone',
+        scope: process.env.GITHUB_PAGES === 'true' ? '/ADHDplanner/' : '/',
+        start_url: process.env.GITHUB_PAGES === 'true' ? '/ADHDplanner/' : '/',
         icons: [
           {
             src: 'pwa-192x192.png',

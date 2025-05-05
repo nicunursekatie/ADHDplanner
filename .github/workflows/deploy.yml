@@ -21,9 +21,9 @@ jobs:
         run: npm ci
 
       - name: Build
-        run: |
-          export GITHUB_PAGES=true
-          npm run build
+        env:
+          GITHUB_PAGES: 'true'
+        run: npm run build
 
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4
