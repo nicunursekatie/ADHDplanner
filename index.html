@@ -10,6 +10,12 @@
     <meta name="theme-color" content="#4F46E5" />
     <meta name="description" content="A task management and planning app designed for ADHD users" />
     <title>ADHD Planner</title>
+    <!-- Prevent manifest 404 errors on GitHub Pages -->
+    <script>
+      if (window.location.hostname === 'nicunursekatie.github.io') {
+        document.querySelector('link[rel="manifest"]').setAttribute('href', '/ADHDplanner/manifest.json');
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

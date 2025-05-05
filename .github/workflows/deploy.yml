@@ -27,9 +27,30 @@ jobs:
           GITHUB_PAGES: 'true'
         run: npm run build
         
-      - name: Create 404.html
+      - name: Fix PWA and create 404.html
         run: |
+          # Create 404.html for SPA routing
           cp dist/index.html dist/404.html
+          
+          # Make sure manifest files are in all the right places
+          # 1. At the root
+          if [ -f dist/manifest.webmanifest ]; then
+            cp dist/manifest.webmanifest dist/manifest.json
+          fi
+          
+          # 2. In the /ADHDplanner/ directory
+          mkdir -p dist/ADHDplanner
+          for file in dist/*.{ico,svg,png,webmanifest,json}; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              cp "$file" "dist/ADHDplanner/$filename"
+            fi
+          done
+          
+          # Make sure there's a manifest.json in the ADHDplanner directory
+          if [ -f dist/ADHDplanner/manifest.webmanifest ] && [ ! -f dist/ADHDplanner/manifest.json ]; then
+            cp dist/ADHDplanner/manifest.webmanifest dist/ADHDplanner/manifest.json
+          fi
           
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4
