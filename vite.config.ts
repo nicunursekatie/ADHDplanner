@@ -1,13 +1,11 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
-import { baseUrlPlugin } from './src/plugins/base-url-plugin';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     react(),
-    baseUrlPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
@@ -48,11 +46,16 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
-    // Ensure that index.html is copied to dist
     rollupOptions: {
       input: {
         main: 'index.html',
       },
     },
+  },
+  server: {
+    fs: {
+      // Allow serving files from one level up to the project root
+      allow: ['..']
+    }
   },
 });
