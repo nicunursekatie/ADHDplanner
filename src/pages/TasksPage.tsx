@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { Task } from '../types';
-import TaskCard from '../components/tasks/TaskCard';
-import TaskForm from '../components/tasks/TaskForm';
+import { ImprovedTaskCard } from '../components/tasks/ImprovedTaskCard';
+import { StreamlinedTaskForm } from '../components/tasks/StreamlinedTaskForm';
 import Modal from '../components/common/Modal';
 import Button from '../components/common/Button';
 import Card from '../components/common/Card';
@@ -184,7 +184,7 @@ const TasksPage: React.FC = () => {
   
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header - Improved for mobile */}
       <div className="flex flex-col md:flex-row justify-between md:items-center bg-white rounded-lg shadow-sm p-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Tasks</h1>
@@ -193,28 +193,49 @@ const TasksPage: React.FC = () => {
             {(filterProjectId || filterCategoryId) && ' (filtered)'}
           </p>
         </div>
-        <div className="mt-4 md:mt-0 flex space-x-2">
-          <Button
-            variant="secondary"
-            icon={<Archive size={16} />}
-            onClick={handleArchiveConfirmOpen}
-          >
-            Archive Completed
-          </Button>
-          <Button
-            variant="secondary"
-            icon={<Filter size={16} />}
-            onClick={toggleFilter}
-          >
-            Filter
-          </Button>
-          <Button
-            variant="primary"
-            icon={<Plus size={16} />}
-            onClick={() => handleOpenModal()}
-          >
-            New Task
-          </Button>
+        <div className="mt-4 md:mt-0 flex flex-wrap gap-2">
+          <div className="flex md:hidden">
+            <Button
+              variant="primary"
+              icon={<Plus size={16} />}
+              onClick={() => handleOpenModal()}
+            />
+            <Button
+              variant="secondary"
+              icon={<Filter size={16} />}
+              onClick={toggleFilter}
+              className="ml-2"
+            />
+            <Button
+              variant="secondary"
+              icon={<Archive size={16} />}
+              onClick={handleArchiveConfirmOpen}
+              className="ml-2"
+            />
+          </div>
+          <div className="hidden md:flex space-x-2">
+            <Button
+              variant="secondary"
+              icon={<Archive size={16} />}
+              onClick={handleArchiveConfirmOpen}
+            >
+              Archive Completed
+            </Button>
+            <Button
+              variant="secondary"
+              icon={<Filter size={16} />}
+              onClick={toggleFilter}
+            >
+              Filter
+            </Button>
+            <Button
+              variant="primary"
+              icon={<Plus size={16} />}
+              onClick={() => handleOpenModal()}
+            >
+              New Task
+            </Button>
+          </div>
         </div>
       </div>
       
@@ -237,78 +258,91 @@ const TasksPage: React.FC = () => {
         />
       </div>
       
-      {/* Tab navigation */}
-      <div className="flex flex-wrap border-b border-gray-200">
-        <button
-          className={`px-4 py-2 font-medium text-sm rounded-t-md border-b-2 transition-colors ${
-            activeTab === 'today' 
-              ? 'border-indigo-500 text-indigo-600 bg-indigo-50' 
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-          }`}
-          onClick={() => setActiveTab('today')}
-        >
-          <div className="flex items-center space-x-2">
-            <Calendar size={16} />
-            <span>Today{todayTasks.length > 0 && ` (${todayTasks.length})`}</span>
-          </div>
-        </button>
-        
-        <button
-          className={`px-4 py-2 font-medium text-sm rounded-t-md border-b-2 transition-colors ${
-            activeTab === 'tomorrow' 
-              ? 'border-indigo-500 text-indigo-600 bg-indigo-50' 
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-          }`}
-          onClick={() => setActiveTab('tomorrow')}
-        >
-          <div className="flex items-center space-x-2">
-            <CalendarDays size={16} />
-            <span>Tomorrow{tomorrowTasks.length > 0 && ` (${tomorrowTasks.length})`}</span>
-          </div>
-        </button>
-        
-        <button
-          className={`px-4 py-2 font-medium text-sm rounded-t-md border-b-2 transition-colors ${
-            activeTab === 'week' 
-              ? 'border-indigo-500 text-indigo-600 bg-indigo-50' 
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-          }`}
-          onClick={() => setActiveTab('week')}
-        >
-          <div className="flex items-center space-x-2">
-            <CalendarDays size={16} />
-            <span>This Week{thisWeekTasks.length > 0 && ` (${thisWeekTasks.length})`}</span>
-          </div>
-        </button>
-        
-        <button
-          className={`px-4 py-2 font-medium text-sm rounded-t-md border-b-2 transition-colors ${
-            activeTab === 'overdue' 
-              ? 'border-red-500 text-red-600 bg-red-50' 
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-          }`}
-          onClick={() => setActiveTab('overdue')}
-        >
-          <div className="flex items-center space-x-2">
-            <AlertTriangle size={16} className={overdueTasks.length > 0 ? 'text-red-500' : ''} />
-            <span>Overdue{overdueTasks.length > 0 && ` (${overdueTasks.length})`}</span>
-          </div>
-        </button>
-        
-        <button
-          className={`px-4 py-2 font-medium text-sm rounded-t-md border-b-2 transition-colors ${
-            activeTab === 'all' 
-              ? 'border-indigo-500 text-indigo-600 bg-indigo-50' 
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-          }`}
-          onClick={() => setActiveTab('all')}
-        >
-          <div className="flex items-center space-x-2">
-            <Layers size={16} />
-            <span>All Tasks</span>
-          </div>
-        </button>
+      {/* Tab navigation - improved for mobile */}
+      <div className="overflow-x-auto pb-1 md:pb-0 hide-scrollbar">
+        <div className="flex min-w-max border-b border-gray-200">
+          <button
+            className={`flex-shrink-0 px-4 py-2 font-medium text-sm rounded-t-md border-b-2 transition-colors ${
+              activeTab === 'today' 
+                ? 'border-indigo-500 text-indigo-600 bg-indigo-50' 
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+            onClick={() => setActiveTab('today')}
+          >
+            <div className="flex items-center space-x-2">
+              <Calendar size={16} />
+              <span className="whitespace-nowrap">Today{todayTasks.length > 0 && ` (${todayTasks.length})`}</span>
+            </div>
+          </button>
+          
+          <button
+            className={`flex-shrink-0 px-4 py-2 font-medium text-sm rounded-t-md border-b-2 transition-colors ${
+              activeTab === 'tomorrow' 
+                ? 'border-indigo-500 text-indigo-600 bg-indigo-50' 
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+            onClick={() => setActiveTab('tomorrow')}
+          >
+            <div className="flex items-center space-x-2">
+              <CalendarDays size={16} />
+              <span className="whitespace-nowrap">Tomorrow{tomorrowTasks.length > 0 && ` (${tomorrowTasks.length})`}</span>
+            </div>
+          </button>
+          
+          <button
+            className={`flex-shrink-0 px-4 py-2 font-medium text-sm rounded-t-md border-b-2 transition-colors ${
+              activeTab === 'week' 
+                ? 'border-indigo-500 text-indigo-600 bg-indigo-50' 
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+            onClick={() => setActiveTab('week')}
+          >
+            <div className="flex items-center space-x-2">
+              <CalendarDays size={16} />
+              <span className="whitespace-nowrap">This Week{thisWeekTasks.length > 0 && ` (${thisWeekTasks.length})`}</span>
+            </div>
+          </button>
+          
+          <button
+            className={`flex-shrink-0 px-4 py-2 font-medium text-sm rounded-t-md border-b-2 transition-colors ${
+              activeTab === 'overdue' 
+                ? 'border-red-500 text-red-600 bg-red-50' 
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+            onClick={() => setActiveTab('overdue')}
+          >
+            <div className="flex items-center space-x-2">
+              <AlertTriangle size={16} className={overdueTasks.length > 0 ? 'text-red-500' : ''} />
+              <span className="whitespace-nowrap">Overdue{overdueTasks.length > 0 && ` (${overdueTasks.length})`}</span>
+            </div>
+          </button>
+          
+          <button
+            className={`flex-shrink-0 px-4 py-2 font-medium text-sm rounded-t-md border-b-2 transition-colors ${
+              activeTab === 'all' 
+                ? 'border-indigo-500 text-indigo-600 bg-indigo-50' 
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+            onClick={() => setActiveTab('all')}
+          >
+            <div className="flex items-center space-x-2">
+              <Layers size={16} />
+              <span className="whitespace-nowrap">All Tasks</span>
+            </div>
+          </button>
+        </div>
       </div>
+      
+      {/* Add CSS for hiding scrollbar but allowing scroll */}
+      <style jsx>{`
+        .hide-scrollbar {
+          -ms-overflow-style: none;  /* IE and Edge */
+          scrollbar-width: none;  /* Firefox */
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none;  /* Chrome, Safari, Opera */
+        }
+      `}</style>
       
       {/* Undo notification */}
       {showUndoNotification && (
@@ -478,7 +512,7 @@ const TasksPage: React.FC = () => {
                         {overdueTasks
                           .filter(task => !task.parentTaskId)
                           .map(task => (
-                            <TaskCard
+                            <ImprovedTaskCard
                               key={task.id}
                               task={task}
                               projects={projects}
@@ -503,7 +537,7 @@ const TasksPage: React.FC = () => {
                         {todayTasks
                           .filter(task => !task.parentTaskId)
                           .map(task => (
-                            <TaskCard
+                            <ImprovedTaskCard
                               key={task.id}
                               task={task}
                               projects={projects}
@@ -528,7 +562,7 @@ const TasksPage: React.FC = () => {
                         {tomorrowTasks
                           .filter(task => !task.parentTaskId)
                           .map(task => (
-                            <TaskCard
+                            <ImprovedTaskCard
                               key={task.id}
                               task={task}
                               projects={projects}
@@ -553,7 +587,7 @@ const TasksPage: React.FC = () => {
                         {thisWeekTasks
                           .filter(task => !task.parentTaskId)
                           .map(task => (
-                            <TaskCard
+                            <ImprovedTaskCard
                               key={task.id}
                               task={task}
                               projects={projects}
@@ -578,7 +612,7 @@ const TasksPage: React.FC = () => {
                         {otherTasks
                           .filter(task => !task.parentTaskId)
                           .map(task => (
-                            <TaskCard
+                            <ImprovedTaskCard
                               key={task.id}
                               task={task}
                               projects={projects}
@@ -598,7 +632,7 @@ const TasksPage: React.FC = () => {
               {activeTab !== 'all' && (
                 <div className="space-y-2">
                   {parentTasks.map(task => (
-                    <TaskCard
+                    <ImprovedTaskCard
                       key={task.id}
                       task={task}
                       projects={projects}
@@ -647,7 +681,7 @@ const TasksPage: React.FC = () => {
         onClose={handleCloseModal}
         title={editingTask ? 'Edit Task' : 'Create New Task'}
       >
-        <TaskForm
+        <StreamlinedTaskForm
           task={editingTask || undefined}
           onClose={handleCloseModal}
           isEdit={!!editingTask}

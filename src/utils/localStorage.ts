@@ -1,4 +1,5 @@
 import { Task, Project, Category, DailyPlan } from '../types';
+import { WorkSchedule, WorkShift } from '../types/WorkSchedule';
 import { transformImportedData } from './importTransform';
 
 // Local storage keys
@@ -6,6 +7,7 @@ const TASKS_KEY = 'taskManager_tasks';
 const PROJECTS_KEY = 'taskManager_projects';
 const CATEGORIES_KEY = 'taskManager_categories';
 const DAILY_PLANS_KEY = 'taskManager_dailyPlans';
+const WORK_SCHEDULE_KEY = 'taskManager_workSchedule';
 
 // Tasks
 export const getTasks = (): Task[] => {
@@ -128,6 +130,90 @@ export const saveDailyPlan = (plan: DailyPlan): void => {
   saveDailyPlans(plans);
 };
 
+// Work Schedule
+export const getWorkSchedule = (): WorkSchedule | null => {
+  const scheduleJSON = localStorage.getItem(WORK_SCHEDULE_KEY);
+  return scheduleJSON ? JSON.parse(scheduleJSON) : null;
+};
+
+export const saveWorkSchedule = (schedule: WorkSchedule): void => {
+  localStorage.setItem(WORK_SCHEDULE_KEY, JSON.stringify(schedule));
+};
+
+export const getWorkShifts = (): WorkShift[] => {
+  const schedule = getWorkSchedule();
+  return schedule ? schedule.shifts : [];
+};
+
+export const addWorkShift = (shift: WorkShift): void => {
+  const schedule = getWorkSchedule();
+  
+  if (schedule) {
+    const updatedSchedule = {
+      ...schedule,
+      shifts: [...schedule.shifts, shift],
+      updatedAt: new Date().toISOString()
+    };
+    saveWorkSchedule(updatedSchedule);
+  } else {
+    // If no schedule exists, create a new one
+    const newSchedule: WorkSchedule = {
+      id: generateId(),
+      name: 'My Work Schedule',
+      shifts: [shift],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    saveWorkSchedule(newSchedule);
+  }
+};
+
+export const updateWorkShift = (updatedShift: WorkShift): void => {
+  const schedule = getWorkSchedule();
+  
+  if (schedule) {
+    const updatedSchedule = {
+      ...schedule,
+      shifts: schedule.shifts.map(shift => 
+        shift.id === updatedShift.id ? updatedShift : shift
+      ),
+      updatedAt: new Date().toISOString()
+    };
+    saveWorkSchedule(updatedSchedule);
+  }
+};
+
+export const deleteWorkShift = (shiftId: string): void => {
+  const schedule = getWorkSchedule();
+  
+  if (schedule) {
+    const updatedSchedule = {
+      ...schedule,
+      shifts: schedule.shifts.filter(shift => shift.id !== shiftId),
+      updatedAt: new Date().toISOString()
+    };
+    saveWorkSchedule(updatedSchedule);
+  }
+};
+
+export const getShiftsForMonth = (year: number, month: number): WorkShift[] => {
+  const schedule = getWorkSchedule();
+  if (!schedule) return [];
+  
+  // Create date range for the given month
+  const startDate = new Date(year, month, 1).toISOString().split('T')[0];
+  const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0];
+  
+  return schedule.shifts.filter(shift => 
+    shift.date >= startDate && shift.date <= endDate
+  );
+};
+
+// Helper function to generate IDs
+const generateId = (): string => {
+  return Math.random().toString(36).substring(2) + Date.now().toString(36);
+};
+
 // Data Import/Export
 export const exportData = (): string => {
   const data = {
@@ -135,6 +221,7 @@ export const exportData = (): string => {
     projects: getProjects(),
     categories: getCategories(),
     dailyPlans: getDailyPlans(),
+    workSchedule: getWorkSchedule(),
   };
   
   return JSON.stringify(data);
@@ -159,6 +246,7 @@ export const importData = (jsonData: string): boolean => {
     if (data.projects) saveProjects(data.projects);
     if (data.categories) saveCategories(data.categories);
     if (data.dailyPlans) saveDailyPlans(data.dailyPlans);
+    if (data.workSchedule) saveWorkSchedule(data.workSchedule);
     
     return true;
   } catch (error) {
@@ -172,4 +260,5 @@ export const resetData = (): void => {
   localStorage.removeItem(PROJECTS_KEY);
   localStorage.removeItem(CATEGORIES_KEY);
   localStorage.removeItem(DAILY_PLANS_KEY);
+  localStorage.removeItem(WORK_SCHEDULE_KEY);
 };

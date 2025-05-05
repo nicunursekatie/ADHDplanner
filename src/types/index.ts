@@ -57,3 +57,6 @@ export interface WhatNowCriteria {
 }
 
 export type ViewMode = 'day' | 'week' | 'month';
+
+// Re-export WorkSchedule types
+export * from './WorkSchedule';

@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { Task, Project, Category, DailyPlan, WhatNowCriteria } from '../types';
+import { Task, Project, Category, DailyPlan, WhatNowCriteria, WorkSchedule, WorkShift, DEFAULT_SHIFT } from '../types';
 import * as localStorage from '../utils/localStorage';
 import { generateId, createSampleData } from '../utils/helpers';
 
@@ -37,6 +37,15 @@ interface AppContextType {
   getDailyPlan: (date: string) => DailyPlan | null;
   saveDailyPlan: (plan: DailyPlan) => void;
   
+  // Work Schedule
+  workSchedule: WorkSchedule | null;
+  workShifts: WorkShift[];
+  addWorkShift: (date: string) => WorkShift;
+  updateWorkShift: (shift: WorkShift) => void;
+  deleteWorkShift: (shiftId: string) => void;
+  getShiftsForMonth: (year: number, month: number) => WorkShift[];
+  getShiftForDate: (date: string) => WorkShift | undefined;
+  
   // What Now Wizard
   recommendTasks: (criteria: WhatNowCriteria) => Task[];
   
@@ -60,6 +69,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [projects, setProjects] = useState<Project[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [dailyPlans, setDailyPlans] = useState<DailyPlan[]>([]);
+  const [workSchedule, setWorkSchedule] = useState<WorkSchedule | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDataInitialized, setIsDataInitialized] = useState(false);
   const [deletedTasks, setDeletedTasks] = useState<DeletedTask[]>([]);
@@ -83,6 +93,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setProjects(localStorage.getProjects());
       setCategories(localStorage.getCategories());
       setDailyPlans(localStorage.getDailyPlans());
+      setWorkSchedule(localStorage.getWorkSchedule());
       
       // Check if data exists
       const hasData = 
@@ -391,6 +402,89 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     localStorage.saveDailyPlans(updatedPlans);
   }, [dailyPlans]);
   
+  // Work Schedule
+  const workShifts = workSchedule?.shifts || [];
+  
+  const addWorkShift = useCallback((date: string): WorkShift => {
+    const newShift: WorkShift = {
+      id: generateId(),
+      date,
+      startTime: DEFAULT_SHIFT.startTime,
+      endTime: DEFAULT_SHIFT.endTime,
+    };
+    
+    localStorage.addWorkShift(newShift);
+    
+    // Update local state
+    setWorkSchedule(prev => {
+      if (!prev) {
+        return {
+          id: generateId(),
+          name: 'My Work Schedule',
+          shifts: [newShift],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+      }
+      
+      return {
+        ...prev,
+        shifts: [...prev.shifts, newShift],
+        updatedAt: new Date().toISOString()
+      };
+    });
+    
+    return newShift;
+  }, []);
+  
+  const updateWorkShift = useCallback((updatedShift: WorkShift) => {
+    localStorage.updateWorkShift(updatedShift);
+    
+    // Update local state
+    setWorkSchedule(prev => {
+      if (!prev) return null;
+      
+      return {
+        ...prev,
+        shifts: prev.shifts.map(shift => 
+          shift.id === updatedShift.id ? updatedShift : shift
+        ),
+        updatedAt: new Date().toISOString()
+      };
+    });
+  }, []);
+  
+  const deleteWorkShift = useCallback((shiftId: string) => {
+    localStorage.deleteWorkShift(shiftId);
+    
+    // Update local state
+    setWorkSchedule(prev => {
+      if (!prev) return null;
+      
+      return {
+        ...prev,
+        shifts: prev.shifts.filter(shift => shift.id !== shiftId),
+        updatedAt: new Date().toISOString()
+      };
+    });
+  }, []);
+  
+  const getShiftsForMonth = useCallback((year: number, month: number): WorkShift[] => {
+    if (!workSchedule) return [];
+    
+    // Create date range for the given month
+    const startDate = new Date(year, month, 1).toISOString().split('T')[0];
+    const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0];
+    
+    return workSchedule.shifts.filter(shift => 
+      shift.date >= startDate && shift.date <= endDate
+    );
+  }, [workSchedule]);
+  
+  const getShiftForDate = useCallback((date: string): WorkShift | undefined => {
+    return workSchedule?.shifts.find(shift => shift.date === date);
+  }, [workSchedule]);
+  
   // What Now Wizard
   const recommendTasks = useCallback((criteria: WhatNowCriteria): Task[] => {
     // Filter to incomplete tasks
@@ -531,6 +625,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     dailyPlans,
     getDailyPlan,
     saveDailyPlan,
+    
+    workSchedule,
+    workShifts,
+    addWorkShift,
+    updateWorkShift,
+    deleteWorkShift,
+    getShiftsForMonth,
+    getShiftForDate,
     
     recommendTasks,
     

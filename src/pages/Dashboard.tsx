@@ -13,9 +13,9 @@ import {
 import { useAppContext } from '../context/AppContext';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
-import TaskCard from '../components/tasks/TaskCard';
+import { ImprovedTaskCard } from '../components/tasks/ImprovedTaskCard';
 import Modal from '../components/common/Modal';
-import TaskForm from '../components/tasks/TaskForm';
+import { StreamlinedTaskForm } from '../components/tasks/StreamlinedTaskForm';
 import { EnhancedQuickCapture } from '../components/tasks/EnhancedQuickCapture';
 import { 
   getTasksDueToday, 
@@ -257,7 +257,7 @@ const Dashboard: React.FC = () => {
         >
           <div className="space-y-3">
             {tasksDueToday.slice(0, 3).map(task => (
-              <TaskCard
+              <ImprovedTaskCard
                 key={task.id}
                 task={task}
                 projects={projects}
@@ -302,7 +302,7 @@ const Dashboard: React.FC = () => {
           >
             <div className="space-y-3">
               {overdueTasks.slice(0, 3).map(task => (
-                <TaskCard
+                <ImprovedTaskCard
                   key={task.id}
                   task={task}
                   projects={projects}
@@ -332,7 +332,7 @@ const Dashboard: React.FC = () => {
         onClose={handleCloseTaskModal}
         title={editingTask ? 'Edit Task' : 'Create New Task'}
       >
-        <TaskForm
+        <StreamlinedTaskForm
           task={editingTask || undefined}
           onClose={handleCloseTaskModal}
           isEdit={!!editingTask}
