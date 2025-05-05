@@ -16,8 +16,8 @@ export default defineConfig({
         theme_color: '#4F46E5',
         background_color: '#ffffff',
         display: 'standalone',
-        scope: process.env.GITHUB_PAGES === 'true' ? '/ADHDplanner/' : '/',
-        start_url: process.env.GITHUB_PAGES === 'true' ? '/ADHDplanner/' : '/',
+        scope: '/ADHDplanner/',
+        start_url: '/ADHDplanner/',
         icons: [
           {
             src: 'pwa-192x192.png',
@@ -42,7 +42,8 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
-  base: process.env.GITHUB_PAGES === 'true' ? '/ADHDplanner/' : '/',
+  base: '/ADHDplanner/',
+
   build: {
     outDir: 'dist',
     sourcemap: true,
