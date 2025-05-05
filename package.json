@@ -8,8 +8,8 @@
     "build": "vite build && node scripts/post-build.js",
     "lint": "eslint .",
     "preview": "vite preview",
-    "netlify-deploy": "netlify deploy --prod",
-    "vercel-deploy": "vercel deploy --prod"
+    "deploy": "gh-pages -d dist"
+  
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
