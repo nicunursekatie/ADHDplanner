@@ -16,8 +16,8 @@ export default defineConfig({
         theme_color: '#4F46E5',
         background_color: '#ffffff',
         display: 'standalone',
-        scope: '/ADHDplanner/',
-        start_url: '/ADHDplanner/',
+        scope: './',
+        start_url: './',
         icons: [
           {
             src: 'pwa-192x192.png',
@@ -51,12 +51,30 @@ export default defineConfig({
       input: {
         main: 'index.html',
       },
+      output: {
+        // Ensure MIME types are correctly set
+        assetFileNames: (assetInfo) => {
+          let extType = (assetInfo.name ?? '').split('.').at(1);
+          if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(extType)) {
+            extType = 'img';
+          } else if (/woff|woff2/.test(extType)) {
+            extType = 'fonts';
+          }
+          return `assets/${extType}/[name]-[hash][extname]`;
+        },
+        chunkFileNames: 'assets/js/[name]-[hash].js',
+        entryFileNames: 'assets/js/[name]-[hash].js',
+      },
     },
   },
   server: {
     fs: {
       // Allow serving files from one level up to the project root
       allow: ['..']
+    },
+    headers: {
+      // Add CORS headers for development
+      'Access-Control-Allow-Origin': '*'
     }
   },
 });

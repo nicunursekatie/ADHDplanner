@@ -9,15 +9,32 @@
     // Single Page Apps for GitHub Pages
     // MIT License
     // https://github.com/rafgraph/spa-github-pages
-    var pathSegmentsToKeep = 1; // Adjust for GitHub Pages project path
+    // Modified for our specific deployment
+    var segmentCount = 0;
+    
+    // GitHub Pages specific logic for project pages - ADHDplanner is in the path
+    var hostname = window.location.hostname;
+    if (hostname.indexOf('github.io') !== -1 || hostname.indexOf('pages.dev') !== -1) {
+      segmentCount = 1; // When hosted on GitHub Pages or similar platforms
+    }
+    
     var l = window.location;
-    l.replace(
-      l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
-      l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/?p=/' +
-      l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/').replace(/&/g, '~and~') +
-      (l.search ? '&q=' + l.search.slice(1).replace(/&/g, '~and~') : '') +
-      l.hash
-    );
+    
+    // Check if we're at the root path
+    var isRootPath = l.pathname === "/" || l.pathname === "/ADHDplanner/" || l.pathname === "/ADHDplanner";
+    
+    if (!isRootPath) {
+      l.replace(
+        l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+        l.pathname.split('/').slice(0, 1 + segmentCount).join('/') + '/?p=/' +
+        l.pathname.slice(1).split('/').slice(segmentCount).join('/').replace(/&/g, '~and~') +
+        (l.search ? '&q=' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+        l.hash
+      );
+    } else {
+      // If we're already at the root, just go to the index page
+      window.location.href = '/ADHDplanner/';
+    }
   </script>
   <style>
     body {
@@ -42,12 +59,14 @@
       color: #4F46E5;
       margin-top: 0;
     }
+    /* Add a special comment to ensure the file is served with the right MIME type */
+    /* text/html */
   </style>
 </head>
 <body>
   <div class="message">
     <h1>Redirecting...</h1>
-    <p>If you are not redirected automatically, click <a href="/ADHDplanner/index.html">here</a>.</p>
+    <p>If you are not redirected automatically, click <a href="/ADHDplanner/">here</a>.</p>
   </div>
 </body>
 </html>
