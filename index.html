@@ -11,7 +11,85 @@
     <meta name="theme-color" content="#4F46E5" />
     <meta name="description" content="A task management and planning app designed for ADHD users" />
     <title>ADHD Planner</title>
-    <script src="pwa-helper.js"></script>
+    <!-- PWA helper functions loaded inline to avoid module import issues -->
+    <script>
+      // This script helps fix PWA issues with GitHub Pages by handling various edge cases
+      document.addEventListener('DOMContentLoaded', function() {
+        // Detect base path - handle GitHub Pages and other deployments
+        let basePath = '';
+        const baseElement = document.querySelector('base');
+        if (baseElement && baseElement.href) {
+          basePath = new URL(baseElement.href).pathname;
+        } else if (window.location.pathname.includes('/ADHDplanner/')) {
+          basePath = '/ADHDplanner/';
+        }
+        
+        // Handle manifest fallback
+        if (navigator.serviceWorker) {
+          const manifestLink = document.querySelector('link[rel="manifest"]');
+          
+          // Try to fetch from multiple locations to help with GitHub Pages
+          if (manifestLink) {
+            // First try the standard path
+            fetch(manifestLink.href)
+              .catch(() => {
+                console.log('Manifest fetch failed, trying alternatives...');
+                
+                // Try different paths
+                const alternativePaths = [
+                  'manifest.json',
+                  `${basePath}manifest.json`,
+                  '/manifest.json',
+                  '/ADHDplanner/manifest.json',
+                  './manifest.json'
+                ];
+                
+                // Try each alternative path
+                const tryNextPath = (index) => {
+                  if (index >= alternativePaths.length) {
+                    console.warn('All manifest locations failed');
+                    return;
+                  }
+                  
+                  fetch(alternativePaths[index])
+                    .then(response => {
+                      if (response.ok) {
+                        console.log(`Found manifest at ${alternativePaths[index]}`);
+                        manifestLink.href = alternativePaths[index];
+                      }
+                    })
+                    .catch(() => {
+                      tryNextPath(index + 1);
+                    });
+                };
+                
+                tryNextPath(0);
+              });
+          }
+        }
+        
+        // Fix any duplicate paths in all links and scripts
+        const fixDuplicatePathsInElements = (selector, attribute) => {
+          document.querySelectorAll(selector).forEach(element => {
+            const path = element.getAttribute(attribute);
+            if (path && path.includes('/ADHDplanner/ADHDplanner/')) {
+              element.setAttribute(
+                attribute,
+                path.replace('/ADHDplanner/ADHDplanner/', '/ADHDplanner/')
+              );
+            }
+          });
+        };
+        
+        // Fix paths in various elements
+        fixDuplicatePathsInElements('link[rel="icon"]', 'href');
+        fixDuplicatePathsInElements('link[rel="shortcut icon"]', 'href');
+        fixDuplicatePathsInElements('link[rel="apple-touch-icon"]', 'href');
+        fixDuplicatePathsInElements('link[rel="manifest"]', 'href');
+        fixDuplicatePathsInElements('script', 'src');
+        fixDuplicatePathsInElements('img', 'src');
+      });
+    </script>
   </head>
   <body>
     <div id="root"></div>

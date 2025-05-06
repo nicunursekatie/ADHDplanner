@@ -67,13 +67,13 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
       id: 'reflect',
       title: 'Reflect on Your Week',
       icon: <NotebookPen size={18} />,
-      description: 'Review what went well and what you'd like to improve',
+      description: "Review what went well and what you'd like to improve",
       prompts: [
         'What went well this week?',
         'What were your biggest accomplishments?',
-        'What didn't go as planned?',
+        "What didn't go as planned?",
         'What would make next week better?',
-        'Any patterns you're noticing in your productivity?'
+        "Any patterns you're noticing in your productivity?"
       ],
       complete: false
     },
