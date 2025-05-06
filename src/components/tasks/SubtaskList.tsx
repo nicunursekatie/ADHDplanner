@@ -68,7 +68,7 @@ const SubtaskList: React.FC<SubtaskListProps> = ({
   };
   
   return (
-    <div className="mt-4 border border-gray-200 rounded-md p-3">
+    <div className="mt-4 border border-gray-200 rounded-md p-3 bg-blue-50">
       <div className="flex items-center justify-between mb-2">
         <button 
           className="flex items-center text-sm font-medium text-gray-700 hover:text-indigo-600"

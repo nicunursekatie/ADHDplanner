@@ -246,20 +246,24 @@ const TaskForm: React.FC<TaskFormProps> = ({
         </div>
       </div>
 
-      {/* Subtasks section - show for all existing tasks, even in edit mode */}
-      {isEdit && task?.id && (
-        <>
-          <div className="mt-4 border-t border-gray-200 pt-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Subtasks</h3>
-            <p className="text-sm text-gray-500 mb-3">Break this task down into smaller, more manageable steps.</p>
-            <SubtaskList
-              parentTaskId={task.id}
-              existingSubtasks={formData.subtasks || []}
-              onSubtasksChange={handleSubtasksChange}
-            />
+      {/* Always show subtasks section */}
+      <div className="mt-4 border-t border-gray-200 pt-4">
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Subtasks</h3>
+        <p className="text-sm text-gray-500 mb-3">Break this task down into smaller, more manageable steps.</p>
+        
+        {/* Simple subtask interface for when we don't have a task ID yet */}
+        {(!isEdit || !task?.id) ? (
+          <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-md text-yellow-800 text-sm">
+            Save this task first before adding subtasks.
           </div>
-        </>
-      )}
+        ) : (
+          <SubtaskList
+            parentTaskId={task.id}
+            existingSubtasks={formData.subtasks || []}
+            onSubtasksChange={handleSubtasksChange}
+          />
+        )}
+      </div>
 
       <div className="pt-4 border-t border-gray-200 flex justify-end space-x-3">
         <Button
