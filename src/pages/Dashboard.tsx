@@ -98,7 +98,7 @@ const Dashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between md:items-center bg-white rounded-lg shadow-sm p-4 mb-6">
+      <div className="flex flex-col md:flex-row justify-between md:items-center bg-white rounded-lg shadow-sm p-4 mb-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-600">Your task overview</p>
@@ -123,69 +123,209 @@ const Dashboard: React.FC = () => {
       </div>
       
       {/* Quick Task Input */}
-      <div className="mb-6">
+      <div className="mb-4">
         <EnhancedQuickCapture 
           placeholder="Add a new task... (try !today, !tomorrow, !high)"
         />
       </div>
       
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-indigo-50 border border-indigo-100">
-          <div className="flex items-center">
-            <Calendar className="w-8 h-8 text-indigo-500 mr-4" />
-            <div>
-              <p className="text-lg font-medium text-gray-900">
-                {tasksDueToday.length}
-              </p>
-              <p className="text-sm text-gray-600">Due Today</p>
+      {/* Status Indicators and Key Information */}
+      <div className="mb-6 space-y-4">
+        {/* Top Section with Key Metrics */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
+          <Card className="bg-indigo-50 border border-indigo-100 h-20 flex items-center">
+            <div className="flex items-center w-full">
+              <Calendar className="w-8 h-8 text-indigo-500 mr-3" />
+              <div>
+                <p className="text-lg font-medium text-gray-900">
+                  {tasksDueToday.length}
+                </p>
+                <p className="text-sm text-gray-600">Due Today</p>
+              </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+          
+          <Card className="bg-orange-50 border border-orange-100 h-20 flex items-center">
+            <div className="flex items-center w-full">
+              <Calendar className="w-8 h-8 text-orange-500 mr-3" />
+              <div>
+                <p className="text-lg font-medium text-gray-900">
+                  {tasksDueThisWeek.length}
+                </p>
+                <p className="text-sm text-gray-600">Due This Week</p>
+              </div>
+            </div>
+          </Card>
+          
+          <Card className={`${overdueTasks.length > 0 ? 'bg-red-50 border border-red-100' : 'bg-green-50 border border-green-100'} h-20 flex items-center`}>
+            <div className="flex items-center w-full">
+              <Clock className={`w-8 h-8 ${overdueTasks.length > 0 ? 'text-red-500' : 'text-green-500'} mr-3`} />
+              <div>
+                <p className="text-lg font-medium text-gray-900">
+                  {overdueTasks.length}
+                </p>
+                <p className="text-sm text-gray-600">Overdue</p>
+              </div>
+            </div>
+          </Card>
+          
+          <Card className="bg-green-50 border border-green-100 h-20 flex items-center">
+            <div className="flex items-center w-full">
+              <CheckCircle2 className="w-8 h-8 text-green-500 mr-3" />
+              <div>
+                <p className="text-lg font-medium text-gray-900">
+                  {completedTasks.length}
+                </p>
+                <p className="text-sm text-gray-600">Completed</p>
+              </div>
+            </div>
+          </Card>
+        </div>
         
-        <Card className="bg-orange-50 border border-orange-100">
-          <div className="flex items-center">
-            <Calendar className="w-8 h-8 text-orange-500 mr-4" />
-            <div>
-              <p className="text-lg font-medium text-gray-900">
-                {tasksDueThisWeek.length}
-              </p>
-              <p className="text-sm text-gray-600">Due This Week</p>
+        {/* Overdue Section - High Priority at Top */}
+        {overdueTasks.length > 0 && (
+          <Card
+            title="Overdue Tasks"
+            className="border-l-4 border-red-500"
+            headerAction={
+              <Link 
+                to="/tasks"
+                className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
+              >
+                View All
+                <ArrowRight size={14} className="ml-1" />
+              </Link>
+            }
+          >
+            <div className="space-y-2">
+              {overdueTasks.slice(0, 2).map(task => (
+                <ImprovedTaskCard
+                  key={task.id}
+                  task={task}
+                  projects={projects}
+                  categories={categories}
+                  onEdit={handleOpenTaskModal}
+                />
+              ))}
+              
+              {overdueTasks.length > 2 && (
+                <div className="pt-1">
+                  <Link 
+                    to="/tasks"
+                    className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center justify-center"
+                  >
+                    View all {overdueTasks.length} overdue tasks
+                  </Link>
+                </div>
+              )}
             </div>
-          </div>
-        </Card>
-        
-        <Card className={`${overdueTasks.length > 0 ? 'bg-red-50 border border-red-100' : 'bg-green-50 border border-green-100'}`}>
-          <div className="flex items-center">
-            <Clock className={`w-8 h-8 ${overdueTasks.length > 0 ? 'text-red-500' : 'text-green-500'} mr-4`} />
-            <div>
-              <p className="text-lg font-medium text-gray-900">
-                {overdueTasks.length}
-              </p>
-              <p className="text-sm text-gray-600">Overdue</p>
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="bg-green-50 border border-green-100">
-          <div className="flex items-center">
-            <CheckCircle2 className="w-8 h-8 text-green-500 mr-4" />
-            <div>
-              <p className="text-lg font-medium text-gray-900">
-                {completedTasks.length}
-              </p>
-              <p className="text-sm text-gray-600">Completed</p>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        )}
       </div>
       
-      {/* Main content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Projects */}
+      {/* Main task sections - more compact layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Due Today and Coming Up This Week in first row */}
+        <Card
+          title="Due Today"
+          headerAction={
+            <Link 
+              to="/tasks"
+              className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
+            >
+              View All
+              <ArrowRight size={14} className="ml-1" />
+            </Link>
+          }
+        >
+          <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+            {tasksDueToday.slice(0, 3).map(task => (
+              <ImprovedTaskCard
+                key={task.id}
+                task={task}
+                projects={projects}
+                categories={categories}
+                onEdit={handleOpenTaskModal}
+              />
+            ))}
+            
+            {tasksDueToday.length === 0 && (
+              <div className="text-center py-3 text-gray-500">
+                No tasks due today
+              </div>
+            )}
+          </div>
+        </Card>
+
+        <Card
+          title="Coming Up This Week"
+          headerAction={
+            <Link 
+              to="/tasks"
+              className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
+            >
+              View All
+              <ArrowRight size={14} className="ml-1" />
+            </Link>
+          }
+        >
+          <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+            {tasksDueThisWeek.filter(task => !tasksDueToday.some(t => t.id === task.id)).slice(0, 3).map(task => (
+              <ImprovedTaskCard
+                key={task.id}
+                task={task}
+                projects={projects}
+                categories={categories}
+                onEdit={handleOpenTaskModal}
+              />
+            ))}
+            
+            {tasksDueThisWeek.filter(task => !tasksDueToday.some(t => t.id === task.id)).length === 0 && (
+              <div className="text-center py-3 text-gray-500">
+                No upcoming tasks this week
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* Recently Added and Projects in second row */}
+        <Card
+          title="Recently Added"
+          headerAction={
+            <Link 
+              to="/tasks"
+              className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
+            >
+              View All
+              <ArrowRight size={14} className="ml-1" />
+            </Link>
+          }
+        >
+          <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+            {incompleteTasks
+              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+              .slice(0, 3)
+              .map(task => (
+                <ImprovedTaskCard
+                  key={task.id}
+                  task={task}
+                  projects={projects}
+                  categories={categories}
+                  onEdit={handleOpenTaskModal}
+                />
+              ))
+            }
+            
+            {incompleteTasks.length === 0 && (
+              <div className="text-center py-3 text-gray-500">
+                No recently added tasks
+              </div>
+            )}
+          </div>
+        </Card>
+        
         <Card
           title="Projects"
-          className="lg:col-span-1"
           headerAction={
             <Link 
               to="/projects"
@@ -196,8 +336,8 @@ const Dashboard: React.FC = () => {
             </Link>
           }
         >
-          <div className="space-y-3">
-            {projects.slice(0, 3).map(project => {
+          <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+            {projects.slice(0, 4).map(project => {
               const projectTasks = tasks.filter(
                 task => task.projectId === project.id && !task.completed
               );
@@ -206,7 +346,7 @@ const Dashboard: React.FC = () => {
                 <Link 
                   key={project.id} 
                   to={`/projects/${project.id}`}
-                  className="flex items-center justify-between p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
+                  className="flex items-center justify-between p-2 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex items-center">
                     <div 
@@ -223,28 +363,19 @@ const Dashboard: React.FC = () => {
             })}
             
             {projects.length === 0 && (
-              <div className="text-center py-4 text-gray-500">
+              <div className="text-center py-3 text-gray-500">
                 No projects yet
               </div>
             )}
-            
-            {projects.length > 0 && projects.length > 3 && (
-              <div className="pt-2">
-                <Link 
-                  to="/projects"
-                  className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center justify-center"
-                >
-                  View all {projects.length} projects
-                </Link>
-              </div>
-            )}
           </div>
         </Card>
-        
-        {/* Due Today */}
+      </div>
+      
+      {/* Recently Completed at bottom */}
+      {completedTasks.length > 0 && (
         <Card
-          title="Due Today"
-          className="lg:col-span-2"
+          title="Recently Completed"
+          className="border-l-4 border-green-500 mt-4"
           headerAction={
             <Link 
               to="/tasks"
@@ -255,97 +386,9 @@ const Dashboard: React.FC = () => {
             </Link>
           }
         >
-          <div className="space-y-3">
-            {tasksDueToday.slice(0, 3).map(task => (
-              <ImprovedTaskCard
-                key={task.id}
-                task={task}
-                projects={projects}
-                categories={categories}
-                onEdit={handleOpenTaskModal}
-              />
-            ))}
-            
-            {tasksDueToday.length === 0 && (
-              <div className="text-center py-4 text-gray-500">
-                No tasks due today
-              </div>
-            )}
-            
-            {tasksDueToday.length > 3 && (
-              <div className="pt-2">
-                <Link 
-                  to="/tasks"
-                  className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center justify-center"
-                >
-                  View all {tasksDueToday.length} tasks due today
-                </Link>
-              </div>
-            )}
-          </div>
-        </Card>
-
-        {/* Upcoming Tasks - Due This Week */}
-        <Card
-          title="Coming Up This Week"
-          className="lg:col-span-2"
-          headerAction={
-            <Link 
-              to="/tasks"
-              className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
-            >
-              View All
-              <ArrowRight size={14} className="ml-1" />
-            </Link>
-          }
-        >
-          <div className="space-y-3">
-            {tasksDueThisWeek.filter(task => !tasksDueToday.some(t => t.id === task.id)).slice(0, 3).map(task => (
-              <ImprovedTaskCard
-                key={task.id}
-                task={task}
-                projects={projects}
-                categories={categories}
-                onEdit={handleOpenTaskModal}
-              />
-            ))}
-            
-            {tasksDueThisWeek.filter(task => !tasksDueToday.some(t => t.id === task.id)).length === 0 && (
-              <div className="text-center py-4 text-gray-500">
-                No upcoming tasks this week
-              </div>
-            )}
-            
-            {tasksDueThisWeek.filter(task => !tasksDueToday.some(t => t.id === task.id)).length > 3 && (
-              <div className="pt-2">
-                <Link 
-                  to="/tasks"
-                  className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center justify-center"
-                >
-                  View all upcoming tasks
-                </Link>
-              </div>
-            )}
-          </div>
-        </Card>
-
-        {/* Recently Added Tasks */}
-        <Card
-          title="Recently Added"
-          className="lg:col-span-1"
-          headerAction={
-            <Link 
-              to="/tasks"
-              className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
-            >
-              View All
-              <ArrowRight size={14} className="ml-1" />
-            </Link>
-          }
-        >
-          <div className="space-y-3">
-            {incompleteTasks
-              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+            {completedTasks
+              .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
               .slice(0, 3)
               .map(task => (
                 <ImprovedTaskCard
@@ -357,100 +400,9 @@ const Dashboard: React.FC = () => {
                 />
               ))
             }
-            
-            {incompleteTasks.length === 0 && (
-              <div className="text-center py-4 text-gray-500">
-                No recently added tasks
-              </div>
-            )}
           </div>
         </Card>
-        
-        {/* Overdue */}
-        {overdueTasks.length > 0 && (
-          <Card
-            title="Overdue Tasks"
-            className="lg:col-span-3 border-l-4 border-red-500"
-            headerAction={
-              <Link 
-                to="/tasks"
-                className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
-              >
-                View All
-                <ArrowRight size={14} className="ml-1" />
-              </Link>
-            }
-          >
-            <div className="space-y-3">
-              {overdueTasks.slice(0, 3).map(task => (
-                <ImprovedTaskCard
-                  key={task.id}
-                  task={task}
-                  projects={projects}
-                  categories={categories}
-                  onEdit={handleOpenTaskModal}
-                />
-              ))}
-              
-              {overdueTasks.length > 3 && (
-                <div className="pt-2">
-                  <Link 
-                    to="/tasks"
-                    className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center justify-center"
-                  >
-                    View all {overdueTasks.length} overdue tasks
-                  </Link>
-                </div>
-              )}
-            </div>
-          </Card>
-        )}
-
-        {/* Recently Completed Tasks */}
-        {completedTasks.length > 0 && (
-          <Card
-            title="Recently Completed"
-            className="lg:col-span-3 border-l-4 border-green-500"
-            headerAction={
-              <Link 
-                to="/tasks"
-                className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
-              >
-                View All
-                <ArrowRight size={14} className="ml-1" />
-              </Link>
-            }
-          >
-            <div className="space-y-3">
-              {completedTasks
-                .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-                .slice(0, 3)
-                .map(task => (
-                  <ImprovedTaskCard
-                    key={task.id}
-                    task={task}
-                    projects={projects}
-                    categories={categories}
-                    onEdit={handleOpenTaskModal}
-                  />
-                ))
-              }
-              
-              {completedTasks.length > 3 && (
-                <div className="pt-2">
-                  <Link 
-                    to="/tasks"
-                    className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center justify-center"
-                  >
-                    View all {completedTasks.length} completed tasks
-                  </Link>
-                </div>
-              )}
-            </div>
-          </Card>
-        )}
-      </div>
-
+      )}
       {/* Task Modal */}
       <Modal
         isOpen={isTaskModalOpen}
