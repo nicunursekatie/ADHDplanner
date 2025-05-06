@@ -12,7 +12,8 @@ import {
   Flag,
   Battery,
   AlignJustify,
-  MoreHorizontal
+  MoreHorizontal,
+  GitBranch
 } from 'lucide-react';
 
 interface StreamlinedTaskFormProps {
@@ -28,7 +29,7 @@ export const StreamlinedTaskForm: React.FC<StreamlinedTaskFormProps> = ({
   onClose,
   isEdit = false,
 }) => {
-  const { addTask, updateTask, projects, categories } = useAppContext();
+  const { addTask, updateTask, projects, categories, tasks } = useAppContext();
   
   // Advanced mode toggle
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -385,6 +386,47 @@ export const StreamlinedTaskForm: React.FC<StreamlinedTaskFormProps> = ({
       {/* Advanced options - only visible when toggled */}
       {showAdvanced && (
         <div className="space-y-4 pt-2 border-t border-gray-100">
+          {/* Parent Task Selection - Only show when creating new task (not editing) */}
+          {!isEdit && (
+            <div>
+              <div className="flex items-center mb-1">
+                <GitBranch size={14} className="text-gray-400 mr-1" />
+                <label htmlFor="parentTask" className="text-sm text-gray-500">
+                  Parent Task (create as subtask of)
+                </label>
+              </div>
+              <select
+                id="parentTask"
+                name="parentTask"
+                value={formData.parentTaskId || ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setFormData(prev => ({
+                    ...prev,
+                    parentTaskId: value === '' ? null : value,
+                  }));
+                }}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              >
+                <option value="">None (top-level task)</option>
+                {tasks
+                  .filter(t => !t.completed && !t.parentTaskId) // Only show non-completed, top-level tasks
+                  .map(parentTask => (
+                    <option key={parentTask.id} value={parentTask.id}>
+                      {parentTask.title}
+                    </option>
+                  ))
+                }
+              </select>
+              
+              {formData.parentTaskId && (
+                <p className="mt-1 text-xs text-indigo-600">
+                  This will be created as a subtask
+                </p>
+              )}
+            </div>
+          )}
+          
           {/* Description */}
           <div>
             <div className="flex items-center mb-1">

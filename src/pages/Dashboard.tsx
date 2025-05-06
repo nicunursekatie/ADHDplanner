@@ -8,7 +8,10 @@ import {
   Tag, 
   Plus,
   ArrowRight,
-  HelpCircle
+  HelpCircle,
+  BrainCircuit,
+  RefreshCw,
+  ListChecks
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import Card from '../components/common/Card';
@@ -315,6 +318,114 @@ const Dashboard: React.FC = () => {
             )}
           </div>
         </Card>
+      </div>
+      
+      {/* Memory Tools Section */}
+      <div className="mt-6">
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="text-xl font-semibold text-gray-800">Remember & Review</h2>
+          <Button
+            variant="outline"
+            size="sm"
+            icon={<RefreshCw size={16} />}
+            onClick={() => window.location.reload()}
+          >
+            Refresh
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Quick links to memory tools */}
+          <Card className="lg:col-span-1">
+            <div className="p-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Memory Tools</h3>
+              <div className="space-y-2">
+                <Link to="/brain-dump">
+                  <div className="p-3 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors cursor-pointer flex items-center justify-between">
+                    <div className="flex items-center">
+                      <BrainCircuit className="w-5 h-5 text-indigo-600 mr-2" />
+                      <span className="font-medium">Brain Dump</span>
+                    </div>
+                    <ArrowRight size={16} className="text-indigo-500" />
+                  </div>
+                </Link>
+                
+                <Link to="/weekly-review">
+                  <div className="p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer flex items-center justify-between">
+                    <div className="flex items-center">
+                      <RefreshCw className="w-5 h-5 text-blue-600 mr-2" />
+                      <span className="font-medium">Weekly Review</span>
+                    </div>
+                    <ArrowRight size={16} className="text-blue-500" />
+                  </div>
+                </Link>
+                
+                <Link to="/accountability">
+                  <div className="p-3 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors cursor-pointer flex items-center justify-between">
+                    <div className="flex items-center">
+                      <ListChecks className="w-5 h-5 text-orange-600 mr-2" />
+                      <span className="font-medium">Accountability Check-In</span>
+                    </div>
+                    <ArrowRight size={16} className="text-orange-500" />
+                  </div>
+                </Link>
+                
+                <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg mt-3">
+                  <p className="text-sm text-gray-600">
+                    Use these tools to help capture tasks you might forget, review your progress, and adjust your approach.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Card>
+          
+          {/* Mini Brain Dump Widget */}
+          <Card className="lg:col-span-2 overflow-hidden">
+            <div className="p-3 bg-indigo-50 border-b border-indigo-100">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <BrainCircuit className="w-5 h-5 text-indigo-600 mr-2" />
+                  <h3 className="font-medium text-gray-900">Quick Brain Dump</h3>
+                </div>
+                <Link 
+                  to="/brain-dump"
+                  className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
+                >
+                  Full Version
+                  <ArrowRight size={14} className="ml-1" />
+                </Link>
+              </div>
+            </div>
+            <div className="p-4">
+              <div className="bg-indigo-50 rounded-lg p-3 mb-4">
+                <div className="text-indigo-800">
+                  Think of something you need to remember? Add it now:
+                </div>
+              </div>
+              <div className="flex">
+                <input
+                  type="text"
+                  className="flex-1 rounded-l-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  placeholder="Add something you just remembered..."
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                      const value = e.currentTarget.value;
+                      handleOpenTaskModal();
+                      e.currentTarget.value = '';
+                    }
+                  }}
+                />
+                <Button
+                  className="rounded-l-none"
+                  onClick={() => handleOpenTaskModal()}
+                  icon={<Plus size={16} />}
+                >
+                  Add Task
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
       </div>
       
       {/* Recently Completed at bottom */}

@@ -14,6 +14,11 @@ import CalendarPage from './pages/CalendarPage';
 import EnhancedPlanningPage from './pages/EnhancedPlanningPage';
 import SettingsPage from './pages/SettingsPage';
 
+// Memory Tools Pages
+import BrainDumpPage from './pages/BrainDumpPage';
+import WeeklyReviewPage from './pages/WeeklyReviewPage';
+import AccountabilityPage from './pages/AccountabilityPage';
+
 function App() {
   return (
     <AppProvider>
@@ -29,6 +34,11 @@ function App() {
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/planner" element={<EnhancedPlanningPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            
+            {/* Memory Tools Routes */}
+            <Route path="/brain-dump" element={<BrainDumpPage />} />
+            <Route path="/weekly-review" element={<WeeklyReviewPage />} />
+            <Route path="/accountability" element={<AccountabilityPage />} />
           </Routes>
         </Layout>
       </Router>
