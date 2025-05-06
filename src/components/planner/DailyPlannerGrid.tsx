@@ -23,6 +23,11 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
   // Get time blocks for the current date
   const timeBlocks = getDailyPlan(date)?.timeBlocks || [];
   
+  // Sort time blocks by start time for better organization
+  const sortedTimeBlocks = [...timeBlocks].sort((a, b) => {
+    return a.startTime.localeCompare(b.startTime);
+  });
+  
   // Get unscheduled tasks (tasks without time blocks)
   const unscheduledTasks = tasks.filter(task => {
     // Check if the task is in any block's taskIds array or the legacy taskId field
@@ -234,24 +239,29 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
         {/* Time Blocks */}
         <div className="col-span-3 bg-gray-50 rounded-lg overflow-hidden flex flex-col">
           <div className="p-6 border-b bg-white sticky top-0 z-10">
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-gray-900">Schedule</h2>
-              <Button
-                variant="primary"
-                size="sm"
-                icon={<Plus size={16} />}
-                onClick={handleAddBlock}
-              >
-                Add Time Block
-              </Button>
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
+              <h2 className="text-lg font-semibold text-gray-900 mb-2 sm:mb-0">Schedule</h2>
+              <div className="flex space-x-2">
+                <p className="text-sm text-gray-500 mr-2 self-center hidden sm:block">
+                  Add as many time blocks as you need
+                </p>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  icon={<Plus size={16} />}
+                  onClick={handleAddBlock}
+                >
+                  Add Time Block
+                </Button>
+              </div>
             </div>
           </div>
           
           <div className="flex-1 overflow-y-auto p-6 max-h-[calc(100vh-18rem)]">
             {timeBlocks.length === 0 ? (
               <Empty
-                title="No time blocks"
-                description="Start planning your day by adding time blocks"
+                title="No time blocks yet"
+                description="Create custom time blocks to plan your day - add as many as you need with any start and end times"
                 icon={<Clock className="h-12 w-12 text-gray-400" />}
                 action={
                   <Button
@@ -266,7 +276,7 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
               />
             ) : (
               <div className="space-y-4">
-                {timeBlocks.map(block => {
+                {sortedTimeBlocks.map(block => {
                   const isSelected = selectedBlock?.id === block.id;
                   
                   return (

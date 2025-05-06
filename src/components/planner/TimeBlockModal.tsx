@@ -74,6 +74,7 @@ const TimeBlockModal: React.FC<TimeBlockModalProps> = ({
               onChange={handleChange}
               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             />
+            <p className="mt-1 text-xs text-gray-500">Enter any time in 24-hour format (e.g., 14:30 for 2:30 PM)</p>
           </div>
           <div>
             <label htmlFor="endTime" className="block text-sm font-medium text-gray-700 mb-1">
@@ -87,6 +88,7 @@ const TimeBlockModal: React.FC<TimeBlockModalProps> = ({
               onChange={handleChange}
               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             />
+            <p className="mt-1 text-xs text-gray-500">Enter any time in 24-hour format (e.g., 16:00 for 4:00 PM)</p>
           </div>
         </div>
 
