@@ -55,9 +55,9 @@ export default defineConfig({
         // Ensure MIME types are correctly set
         assetFileNames: (assetInfo) => {
           let extType = (assetInfo.name ?? '').split('.').at(1);
-          if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(extType)) {
+          if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(extType ?? '')) {
             extType = 'img';
-          } else if (/woff|woff2/.test(extType)) {
+          } else if (/woff|woff2/.test(extType ?? '')) {
             extType = 'fonts';
           }
           return `assets/${extType}/[name]-[hash][extname]`;
