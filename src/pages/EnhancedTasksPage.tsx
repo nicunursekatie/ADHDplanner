@@ -674,6 +674,7 @@ const EnhancedTasksPage: React.FC = () => {
         onClose={handleCloseModal}
         title={editingTask ? 'Edit Task' : 'Create New Task'}
       >
+        {console.log('Rendering task form with task:', editingTask)}
         <TaskForm
           task={editingTask || undefined}
           parentTask={null}

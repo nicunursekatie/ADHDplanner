@@ -41,11 +41,17 @@ const TaskForm: React.FC<TaskFormProps> = ({
   useEffect(() => {
     // Reset form data when the task prop changes
     if (task) {
+      console.log('TaskForm - Task provided:', task);
       setFormData({ ...task });
     } else {
       setFormData(initialState);
     }
   }, [task, parentTask]);
+  
+  // Debug current formData
+  useEffect(() => {
+    console.log('TaskForm - Current formData:', formData);
+  }, [formData]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -241,12 +247,18 @@ const TaskForm: React.FC<TaskFormProps> = ({
       </div>
 
       {/* Subtasks section - show for all existing tasks, even in edit mode */}
-      {isEdit && (
-        <SubtaskList
-          parentTaskId={task?.id || ''}
-          existingSubtasks={formData.subtasks || []}
-          onSubtasksChange={handleSubtasksChange}
-        />
+      {isEdit && task?.id && (
+        <>
+          <div className="mt-4 border-t border-gray-200 pt-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Subtasks</h3>
+            <p className="text-sm text-gray-500 mb-3">Break this task down into smaller, more manageable steps.</p>
+            <SubtaskList
+              parentTaskId={task.id}
+              existingSubtasks={formData.subtasks || []}
+              onSubtasksChange={handleSubtasksChange}
+            />
+          </div>
+        </>
       )}
 
       <div className="pt-4 border-t border-gray-200 flex justify-end space-x-3">

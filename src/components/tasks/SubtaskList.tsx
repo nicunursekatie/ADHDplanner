@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Task } from '../../types';
 import { useAppContext } from '../../context/AppContext';
 import { Plus, X, ChevronDown, ChevronRight } from 'lucide-react';
@@ -18,6 +18,11 @@ const SubtaskList: React.FC<SubtaskListProps> = ({
   const { tasks, addTask } = useAppContext();
   const [expanded, setExpanded] = useState(true);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  
+  // Log props for debugging
+  useEffect(() => {
+    console.log('SubtaskList rendered with:', { parentTaskId, existingSubtasks });
+  }, [parentTaskId, existingSubtasks]);
   
   // Get the actual subtask objects
   const subtasks = tasks.filter(task => 
