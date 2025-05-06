@@ -13,6 +13,8 @@ export interface Task {
   energyLevel?: 'low' | 'medium' | 'high';
   size?: 'small' | 'medium' | 'large';
   estimatedMinutes?: number;
+  phase?: string; // Project phase this task belongs to
+  tags?: string[]; // Tags associated with the task, including phase name
   createdAt: string;
   updatedAt: string;
 }
@@ -57,6 +59,21 @@ export interface WhatNowCriteria {
 }
 
 export type ViewMode = 'day' | 'week' | 'month';
+
+// Project breakdown structures
+export interface ProjectPhase {
+  id: string;
+  title: string;
+  description?: string;
+  expanded: boolean;
+  tasks: PhaseTask[];
+}
+
+export interface PhaseTask {
+  id: string;
+  title: string;
+  description?: string;
+}
 
 // Re-export WorkSchedule types
 export * from './WorkSchedule';
