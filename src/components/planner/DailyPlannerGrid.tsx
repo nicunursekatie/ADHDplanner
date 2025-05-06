@@ -247,7 +247,7 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
             </div>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-6 max-h-[calc(100vh-18rem)]">
             {timeBlocks.length === 0 ? (
               <Empty
                 title="No time blocks"
@@ -358,7 +358,7 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
             </h2>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto p-4 max-h-[calc(100vh-18rem)]">
             {unscheduledTasks.length > 0 ? (
               <div className="space-y-4">
                 {unscheduledTasks.map(task => (

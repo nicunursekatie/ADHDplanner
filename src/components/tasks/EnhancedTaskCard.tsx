@@ -14,7 +14,8 @@ import {
   BarChart,
   AlertTriangle,
   Plus,
-  ListPlus
+  ListPlus,
+  Timer
 } from 'lucide-react';
 import Badge from '../common/Badge';
 import { formatDateForDisplay } from '../../utils/helpers';
@@ -40,7 +41,13 @@ const EnhancedTaskCard: React.FC<EnhancedTaskCardProps> = ({
   const [expanded, setExpanded] = useState(false);
   const [showSubtaskInput, setShowSubtaskInput] = useState(false);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const [newSubtaskTime, setNewSubtaskTime] = useState<number>(15);
   const { completeTask, tasks, addSubtask } = useAppContext();
+  
+  // Calculate total time of all subtasks
+  const totalSubtaskTime = tasks
+    .filter(t => task.subtasks?.includes(t.id))
+    .reduce((total, subtask) => total + (subtask.estimatedMinutes || 0), 0);
   
   // Check if the task is overdue
   const today = new Date();
@@ -103,8 +110,12 @@ const EnhancedTaskCard: React.FC<EnhancedTaskCardProps> = ({
     e.stopPropagation();
     
     if (newSubtaskTitle.trim()) {
-      addSubtask(task.id, { title: newSubtaskTitle.trim() });
+      addSubtask(task.id, { 
+        title: newSubtaskTitle.trim(),
+        estimatedMinutes: newSubtaskTime
+      });
       setNewSubtaskTitle('');
+      setNewSubtaskTime(15); // Reset to default
       setShowSubtaskInput(false);
     }
   };
@@ -318,22 +329,41 @@ const EnhancedTaskCard: React.FC<EnhancedTaskCardProps> = ({
           
           {/* Subtask section with optional input */}
           {showSubtaskInput && (
-            <div className="mt-3 flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
-              <input
-                type="text"
-                className="flex-grow rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
-                placeholder="Add a subtask..."
-                value={newSubtaskTitle}
-                onChange={(e) => setNewSubtaskTitle(e.target.value)}
-                onKeyDown={handleSubtaskInputKeyDown}
-                autoFocus
-              />
-              <button
-                className="p-1 bg-indigo-500 text-white rounded-md hover:bg-indigo-600"
-                onClick={handleAddSubtask}
-              >
-                <Plus size={16} />
-              </button>
+            <div className="mt-3 space-y-2" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="text"
+                  className="flex-grow rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                  placeholder="Add a subtask..."
+                  value={newSubtaskTitle}
+                  onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                  onKeyDown={handleSubtaskInputKeyDown}
+                  autoFocus
+                />
+                
+                {/* Time input for new subtask */}
+                <div className="flex items-center bg-white rounded px-2 py-1 border border-gray-200">
+                  <Clock size={14} className="text-blue-500 mr-1" />
+                  <input 
+                    type="number"
+                    min="1"
+                    step="5"
+                    value={newSubtaskTime}
+                    onChange={(e) => setNewSubtaskTime(parseInt(e.target.value) || 15)}
+                    className="w-12 text-xs text-right border-0 p-0 focus:ring-0"
+                    title="Estimated minutes"
+                  />
+                  <span className="text-xs ml-1">min</span>
+                </div>
+                
+                <button
+                  className="p-1 bg-indigo-500 text-white rounded-md hover:bg-indigo-600"
+                  onClick={handleAddSubtask}
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
+              <p className="text-xs text-gray-500">Enter task description and time estimate</p>
             </div>
           )}
           
@@ -349,8 +379,14 @@ const EnhancedTaskCard: React.FC<EnhancedTaskCardProps> = ({
                 ) : (
                   <ChevronRight size={16} className="mr-1" />
                 )}
-                <span>
+                <span className="flex items-center">
                   {task.subtasks?.length} subtask{task.subtasks?.length !== 1 ? 's' : ''}
+                  {totalSubtaskTime > 0 && (
+                    <span className="ml-2 flex items-center text-blue-500">
+                      <Clock size={12} className="mr-1" />
+                      {totalSubtaskTime}m
+                    </span>
+                  )}
                 </span>
               </button>
               

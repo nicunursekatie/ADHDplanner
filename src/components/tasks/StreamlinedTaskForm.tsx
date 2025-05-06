@@ -137,6 +137,8 @@ export const StreamlinedTaskForm: React.FC<StreamlinedTaskFormProps> = ({
     }));
   }, []);
   
+  const [newSubtaskTime, setNewSubtaskTime] = useState<number>(15);
+  
   const handleAddSubtask = useCallback(() => {
     if (!newSubtaskTitle.trim() || !task?.id) return;
     
@@ -145,6 +147,7 @@ export const StreamlinedTaskForm: React.FC<StreamlinedTaskFormProps> = ({
       title: newSubtaskTitle,
       parentTaskId: task.id,
       completed: false,
+      estimatedMinutes: newSubtaskTime,
       createdAt: timestamp,
       updatedAt: timestamp
     });
@@ -155,7 +158,8 @@ export const StreamlinedTaskForm: React.FC<StreamlinedTaskFormProps> = ({
     
     // Clear the input
     setNewSubtaskTitle('');
-  }, [newSubtaskTitle, task, formData.subtasks, addTask, handleSubtasksChange]);
+    setNewSubtaskTime(15); // Reset to default
+  }, [newSubtaskTitle, newSubtaskTime, task, formData.subtasks, addTask, handleSubtasksChange]);
   
   const handleRemoveSubtask = useCallback((subtaskId: string) => {
     handleSubtasksChange((formData.subtasks || []).filter(id => id !== subtaskId));
@@ -436,17 +440,47 @@ export const StreamlinedTaskForm: React.FC<StreamlinedTaskFormProps> = ({
               {tasks
                 .filter(t => formData.subtasks?.includes(t.id))
                 .map(subtask => (
-                  <div key={subtask.id} className="flex items-center justify-between bg-blue-50 p-2 rounded-md">
-                    <span className={`text-sm ${subtask.completed ? 'line-through text-gray-400' : 'text-gray-700'}`}>
-                      {subtask.title}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveSubtask(subtask.id)}
-                      className="text-gray-400 hover:text-red-500"
-                    >
-                      <X size={16} />
-                    </button>
+                  <div key={subtask.id} className="bg-blue-50 p-2 rounded-md">
+                    <div className="flex items-center justify-between">
+                      <span className={`text-sm flex-grow ${subtask.completed ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                        {subtask.title}
+                      </span>
+                      
+                      <div className="flex items-center space-x-2">
+                        {/* Time estimate display and editor */}
+                        <div className="flex items-center bg-white rounded px-2 py-1 border border-gray-200">
+                          <Clock size={14} className="text-blue-500 mr-1" />
+                          <input 
+                            type="number"
+                            min="1"
+                            step="5"
+                            value={subtask.estimatedMinutes || 15}
+                            onChange={(e) => {
+                              // Create an updated version of the subtask
+                              const updatedSubtask = {
+                                ...subtask,
+                                estimatedMinutes: parseInt(e.target.value) || 15
+                              };
+                              // Update the subtask
+                              updateTask(updatedSubtask);
+                            }}
+                            className="w-12 text-xs text-right border-0 p-0 focus:ring-0"
+                            title="Estimated minutes"
+                          />
+                          <span className="text-xs ml-1">min</span>
+                        </div>
+                        
+                        {/* Delete button */}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSubtask(subtask.id)}
+                          className="text-gray-400 hover:text-red-500"
+                          title="Remove subtask"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 ))
               }
@@ -455,31 +489,50 @@ export const StreamlinedTaskForm: React.FC<StreamlinedTaskFormProps> = ({
             <p className="text-sm text-blue-500 mb-3">No subtasks yet. Break down this task into smaller steps.</p>
           )}
           
-          {/* Add new subtask input */}
-          <div className="flex items-center gap-2 mb-4">
-            <input
-              type="text"
-              value={newSubtaskTitle}
-              onChange={(e) => setNewSubtaskTitle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleAddSubtask();
-                }
-              }}
-              placeholder="Add a subtask..."
-              className="flex-grow rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
-            />
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={handleAddSubtask}
-              className="flex items-center"
-            >
-              <Plus size={16} className="mr-1" />
-              Add
-            </Button>
+          {/* Add new subtask input with time estimate */}
+          <div className="space-y-2 mb-4">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={newSubtaskTitle}
+                onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddSubtask();
+                  }
+                }}
+                placeholder="Add a subtask..."
+                className="flex-grow rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+              />
+              
+              {/* Time input for new subtask */}
+              <div className="flex items-center bg-white rounded px-2 py-1 border border-gray-200">
+                <Clock size={14} className="text-blue-500 mr-1" />
+                <input 
+                  type="number"
+                  min="1"
+                  step="5"
+                  value={newSubtaskTime}
+                  onChange={(e) => setNewSubtaskTime(parseInt(e.target.value) || 15)}
+                  className="w-14 text-xs text-right border border-gray-200 rounded p-1"
+                  title="Estimated minutes"
+                />
+                <span className="text-xs ml-1">min</span>
+              </div>
+              
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={handleAddSubtask}
+                className="flex items-center"
+              >
+                <Plus size={16} className="mr-1" />
+                Add
+              </Button>
+            </div>
+            <p className="text-xs text-gray-500">Enter the task and estimated time in minutes</p>
           </div>
         </div>
       )}
