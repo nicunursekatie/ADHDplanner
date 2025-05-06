@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Task, Project, Category } from '../../types';
 import { useAppContext } from '../../context/AppContext';
 import Button from '../common/Button';
-import { Calendar, Clock, Folder, Tag, Star } from 'lucide-react';
+import SubtaskList from './SubtaskList';
+import { Calendar, Folder, Tag } from 'lucide-react';
 
 interface TaskFormProps {
   task?: Task;
@@ -30,6 +31,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
     energyLevel: 'medium',
     size: 'medium',
     estimatedMinutes: 30,
+    subtasks: [],
     ...task,
   };
   
@@ -91,6 +93,13 @@ const TaskForm: React.FC<TaskFormProps> = ({
         };
       }
     });
+  };
+  
+  const handleSubtasksChange = (subtaskIds: string[]) => {
+    setFormData(prev => ({
+      ...prev,
+      subtasks: subtaskIds,
+    }));
   };
 
   const validateForm = (): boolean => {
@@ -230,6 +239,15 @@ const TaskForm: React.FC<TaskFormProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Subtasks section - only show if the task has an ID (meaning it exists) */}
+      {task?.id && (
+        <SubtaskList
+          parentTaskId={task.id}
+          existingSubtasks={formData.subtasks || []}
+          onSubtasksChange={handleSubtasksChange}
+        />
+      )}
 
       <div className="pt-4 border-t border-gray-200 flex justify-end space-x-3">
         <Button

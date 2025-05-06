@@ -12,7 +12,9 @@ import {
   Clock, 
   Zap, 
   BarChart,
-  AlertTriangle
+  AlertTriangle,
+  Plus,
+  ListPlus
 } from 'lucide-react';
 import Badge from '../common/Badge';
 import { formatDateForDisplay } from '../../utils/helpers';
@@ -36,7 +38,9 @@ const EnhancedTaskCard: React.FC<EnhancedTaskCardProps> = ({
   onDelete,
 }) => {
   const [expanded, setExpanded] = useState(false);
-  const { completeTask, tasks } = useAppContext();
+  const [showSubtaskInput, setShowSubtaskInput] = useState(false);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const { completeTask, tasks, addSubtask } = useAppContext();
   
   // Check if the task is overdue
   const today = new Date();
@@ -83,6 +87,35 @@ const EnhancedTaskCard: React.FC<EnhancedTaskCardProps> = ({
     e.stopPropagation();
     if (onDelete) {
       onDelete(task.id);
+    }
+  };
+  
+  const toggleSubtaskInput = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowSubtaskInput(!showSubtaskInput);
+    if (!showSubtaskInput) {
+      setExpanded(true); // Auto-expand when adding subtasks
+    }
+  };
+  
+  const handleAddSubtask = (e: React.MouseEvent | React.FormEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (newSubtaskTitle.trim()) {
+      addSubtask(task.id, { title: newSubtaskTitle.trim() });
+      setNewSubtaskTitle('');
+      setShowSubtaskInput(false);
+    }
+  };
+  
+  const handleSubtaskInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      setShowSubtaskInput(false);
+      setNewSubtaskTitle('');
+      e.stopPropagation();
+    } else if (e.key === 'Enter') {
+      handleAddSubtask(e as unknown as React.FormEvent);
     }
   };
   
@@ -263,10 +296,19 @@ const EnhancedTaskCard: React.FC<EnhancedTaskCardProps> = ({
             </div>
 
             <div className="flex space-x-2">
+              <button
+                onClick={toggleSubtaskInput}
+                className="p-1 text-gray-400 hover:text-indigo-500 rounded"
+                title="Add subtask"
+              >
+                <ListPlus size={16} />
+              </button>
+              
               {onDelete && (
                 <button
                   onClick={handleDelete}
                   className="p-1 text-gray-400 hover:text-red-500 rounded"
+                  title="Delete task"
                 >
                   <Trash2 size={16} />
                 </button>
@@ -274,6 +316,28 @@ const EnhancedTaskCard: React.FC<EnhancedTaskCardProps> = ({
             </div>
           </div>
           
+          {/* Subtask section with optional input */}
+          {showSubtaskInput && (
+            <div className="mt-3 flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
+              <input
+                type="text"
+                className="flex-grow rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                placeholder="Add a subtask..."
+                value={newSubtaskTitle}
+                onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                onKeyDown={handleSubtaskInputKeyDown}
+                autoFocus
+              />
+              <button
+                className="p-1 bg-indigo-500 text-white rounded-md hover:bg-indigo-600"
+                onClick={handleAddSubtask}
+              >
+                <Plus size={16} />
+              </button>
+            </div>
+          )}
+          
+          {/* Subtasks list */}
           {task.subtasks?.length > 0 && (
             <div className="mt-3">
               <button

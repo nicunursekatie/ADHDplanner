@@ -13,6 +13,7 @@ interface AppContextType {
   tasks: Task[];
   addTask: (task: Partial<Task>) => Task;
   quickAddTask: (title: string, projectId?: string | null) => Task;
+  addSubtask: (parentId: string, subtaskData: Partial<Task>) => Task;
   updateTask: (task: Task) => void;
   deleteTask: (taskId: string) => void;
   completeTask: (taskId: string) => void;
@@ -553,6 +554,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsDataInitialized(true);
   }, []);
   
+  // Create a subtask directly linked to a parent task
+  const addSubtask = useCallback((parentId: string, subtaskData: Partial<Task>): Task => {
+    // Make sure the parent exists
+    const parentTask = tasks.find(t => t.id === parentId);
+    if (!parentTask) {
+      throw new Error(`Parent task with ID ${parentId} not found`);
+    }
+    
+    // Create the subtask with parent reference
+    const newSubtask = addTask({
+      ...subtaskData,
+      parentTaskId: parentId,
+      // Inherit project from parent if not specified
+      projectId: subtaskData.projectId !== undefined ? subtaskData.projectId : parentTask.projectId
+    });
+    
+    return newSubtask;
+  }, [tasks, addTask]);
+
   // Simple task creation with smart text parsing
   const quickAddTask = useCallback((title: string, projectId: string | null = null): Task => {
     let processedTitle = title.trim();
@@ -605,6 +625,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     tasks,
     addTask,
     quickAddTask,
+    addSubtask,
     updateTask,
     deleteTask,
     completeTask,
