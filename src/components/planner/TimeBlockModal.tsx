@@ -59,7 +59,14 @@ const TimeBlockModal: React.FC<TimeBlockModalProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={block ? 'Edit Time Block' : 'Add Time Block'}>
+    <Modal isOpen={isOpen} onClose={onClose} title={block ? 'Edit Time Block' : 'Add Custom Time Block'}>
+      <div className="bg-indigo-50 border border-indigo-200 rounded-md p-3 mb-4">
+        <h3 className="text-sm font-medium text-indigo-800 mb-1">Flexible Time Blocking</h3>
+        <p className="text-xs text-indigo-700">
+          Create as many custom time blocks as you need with any start and end times. Your time blocks will be sorted chronologically.
+        </p>
+      </div>
+      
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div>

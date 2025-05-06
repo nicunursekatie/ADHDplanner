@@ -97,13 +97,25 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
   
 
   const handleAddBlock = () => {
+    // Get current hour to set smarter default times
+    const now = new Date();
+    const currentHour = now.getHours();
+    
+    // Set start time to next whole hour and end time to 1 hour later
+    const startHour = currentHour + 1;
+    const endHour = startHour + 1;
+    
+    // Format as HH:00 strings
+    const startTime = `${String(startHour % 24).padStart(2, '0')}:00`;
+    const endTime = `${String(endHour % 24).padStart(2, '0')}:00`;
+    
     const newBlock: TimeBlock = {
       id: generateId(),
-      startTime: '09:00',
-      endTime: '10:00',
+      startTime,
+      endTime,
       taskId: null,
       taskIds: [],
-      title: 'New Block',
+      title: 'New Time Block',
       description: '',
     };
     
@@ -240,11 +252,14 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
         <div className="col-span-3 bg-gray-50 rounded-lg overflow-hidden flex flex-col">
           <div className="p-6 border-b bg-white sticky top-0 z-10">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2 sm:mb-0">Schedule</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-2 sm:mb-0">Daily Schedule</h2>
               <div className="flex space-x-2">
-                <p className="text-sm text-gray-500 mr-2 self-center hidden sm:block">
-                  Add as many time blocks as you need
-                </p>
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-2 mr-2 hidden sm:block">
+                  <p className="text-sm text-blue-700">
+                    <Clock size={14} className="inline mr-1" />
+                    Add unlimited custom time blocks
+                  </p>
+                </div>
                 <Button
                   variant="primary"
                   size="sm"
