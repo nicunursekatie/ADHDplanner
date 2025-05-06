@@ -129,99 +129,45 @@ const Dashboard: React.FC = () => {
         />
       </div>
       
-      {/* Status Indicators and Key Information */}
-      <div className="mb-6 space-y-4">
-        {/* Top Section with Key Metrics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
-          <Card className="bg-indigo-50 border border-indigo-100 h-20 flex items-center">
-            <div className="flex items-center w-full">
-              <Calendar className="w-8 h-8 text-indigo-500 mr-3" />
-              <div>
-                <p className="text-lg font-medium text-gray-900">
-                  {tasksDueToday.length}
-                </p>
-                <p className="text-sm text-gray-600">Due Today</p>
+      {/* Overdue Section - High Priority at Top */}
+      {overdueTasks.length > 0 && (
+        <Card
+          title="Overdue Tasks"
+          className="border-l-4 border-red-500 mb-6"
+          headerAction={
+            <Link 
+              to="/tasks"
+              className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
+            >
+              View All
+              <ArrowRight size={14} className="ml-1" />
+            </Link>
+          }
+        >
+          <div className="space-y-2">
+            {overdueTasks.slice(0, 2).map(task => (
+              <ImprovedTaskCard
+                key={task.id}
+                task={task}
+                projects={projects}
+                categories={categories}
+                onEdit={handleOpenTaskModal}
+              />
+            ))}
+            
+            {overdueTasks.length > 2 && (
+              <div className="pt-1">
+                <Link 
+                  to="/tasks"
+                  className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center justify-center"
+                >
+                  View all {overdueTasks.length} overdue tasks
+                </Link>
               </div>
-            </div>
-          </Card>
-          
-          <Card className="bg-orange-50 border border-orange-100 h-20 flex items-center">
-            <div className="flex items-center w-full">
-              <Calendar className="w-8 h-8 text-orange-500 mr-3" />
-              <div>
-                <p className="text-lg font-medium text-gray-900">
-                  {tasksDueThisWeek.length}
-                </p>
-                <p className="text-sm text-gray-600">Due This Week</p>
-              </div>
-            </div>
-          </Card>
-          
-          <Card className={`${overdueTasks.length > 0 ? 'bg-red-50 border border-red-100' : 'bg-green-50 border border-green-100'} h-20 flex items-center`}>
-            <div className="flex items-center w-full">
-              <Clock className={`w-8 h-8 ${overdueTasks.length > 0 ? 'text-red-500' : 'text-green-500'} mr-3`} />
-              <div>
-                <p className="text-lg font-medium text-gray-900">
-                  {overdueTasks.length}
-                </p>
-                <p className="text-sm text-gray-600">Overdue</p>
-              </div>
-            </div>
-          </Card>
-          
-          <Card className="bg-green-50 border border-green-100 h-20 flex items-center">
-            <div className="flex items-center w-full">
-              <CheckCircle2 className="w-8 h-8 text-green-500 mr-3" />
-              <div>
-                <p className="text-lg font-medium text-gray-900">
-                  {completedTasks.length}
-                </p>
-                <p className="text-sm text-gray-600">Completed</p>
-              </div>
-            </div>
-          </Card>
-        </div>
-        
-        {/* Overdue Section - High Priority at Top */}
-        {overdueTasks.length > 0 && (
-          <Card
-            title="Overdue Tasks"
-            className="border-l-4 border-red-500"
-            headerAction={
-              <Link 
-                to="/tasks"
-                className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
-              >
-                View All
-                <ArrowRight size={14} className="ml-1" />
-              </Link>
-            }
-          >
-            <div className="space-y-2">
-              {overdueTasks.slice(0, 2).map(task => (
-                <ImprovedTaskCard
-                  key={task.id}
-                  task={task}
-                  projects={projects}
-                  categories={categories}
-                  onEdit={handleOpenTaskModal}
-                />
-              ))}
-              
-              {overdueTasks.length > 2 && (
-                <div className="pt-1">
-                  <Link 
-                    to="/tasks"
-                    className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center justify-center"
-                  >
-                    View all {overdueTasks.length} overdue tasks
-                  </Link>
-                </div>
-              )}
-            </div>
-          </Card>
-        )}
-      </div>
+            )}
+          </div>
+        </Card>
+      )}
       
       {/* Main task sections - more compact layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
