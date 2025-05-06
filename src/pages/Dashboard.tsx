@@ -284,6 +284,87 @@ const Dashboard: React.FC = () => {
             )}
           </div>
         </Card>
+
+        {/* Upcoming Tasks - Due This Week */}
+        <Card
+          title="Coming Up This Week"
+          className="lg:col-span-2"
+          headerAction={
+            <Link 
+              to="/tasks"
+              className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
+            >
+              View All
+              <ArrowRight size={14} className="ml-1" />
+            </Link>
+          }
+        >
+          <div className="space-y-3">
+            {tasksDueThisWeek.filter(task => !tasksDueToday.some(t => t.id === task.id)).slice(0, 3).map(task => (
+              <ImprovedTaskCard
+                key={task.id}
+                task={task}
+                projects={projects}
+                categories={categories}
+                onEdit={handleOpenTaskModal}
+              />
+            ))}
+            
+            {tasksDueThisWeek.filter(task => !tasksDueToday.some(t => t.id === task.id)).length === 0 && (
+              <div className="text-center py-4 text-gray-500">
+                No upcoming tasks this week
+              </div>
+            )}
+            
+            {tasksDueThisWeek.filter(task => !tasksDueToday.some(t => t.id === task.id)).length > 3 && (
+              <div className="pt-2">
+                <Link 
+                  to="/tasks"
+                  className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center justify-center"
+                >
+                  View all upcoming tasks
+                </Link>
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* Recently Added Tasks */}
+        <Card
+          title="Recently Added"
+          className="lg:col-span-1"
+          headerAction={
+            <Link 
+              to="/tasks"
+              className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
+            >
+              View All
+              <ArrowRight size={14} className="ml-1" />
+            </Link>
+          }
+        >
+          <div className="space-y-3">
+            {incompleteTasks
+              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+              .slice(0, 3)
+              .map(task => (
+                <ImprovedTaskCard
+                  key={task.id}
+                  task={task}
+                  projects={projects}
+                  categories={categories}
+                  onEdit={handleOpenTaskModal}
+                />
+              ))
+            }
+            
+            {incompleteTasks.length === 0 && (
+              <div className="text-center py-4 text-gray-500">
+                No recently added tasks
+              </div>
+            )}
+          </div>
+        </Card>
         
         {/* Overdue */}
         {overdueTasks.length > 0 && (
@@ -318,6 +399,50 @@ const Dashboard: React.FC = () => {
                     className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center justify-center"
                   >
                     View all {overdueTasks.length} overdue tasks
+                  </Link>
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
+
+        {/* Recently Completed Tasks */}
+        {completedTasks.length > 0 && (
+          <Card
+            title="Recently Completed"
+            className="lg:col-span-3 border-l-4 border-green-500"
+            headerAction={
+              <Link 
+                to="/tasks"
+                className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
+              >
+                View All
+                <ArrowRight size={14} className="ml-1" />
+              </Link>
+            }
+          >
+            <div className="space-y-3">
+              {completedTasks
+                .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+                .slice(0, 3)
+                .map(task => (
+                  <ImprovedTaskCard
+                    key={task.id}
+                    task={task}
+                    projects={projects}
+                    categories={categories}
+                    onEdit={handleOpenTaskModal}
+                  />
+                ))
+              }
+              
+              {completedTasks.length > 3 && (
+                <div className="pt-2">
+                  <Link 
+                    to="/tasks"
+                    className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center justify-center"
+                  >
+                    View all {completedTasks.length} completed tasks
                   </Link>
                 </div>
               )}
