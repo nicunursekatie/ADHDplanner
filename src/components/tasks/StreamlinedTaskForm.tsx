@@ -453,7 +453,7 @@ export const StreamlinedTaskForm: React.FC<StreamlinedTaskFormProps> = ({
                           <input 
                             type="number"
                             min="1"
-                            step="5"
+                            step="1"
                             value={subtask.estimatedMinutes || 15}
                             onChange={(e) => {
                               // Create an updated version of the subtask
@@ -512,7 +512,7 @@ export const StreamlinedTaskForm: React.FC<StreamlinedTaskFormProps> = ({
                 <input 
                   type="number"
                   min="1"
-                  step="5"
+                  step="1"
                   value={newSubtaskTime}
                   onChange={(e) => setNewSubtaskTime(parseInt(e.target.value) || 15)}
                   className="w-14 text-xs text-right border border-gray-200 rounded p-1"
