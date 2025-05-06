@@ -240,10 +240,10 @@ const TaskForm: React.FC<TaskFormProps> = ({
         </div>
       </div>
 
-      {/* Subtasks section - only show if the task has an ID (meaning it exists) */}
-      {task?.id && (
+      {/* Subtasks section - show for all existing tasks, even in edit mode */}
+      {isEdit && (
         <SubtaskList
-          parentTaskId={task.id}
+          parentTaskId={task?.id || ''}
           existingSubtasks={formData.subtasks || []}
           onSubtasksChange={handleSubtasksChange}
         />
