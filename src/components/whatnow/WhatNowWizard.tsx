@@ -76,50 +76,56 @@ const WhatNowWizard: React.FC<WhatNowWizardProps> = ({ onSelectTask }) => {
       <h2 className="text-2xl font-bold text-gray-900">How much time do you have?</h2>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card 
-          className="cursor-pointer hover:shadow-md transition-shadow"
+        <button 
+          className="w-full border-none bg-transparent p-0 text-left cursor-pointer" 
           onClick={() => handleTimeSelection('short')}
         >
-          <div className="text-center">
-            <Clock className="w-10 h-10 text-indigo-500 mx-auto mb-2" />
-            <h3 className="text-lg font-medium text-gray-900">
-              A little time
-            </h3>
-            <p className="text-sm text-gray-500 mt-1">
-              Less than 30 minutes
-            </p>
-          </div>
-        </Card>
+          <Card className="hover:shadow-md transition-shadow h-full">
+            <div className="text-center">
+              <Clock className="w-10 h-10 text-indigo-500 mx-auto mb-2" />
+              <h3 className="text-lg font-medium text-gray-900">
+                A little time
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Less than 30 minutes
+              </p>
+            </div>
+          </Card>
+        </button>
         
-        <Card 
-          className="cursor-pointer hover:shadow-md transition-shadow"
+        <button 
+          className="w-full border-none bg-transparent p-0 text-left cursor-pointer" 
           onClick={() => handleTimeSelection('medium')}
         >
-          <div className="text-center">
-            <Clock className="w-10 h-10 text-indigo-500 mx-auto mb-2" />
-            <h3 className="text-lg font-medium text-gray-900">
-              Some time
-            </h3>
-            <p className="text-sm text-gray-500 mt-1">
-              30 minutes to 2 hours
-            </p>
-          </div>
-        </Card>
+          <Card className="hover:shadow-md transition-shadow h-full">
+            <div className="text-center">
+              <Clock className="w-10 h-10 text-indigo-500 mx-auto mb-2" />
+              <h3 className="text-lg font-medium text-gray-900">
+                Some time
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                30 minutes to 2 hours
+              </p>
+            </div>
+          </Card>
+        </button>
         
-        <Card 
-          className="cursor-pointer hover:shadow-md transition-shadow"
+        <button 
+          className="w-full border-none bg-transparent p-0 text-left cursor-pointer" 
           onClick={() => handleTimeSelection('long')}
         >
-          <div className="text-center">
-            <Clock className="w-10 h-10 text-indigo-500 mx-auto mb-2" />
-            <h3 className="text-lg font-medium text-gray-900">
-              Lots of time
-            </h3>
-            <p className="text-sm text-gray-500 mt-1">
-              More than 2 hours
-            </p>
-          </div>
-        </Card>
+          <Card className="hover:shadow-md transition-shadow h-full">
+            <div className="text-center">
+              <Clock className="w-10 h-10 text-indigo-500 mx-auto mb-2" />
+              <h3 className="text-lg font-medium text-gray-900">
+                Lots of time
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                More than 2 hours
+              </p>
+            </div>
+          </Card>
+        </button>
       </div>
     </div>
   );
@@ -137,50 +143,56 @@ const WhatNowWizard: React.FC<WhatNowWizardProps> = ({ onSelectTask }) => {
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card 
-          className="cursor-pointer hover:shadow-md transition-shadow"
+        <button 
+          className="w-full border-none bg-transparent p-0 text-left cursor-pointer" 
           onClick={() => handleEnergySelection('low')}
         >
-          <div className="text-center">
-            <Lightning className="w-10 h-10 text-orange-500 mx-auto mb-2" />
-            <h3 className="text-lg font-medium text-gray-900">
-              Low Energy
-            </h3>
-            <p className="text-sm text-gray-500 mt-1">
-              Tired, unfocused, or unmotivated
-            </p>
-          </div>
-        </Card>
+          <Card className="hover:shadow-md transition-shadow h-full">
+            <div className="text-center">
+              <Lightning className="w-10 h-10 text-orange-500 mx-auto mb-2" />
+              <h3 className="text-lg font-medium text-gray-900">
+                Low Energy
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Tired, unfocused, or unmotivated
+              </p>
+            </div>
+          </Card>
+        </button>
         
-        <Card 
-          className="cursor-pointer hover:shadow-md transition-shadow"
+        <button 
+          className="w-full border-none bg-transparent p-0 text-left cursor-pointer" 
           onClick={() => handleEnergySelection('medium')}
         >
-          <div className="text-center">
-            <Lightning className="w-10 h-10 text-yellow-500 mx-auto mb-2" />
-            <h3 className="text-lg font-medium text-gray-900">
-              Medium Energy
-            </h3>
-            <p className="text-sm text-gray-500 mt-1">
-              Average focus and motivation
-            </p>
-          </div>
-        </Card>
+          <Card className="hover:shadow-md transition-shadow h-full">
+            <div className="text-center">
+              <Lightning className="w-10 h-10 text-yellow-500 mx-auto mb-2" />
+              <h3 className="text-lg font-medium text-gray-900">
+                Medium Energy
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Average focus and motivation
+              </p>
+            </div>
+          </Card>
+        </button>
         
-        <Card 
-          className="cursor-pointer hover:shadow-md transition-shadow"
+        <button 
+          className="w-full border-none bg-transparent p-0 text-left cursor-pointer" 
           onClick={() => handleEnergySelection('high')}
         >
-          <div className="text-center">
-            <Lightning className="w-10 h-10 text-green-500 mx-auto mb-2" />
-            <h3 className="text-lg font-medium text-gray-900">
-              High Energy
-            </h3>
-            <p className="text-sm text-gray-500 mt-1">
-              Focused, motivated, and ready to work
-            </p>
-          </div>
-        </Card>
+          <Card className="hover:shadow-md transition-shadow h-full">
+            <div className="text-center">
+              <Lightning className="w-10 h-10 text-green-500 mx-auto mb-2" />
+              <h3 className="text-lg font-medium text-gray-900">
+                High Energy
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Focused, motivated, and ready to work
+              </p>
+            </div>
+          </Card>
+        </button>
       </div>
     </div>
   );
