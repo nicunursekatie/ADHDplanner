@@ -13,7 +13,10 @@ import {
   Battery,
   AlignJustify,
   MoreHorizontal,
-  GitBranch
+  GitBranch,
+  ListChecks,
+  Plus,
+  X
 } from 'lucide-react';
 
 interface StreamlinedTaskFormProps {
@@ -46,6 +49,7 @@ export const StreamlinedTaskForm: React.FC<StreamlinedTaskFormProps> = ({
     energyLevel: 'medium',
     size: 'medium',
     estimatedMinutes: 30,
+    subtasks: [],
     ...task,
   };
   
@@ -122,6 +126,40 @@ export const StreamlinedTaskForm: React.FC<StreamlinedTaskFormProps> = ({
   const handleSizeChange = useCallback((size: 'small' | 'medium' | 'large') => {
     setFormData(prev => ({ ...prev, size }));
   }, []);
+  
+  // For subtasks management
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  
+  const handleSubtasksChange = useCallback((subtaskIds: string[]) => {
+    setFormData(prev => ({
+      ...prev,
+      subtasks: subtaskIds,
+    }));
+  }, []);
+  
+  const handleAddSubtask = useCallback(() => {
+    if (!newSubtaskTitle.trim() || !task?.id) return;
+    
+    const timestamp = new Date().toISOString();
+    const newTask = addTask({
+      title: newSubtaskTitle,
+      parentTaskId: task.id,
+      completed: false,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    });
+    
+    // Update the parent task's subtask list
+    const updatedSubtasks = [...(formData.subtasks || []), newTask.id];
+    handleSubtasksChange(updatedSubtasks);
+    
+    // Clear the input
+    setNewSubtaskTitle('');
+  }, [newSubtaskTitle, task, formData.subtasks, addTask, handleSubtasksChange]);
+  
+  const handleRemoveSubtask = useCallback((subtaskId: string) => {
+    handleSubtasksChange((formData.subtasks || []).filter(id => id !== subtaskId));
+  }, [formData.subtasks, handleSubtasksChange]);
 
   const validateForm = useCallback((): boolean => {
     const newErrors: { [key: string]: string } = {};
@@ -382,6 +420,69 @@ export const StreamlinedTaskForm: React.FC<StreamlinedTaskFormProps> = ({
           </>
         )}
       </button>
+      
+      {/* Subtasks section - always visible for existing tasks */}
+      {isEdit && task?.id && (
+        <div className="mt-4 pt-3 pb-2 border-t border-gray-200">
+          <div className="flex items-center mb-2">
+            <ListChecks size={16} className="text-blue-500 mr-2" />
+            <h3 className="text-lg font-medium text-gray-900">Subtasks</h3>
+          </div>
+          <p className="text-sm text-gray-500 mb-3">Break this task down into smaller, more manageable steps.</p>
+          
+          {/* List existing subtasks */}
+          {formData.subtasks && formData.subtasks.length > 0 ? (
+            <div className="mb-3 space-y-1">
+              {tasks
+                .filter(t => formData.subtasks?.includes(t.id))
+                .map(subtask => (
+                  <div key={subtask.id} className="flex items-center justify-between bg-blue-50 p-2 rounded-md">
+                    <span className={`text-sm ${subtask.completed ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                      {subtask.title}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveSubtask(subtask.id)}
+                      className="text-gray-400 hover:text-red-500"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                ))
+              }
+            </div>
+          ) : (
+            <p className="text-sm text-blue-500 mb-3">No subtasks yet. Break down this task into smaller steps.</p>
+          )}
+          
+          {/* Add new subtask input */}
+          <div className="flex items-center gap-2 mb-4">
+            <input
+              type="text"
+              value={newSubtaskTitle}
+              onChange={(e) => setNewSubtaskTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAddSubtask();
+                }
+              }}
+              placeholder="Add a subtask..."
+              className="flex-grow rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={handleAddSubtask}
+              className="flex items-center"
+            >
+              <Plus size={16} className="mr-1" />
+              Add
+            </Button>
+          </div>
+        </div>
+      )}
       
       {/* Advanced options - only visible when toggled */}
       {showAdvanced && (
