@@ -71,7 +71,7 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
       if (draggedTask) {
         const updatedBlocks = timeBlocks.map(block => {
           if (block.id === blockId) {
-            // Initialize taskIds array if it doesn't exist
+            // Initialize taskIds array if it doesnt exist
             const taskIds = block.taskIds || [];
             
             // If using legacy taskId field, migrate to taskIds
@@ -82,7 +82,7 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
             // Create a new array with the dragged task and its subtasks
             const newTaskIds = [...taskIds];
             
-            // Add the parent task if it's not already in the array
+            // Add the parent task if its not already in the array
             if (!newTaskIds.includes(taskId)) {
               newTaskIds.push(taskId);
               
