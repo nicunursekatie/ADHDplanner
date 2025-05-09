@@ -135,7 +135,9 @@ export const ImprovedTaskCard: React.FC<ImprovedTaskCardProps> = ({
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    const dueDate = new Date(task.dueDate);
+    // Parse the task due date from YYYY-MM-DD format
+    const [year, month, day] = task.dueDate.split('-').map(num => parseInt(num, 10));
+    const dueDate = new Date(year, month - 1, day); // Month is 0-indexed in JS Date
     dueDate.setHours(0, 0, 0, 0);
     
     const tomorrow = new Date(today);

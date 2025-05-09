@@ -92,34 +92,63 @@ export const calculateDuration = (
 
 // Get tasks due today
 export const getTasksDueToday = (tasks: Task[]): Task[] => {
-  const today = formatDate(new Date());
-  return tasks.filter((task) => task.dueDate === today && !task.completed);
+  // Create a date for today and set time to beginning of day
+  const todayDate = new Date();
+  todayDate.setHours(0, 0, 0, 0);
+  
+  return tasks.filter((task) => {
+    if (!task.dueDate || task.completed) return false;
+    
+    // Parse the task due date
+    const [year, month, day] = task.dueDate.split('-').map(num => parseInt(num, 10));
+    const dueDate = new Date(year, month - 1, day); // Month is 0-indexed in JS Date
+    dueDate.setHours(0, 0, 0, 0);
+    
+    // Task is due today if the dates are equal
+    return dueDate.getTime() === todayDate.getTime();
+  });
 };
 
 // Get tasks due this week
 export const getTasksDueThisWeek = (tasks: Task[]): Task[] => {
-  const today = new Date();
-  const endOfWeek = new Date();
-  endOfWeek.setDate(today.getDate() + (6 - today.getDay()));
+  // Create date objects for today and end of week
+  const todayDate = new Date();
+  todayDate.setHours(0, 0, 0, 0);
   
-  const todayStr = formatDate(today);
-  const endOfWeekStr = formatDate(endOfWeek);
+  const endOfWeek = new Date(todayDate);
+  endOfWeek.setDate(todayDate.getDate() + (6 - todayDate.getDay()));
+  endOfWeek.setHours(23, 59, 59, 999); // End of the day
   
-  return tasks.filter(
-    (task) => 
-      task.dueDate && 
-      task.dueDate >= todayStr && 
-      task.dueDate <= endOfWeekStr && 
-      !task.completed
-  );
+  return tasks.filter((task) => {
+    if (!task.dueDate || task.completed) return false;
+    
+    // Parse the task due date
+    const [year, month, day] = task.dueDate.split('-').map(num => parseInt(num, 10));
+    const dueDate = new Date(year, month - 1, day); // Month is 0-indexed in JS Date
+    dueDate.setHours(0, 0, 0, 0);
+    
+    // Task is due this week if it's between today and end of week (inclusive)
+    return dueDate >= todayDate && dueDate <= endOfWeek;
+  });
 };
 
 // Get overdue tasks
 export const getOverdueTasks = (tasks: Task[]): Task[] => {
-  const today = formatDate(new Date());
-  return tasks.filter(
-    (task) => task.dueDate && task.dueDate < today && !task.completed
-  );
+  // Create a date for today and set time to beginning of day
+  const todayDate = new Date();
+  todayDate.setHours(0, 0, 0, 0);
+  
+  return tasks.filter((task) => {
+    if (!task.dueDate || task.completed) return false;
+    
+    // Parse the task due date
+    const [year, month, day] = task.dueDate.split('-').map(num => parseInt(num, 10));
+    const dueDate = new Date(year, month - 1, day); // Month is 0-indexed in JS Date
+    dueDate.setHours(0, 0, 0, 0);
+    
+    // Task is overdue if due date is strictly before today
+    return dueDate < todayDate;
+  });
 };
 
 // Get tasks for a specific project

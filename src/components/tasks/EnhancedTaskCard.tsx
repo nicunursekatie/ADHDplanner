@@ -49,18 +49,25 @@ const EnhancedTaskCard: React.FC<EnhancedTaskCardProps> = ({
     .filter(t => task.subtasks?.includes(t.id))
     .reduce((total, subtask) => total + (subtask.estimatedMinutes || 0), 0);
   
-  // Check if the task is overdue
+  // Check if the task is overdue or due today
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  const isOverdue = task.dueDate && 
-    new Date(task.dueDate) < today && 
-    !task.completed;
+  let isOverdue = false;
+  let isToday = false;
   
-  // Check if the task is due today
-  const isToday = task.dueDate && 
-    new Date(task.dueDate).toDateString() === today.toDateString() &&
-    !task.completed;
+  if (task.dueDate && !task.completed) {
+    // Parse the task due date from YYYY-MM-DD format
+    const [year, month, day] = task.dueDate.split('-').map(num => parseInt(num, 10));
+    const dueDate = new Date(year, month - 1, day); // Month is 0-indexed in JS Date
+    dueDate.setHours(0, 0, 0, 0);
+    
+    // Task is overdue if due date is before today
+    isOverdue = dueDate < today;
+    
+    // Task is due today if the dates are equal
+    isToday = dueDate.getTime() === today.getTime();
+  }
     
   const project = task.projectId 
     ? projects.find(p => p.id === task.projectId) 
