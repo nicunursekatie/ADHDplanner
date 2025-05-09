@@ -2,12 +2,6 @@ import React, { useState } from 'react';
 import { Task } from '../../types';
 import { useAppContext } from '../../context/AppContext';
 import { 
-  getOverdueTasks, 
-  getTasksDueToday, 
-  getTasksDueThisWeek,
-  formatDateForDisplay
-} from '../../utils/helpers';
-import { 
   ChevronLeft, 
   ChevronRight, 
   Calendar as CalendarIcon, 
@@ -189,21 +183,24 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onEditTask }) => {
   };
   
   // Check if a date has a work shift
-  const getShiftForDate = (date: Date): string | null => {
-    const { getShiftForDate } = useAppContext();
+  const getDateShift = (date: Date): { timeRange: string, shiftType: string } | null => {
+    const appContext = useAppContext();
     const dateStr = date.toISOString().split('T')[0];
-    const shift = getShiftForDate(dateStr);
+    const shift = appContext.getShiftForDate(dateStr);
     
     if (!shift) return null;
     
-    return `${shift.startTime.substring(0, 5)} - ${shift.endTime.substring(0, 5)}`;
+    const timeRange = `${shift.startTime.substring(0, 5)} - ${shift.endTime.substring(0, 5)}`;
+    const shiftType = shift.shiftType || 'full';
+    
+    return { timeRange, shiftType };
   };
   
   // Render day view
   const renderDayView = () => {
     const tasksForView = getTasksForView();
     const { date, tasks: tasksForDay } = tasksForView[0];
-    const workShift = getShiftForDate(date);
+    const workShift = getDateShift(date);
     
     return (
       <div className="bg-white rounded-lg shadow-sm p-4">
@@ -213,21 +210,37 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onEditTask }) => {
           </h3>
           
           {workShift && (
-            <div className="flex items-center bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm">
+            <div className={`flex items-center px-3 py-1 rounded-full text-sm ${
+              workShift.shiftType === 'morning' ? 'bg-blue-100 text-blue-700' :
+              workShift.shiftType === 'afternoon' ? 'bg-purple-100 text-purple-700' :
+              'bg-indigo-100 text-indigo-700'
+            }`}>
               <Clock size={16} className="mr-1" />
-              <span>Work Shift: 7am - 7pm</span>
+              <span>Work Shift: {workShift.timeRange}</span>
             </div>
           )}
         </div>
         
         {workShift && (
-          <div className="bg-indigo-100 rounded-lg mb-4 border border-indigo-300 overflow-hidden">
-            <div className="bg-indigo-500 text-white px-4 py-2 font-medium flex justify-between items-center">
+          <div className={`rounded-lg mb-4 border overflow-hidden ${
+            workShift.shiftType === 'morning' ? 'bg-blue-100 border-blue-300' :
+            workShift.shiftType === 'afternoon' ? 'bg-purple-100 border-purple-300' :
+            'bg-indigo-100 border-indigo-300'
+          }`}>
+            <div className={`text-white px-4 py-2 font-medium flex justify-between items-center ${
+              workShift.shiftType === 'morning' ? 'bg-blue-500' :
+              workShift.shiftType === 'afternoon' ? 'bg-purple-500' :
+              'bg-indigo-500'
+            }`}>
               <div className="flex items-center">
                 <Clock className="mr-2" size={18} />
-                <span>Work Day (12-Hour Shift)</span>
+                <span>
+                  {workShift.shiftType === 'morning' ? 'Morning Shift (6-Hour)' :
+                   workShift.shiftType === 'afternoon' ? 'Afternoon Shift (6-Hour)' :
+                   'Work Day (12-Hour Shift)'}
+                </span>
               </div>
-              <span>7:00 AM - 7:00 PM</span>
+              <span>{workShift.timeRange}</span>
             </div>
             <div className="p-4">
               <div className="relative h-16 bg-white rounded-lg overflow-hidden">
@@ -246,15 +259,37 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onEditTask }) => {
                   </div>
                   
                   {/* Work block */}
-                  <div className="absolute h-full" style={{ left: '29.16%', width: '50%', top: 0 }}>
-                    <div className="h-full w-full bg-indigo-500 bg-opacity-90 flex items-center justify-center">
-                      <span className="text-white text-sm font-medium">12-Hour Shift</span>
+                  <div 
+                    className="absolute h-full" 
+                    style={{ 
+                      left: workShift.shiftType === 'morning' ? '29.16%' : 
+                             workShift.shiftType === 'afternoon' ? '54.16%' : '29.16%', 
+                      width: workShift.shiftType === 'full' ? '50%' : '25%', 
+                      top: 0 
+                    }}
+                  >
+                    <div className={`h-full w-full flex items-center justify-center text-white bg-opacity-90 ${
+                      workShift.shiftType === 'morning' ? 'bg-blue-500' :
+                      workShift.shiftType === 'afternoon' ? 'bg-purple-500' :
+                      'bg-indigo-500'
+                    }`}>
+                      <span className="text-white text-sm font-medium">
+                        {workShift.shiftType === 'morning' ? 'Morning' :
+                         workShift.shiftType === 'afternoon' ? 'Afternoon' :
+                         'Full-Day'}
+                      </span>
                     </div>
                   </div>
                 </div>
               </div>
-              <p className="mt-3 text-sm text-indigo-700 text-center">
-                This day is mostly filled with your work schedule, leaving limited time for other tasks.
+              <p className={`mt-3 text-sm text-center ${
+                workShift.shiftType === 'morning' ? 'text-blue-700' :
+                workShift.shiftType === 'afternoon' ? 'text-purple-700' :
+                'text-indigo-700'
+              }`}>
+                {workShift.shiftType === 'full' 
+                  ? 'This day is mostly filled with your work schedule, leaving limited time for other tasks.'
+                  : 'You have a half-day shift scheduled, allowing time for other tasks.'}
               </p>
             </div>
           </div>
@@ -300,7 +335,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onEditTask }) => {
         
         <div className="grid grid-cols-7">
           {tasksForView.map(({ date, tasks: tasksForDay }) => {
-            const workShift = getShiftForDate(date);
+            const workShift = getDateShift(date);
             
             return (
               <div 
@@ -322,16 +357,38 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onEditTask }) => {
                 {workShift ? (
                   <div className="flex flex-col h-full space-y-1">
                     {/* Prominent work shift indicator */}
-                    <div className="bg-indigo-500 text-white px-2 py-1 rounded text-xs font-medium flex items-center justify-between">
-                      <span>WORK DAY</span>
-                      <span>7a-7p</span>
+                    <div className={`px-2 py-1 rounded text-xs font-medium flex items-center justify-between text-white ${
+                      workShift.shiftType === 'morning' ? 'bg-blue-500' :
+                      workShift.shiftType === 'afternoon' ? 'bg-purple-500' :
+                      'bg-indigo-500'
+                    }`}>
+                      <span>
+                        {workShift.shiftType === 'morning' ? 'MORNING' :
+                         workShift.shiftType === 'afternoon' ? 'AFTERNOON' :
+                         'WORK DAY'}
+                      </span>
+                      <span>{workShift.timeRange.replace(':00', '')}</span>
                     </div>
                     
                     {/* Visual time block representation */}
-                    <div className="h-10 rounded bg-indigo-100 border border-indigo-200 p-1 relative mb-1 overflow-hidden">
-                      <div className="absolute inset-0 bg-indigo-200 bg-opacity-60 flex items-center justify-center">
-                        <span className="text-xs text-indigo-700 font-medium px-1 py-0.5 bg-white bg-opacity-60 rounded">
-                          12hr Shift
+                    <div className={`h-10 rounded border p-1 relative mb-1 overflow-hidden ${
+                      workShift.shiftType === 'morning' ? 'bg-blue-100 border-blue-200' :
+                      workShift.shiftType === 'afternoon' ? 'bg-purple-100 border-purple-200' :
+                      'bg-indigo-100 border-indigo-200'
+                    }`}>
+                      <div className={`absolute flex items-center justify-center bg-opacity-60 ${
+                        workShift.shiftType === 'morning' ? 'bg-blue-200 left-0 w-1/2' :
+                        workShift.shiftType === 'afternoon' ? 'bg-purple-200 left-1/2 w-1/2' :
+                        'bg-indigo-200 inset-0'
+                      }`}>
+                        <span className={`text-xs font-medium px-1 py-0.5 bg-white bg-opacity-60 rounded ${
+                          workShift.shiftType === 'morning' ? 'text-blue-700' :
+                          workShift.shiftType === 'afternoon' ? 'text-purple-700' :
+                          'text-indigo-700'
+                        }`}>
+                          {workShift.shiftType === 'morning' ? '6hr Morning' :
+                           workShift.shiftType === 'afternoon' ? '6hr Afternoon' :
+                           '12hr Shift'}
                         </span>
                       </div>
                     </div>
@@ -339,7 +396,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onEditTask }) => {
                     {/* Tasks (limited space due to work shift) */}
                     <div className="space-y-1 max-h-12 overflow-hidden">
                       {tasksForDay.length > 0 ? (
-                        tasksForDay.slice(0, 1).map(task => (
+                        tasksForDay.slice(0, workShift.shiftType === 'full' ? 1 : 2).map(task => (
                           <div 
                             key={task.id}
                             className="p-1 text-xs bg-green-100 rounded truncate cursor-pointer hover:bg-green-200"
@@ -350,9 +407,9 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onEditTask }) => {
                         ))
                       ) : null}
                       
-                      {tasksForDay.length > 1 && (
+                      {tasksForDay.length > (workShift.shiftType === 'full' ? 1 : 2) && (
                         <div className="text-xs text-gray-500 text-center">
-                          +{tasksForDay.length - 1} more
+                          +{tasksForDay.length - (workShift.shiftType === 'full' ? 1 : 2)} more
                         </div>
                       )}
                     </div>
@@ -405,7 +462,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onEditTask }) => {
         
         <div className="grid grid-cols-7">
           {tasksForView.map(({ date, tasks: tasksForDay, isPreviousMonth, isNextMonth }) => {
-            const workShift = getShiftForDate(date);
+            const workShift = getDateShift(date);
             const isCurrentMonth = !(isPreviousMonth || isNextMonth);
             
             return (
@@ -432,16 +489,34 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onEditTask }) => {
                 {workShift && isCurrentMonth ? (
                   <div className="flex flex-col space-y-0.5 mt-1">
                     {/* Work shift badge */}
-                    <div className="bg-indigo-500 text-white text-[8px] font-bold px-1 rounded-sm">
-                      WORK DAY
+                    <div className={`text-white text-[8px] font-bold px-1 rounded-sm ${
+                      workShift.shiftType === 'morning' ? 'bg-blue-500' :
+                      workShift.shiftType === 'afternoon' ? 'bg-purple-500' :
+                      'bg-indigo-500'
+                    }`}>
+                      {workShift.shiftType === 'morning' ? 'MORNING' :
+                       workShift.shiftType === 'afternoon' ? 'AFTERNOON' :
+                       'WORK DAY'}
                     </div>
                     
                     {/* Visual shift block */}
-                    <div className="h-9 bg-indigo-100 border border-indigo-200 rounded-sm relative">
-                      <div className="absolute inset-0 bg-indigo-200 bg-opacity-50">
+                    <div className={`h-9 rounded-sm relative border ${
+                      workShift.shiftType === 'morning' ? 'bg-blue-100 border-blue-200' :
+                      workShift.shiftType === 'afternoon' ? 'bg-purple-100 border-purple-200' :
+                      'bg-indigo-100 border-indigo-200'
+                    }`}>
+                      <div className={`absolute bg-opacity-50 ${
+                        workShift.shiftType === 'morning' ? 'bg-blue-200 left-0 w-1/2 h-full' :
+                        workShift.shiftType === 'afternoon' ? 'bg-purple-200 left-1/2 w-1/2 h-full' :
+                        'bg-indigo-200 inset-0'
+                      }`}>
                         <div className="w-full h-full flex items-center justify-center">
-                          <span className="text-[8px] text-indigo-700 bg-white bg-opacity-70 px-0.5 rounded">
-                            7a-7p
+                          <span className={`text-[8px] bg-white bg-opacity-70 px-0.5 rounded ${
+                            workShift.shiftType === 'morning' ? 'text-blue-700' :
+                            workShift.shiftType === 'afternoon' ? 'text-purple-700' :
+                            'text-indigo-700'
+                          }`}>
+                            {workShift.timeRange.replace(':00', '')}
                           </span>
                         </div>
                       </div>

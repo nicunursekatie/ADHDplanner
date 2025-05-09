@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { Task, Project, Category, DailyPlan, WhatNowCriteria, WorkSchedule, WorkShift, DEFAULT_SHIFT } from '../types';
+import { Task, Project, Category, DailyPlan, WhatNowCriteria } from '../types';
+import { WorkSchedule, WorkShift, ShiftType, DEFAULT_SHIFTS, DEFAULT_SHIFT } from '../types/WorkSchedule';
 import * as localStorage from '../utils/localStorage';
 import { generateId, createSampleData } from '../utils/helpers';
 
@@ -42,7 +43,7 @@ interface AppContextType {
   // Work Schedule
   workSchedule: WorkSchedule | null;
   workShifts: WorkShift[];
-  addWorkShift: (date: string) => WorkShift;
+  addWorkShift: (date: string, shiftType?: ShiftType) => WorkShift;
   updateWorkShift: (shift: WorkShift) => void;
   deleteWorkShift: (shiftId: string) => void;
   getShiftsForMonth: (year: number, month: number) => WorkShift[];
@@ -458,12 +459,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Work Schedule
   const workShifts = workSchedule?.shifts || [];
   
-  const addWorkShift = useCallback((date: string): WorkShift => {
+  const addWorkShift = useCallback((date: string, shiftType: ShiftType = 'full'): WorkShift => {
+    const shiftDefaults = DEFAULT_SHIFTS[shiftType];
     const newShift: WorkShift = {
       id: generateId(),
       date,
-      startTime: DEFAULT_SHIFT.startTime,
-      endTime: DEFAULT_SHIFT.endTime,
+      startTime: shiftDefaults.startTime,
+      endTime: shiftDefaults.endTime,
+      shiftType: shiftDefaults.shiftType,
     };
     
     localStorage.addWorkShift(newShift);

@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { WorkShift, DEFAULT_SHIFT, DEFAULT_SHIFT_COLOR } from '../../types';
-import { ChevronLeft, ChevronRight, Plus, Trash2, Calendar, Clock } from 'lucide-react';
-import Button from '../common/Button';
+import { WorkShift, ShiftType, DEFAULT_SHIFTS } from '../../types/WorkSchedule';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface WorkScheduleSelectorProps {
   onScheduleChange?: () => void;
@@ -14,9 +13,10 @@ export const WorkScheduleSelector: React.FC<WorkScheduleSelectorProps> = ({
   // State for tracking current month view
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [selectedShiftType, setSelectedShiftType] = useState<ShiftType>('full');
   
   // Get work schedule data from context
-  const { workShifts, addWorkShift, deleteWorkShift, getShiftsForMonth } = useAppContext();
+  const { workShifts, addWorkShift, updateWorkShift, deleteWorkShift, getShiftsForMonth } = useAppContext();
 
   // Get shifts for the current month
   const monthShifts = getShiftsForMonth(currentYear, currentMonth);
@@ -122,12 +122,23 @@ export const WorkScheduleSelector: React.FC<WorkScheduleSelectorProps> = ({
   
   // Toggle shift for a date
   const toggleShift = (dateStr: string) => {
-    if (shiftsLookup[dateStr]) {
-      // If already has a shift, remove it
-      deleteWorkShift(shiftsLookup[dateStr].id);
+    const existingShift = shiftsLookup[dateStr];
+    
+    if (existingShift) {
+      if (existingShift.shiftType === selectedShiftType) {
+        // If clicking the same shift type, remove the shift
+        deleteWorkShift(existingShift.id);
+      } else {
+        // If clicking a different shift type, update the shift
+        const newShift = { 
+          ...existingShift,
+          ...DEFAULT_SHIFTS[selectedShiftType]
+        };
+        updateWorkShift(newShift);
+      }
     } else {
-      // Add a new shift
-      addWorkShift(dateStr);
+      // Add a new shift with the selected type
+      addWorkShift(dateStr, selectedShiftType);
     }
     
     // Notify parent of change
@@ -168,8 +179,18 @@ export const WorkScheduleSelector: React.FC<WorkScheduleSelectorProps> = ({
             className={`
               relative h-12 p-1 rounded transition-colors
               ${isPreviousMonth || isNextMonth ? 'text-gray-400' : 'text-gray-800'}
-              ${isToday(date) ? 'bg-indigo-100' : ''}
-              ${hasShift ? 'bg-indigo-500 text-white hover:bg-indigo-600' : 'hover:bg-gray-100'}
+              ${isToday(date) && !hasShift ? 'bg-indigo-100' : ''}
+              ${(() => {
+                if (!hasShift) return 'hover:bg-gray-100';
+                const shift = shiftsLookup[dateStr];
+                if (shift.shiftType === 'morning') {
+                  return 'bg-blue-500 text-white hover:bg-blue-600';
+                } else if (shift.shiftType === 'afternoon') {
+                  return 'bg-purple-500 text-white hover:bg-purple-600';
+                } else {
+                  return 'bg-indigo-500 text-white hover:bg-indigo-600';
+                }
+              })()}
             `}
             title={`${date.toDateString()} - ${hasShift ? 'Click to remove shift' : 'Click to add shift'}`}
           >
@@ -179,7 +200,16 @@ export const WorkScheduleSelector: React.FC<WorkScheduleSelectorProps> = ({
             
             {hasShift && (
               <div className="absolute bottom-1 right-1 text-[9px] font-medium">
-                7a-7p
+                {(() => {
+                  const shift = shiftsLookup[dateStr];
+                  if (shift.shiftType === 'morning') {
+                    return '7a-1p';
+                  } else if (shift.shiftType === 'afternoon') {
+                    return '1p-7p';
+                  } else {
+                    return '7a-7p';
+                  }
+                })()}
               </div>
             )}
           </button>
@@ -193,8 +223,44 @@ export const WorkScheduleSelector: React.FC<WorkScheduleSelectorProps> = ({
       <div className="mb-4">
         <h3 className="text-lg font-semibold text-gray-900 mb-1">Work Schedule</h3>
         <p className="text-sm text-gray-600">
-          Click on days to toggle 7am-7pm shifts
+          Select shift type and click on days to toggle shifts
         </p>
+        
+        {/* Shift type selector */}
+        <div className="flex flex-wrap gap-2 mt-3">
+          <button 
+            className={`px-3 py-1 text-sm rounded-md transition-colors ${
+              selectedShiftType === 'full' 
+                ? 'bg-indigo-500 text-white' 
+                : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+            }`}
+            onClick={() => setSelectedShiftType('full')}
+          >
+            Full Day (7a-7p)
+          </button>
+          
+          <button 
+            className={`px-3 py-1 text-sm rounded-md transition-colors ${
+              selectedShiftType === 'morning' 
+                ? 'bg-blue-500 text-white' 
+                : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+            }`}
+            onClick={() => setSelectedShiftType('morning')}
+          >
+            Morning (7a-1p)
+          </button>
+          
+          <button 
+            className={`px-3 py-1 text-sm rounded-md transition-colors ${
+              selectedShiftType === 'afternoon' 
+                ? 'bg-purple-500 text-white' 
+                : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+            }`}
+            onClick={() => setSelectedShiftType('afternoon')}
+          >
+            Afternoon (1p-7p)
+          </button>
+        </div>
       </div>
       
       {/* Month navigation */}
@@ -220,10 +286,18 @@ export const WorkScheduleSelector: React.FC<WorkScheduleSelectorProps> = ({
       {renderCalendarDays()}
       
       {/* Legend */}
-      <div className="mt-4 flex items-center text-sm text-gray-600">
-        <div className="flex items-center mr-4">
+      <div className="mt-4 flex flex-wrap gap-3 items-center text-sm text-gray-600">
+        <div className="flex items-center">
           <div className="w-3 h-3 bg-indigo-500 rounded-full mr-1"></div>
-          <span>Work day (7am-7pm)</span>
+          <span>Full day (7a-7p)</span>
+        </div>
+        <div className="flex items-center">
+          <div className="w-3 h-3 bg-blue-500 rounded-full mr-1"></div>
+          <span>Morning (7a-1p)</span>
+        </div>
+        <div className="flex items-center">
+          <div className="w-3 h-3 bg-purple-500 rounded-full mr-1"></div>
+          <span>Afternoon (1p-7p)</span>
         </div>
         <div className="flex items-center">
           <div className="w-3 h-3 bg-indigo-100 rounded-full mr-1"></div>
