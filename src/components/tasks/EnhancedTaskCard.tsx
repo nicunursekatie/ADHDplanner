@@ -189,7 +189,7 @@ const EnhancedTaskCard: React.FC<EnhancedTaskCardProps> = ({
   const getCardBorderStyle = () => {
     if (task.completed) return 'border-green-500 bg-green-50';
     if (isOverdue) return 'border-red-500 bg-red-50';
-    if (isToday) return 'border-yellow-500 bg-yellow-50';
+    if (isToday) return 'border-green-500'; // Green border without background color for today's tasks
     return 'border-indigo-500';
   };
   
@@ -237,7 +237,7 @@ const EnhancedTaskCard: React.FC<EnhancedTaskCardProps> = ({
                   )}
                   
                   {isToday && !task.completed && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-green-700">
                       Today
                     </span>
                   )}
@@ -283,7 +283,7 @@ const EnhancedTaskCard: React.FC<EnhancedTaskCardProps> = ({
                 {task.dueDate && (
                   <div className={`flex items-center text-xs ${
                     isOverdue ? 'text-red-500 font-semibold' : 
-                    isToday ? 'text-yellow-700 font-semibold' : 
+                    isToday ? 'text-green-600 font-semibold' : 
                     'text-gray-500'
                   }`}>
                     <Calendar size={14} className="mr-1" />

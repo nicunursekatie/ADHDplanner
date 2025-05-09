@@ -157,7 +157,7 @@ const TaskNode: React.FC<TaskNodeProps> = ({
   const getTaskColor = () => {
     if (task.completed) return 'bg-green-50 border-green-500';
     if (isOverdue) return 'bg-red-50 border-red-500';
-    if (isToday) return 'bg-yellow-50 border-yellow-500';
+    if (isToday) return 'border-green-500'; // Green border without background for today's tasks
     return 'bg-white border-indigo-500';
   };
   
@@ -197,7 +197,7 @@ const TaskNode: React.FC<TaskNodeProps> = ({
                 
                 <div className="mt-2 flex flex-wrap gap-2 items-center">
                   {task.dueDate && (
-                    <div className={`flex items-center text-xs ${isOverdue ? 'text-red-500 font-semibold' : isToday ? 'text-yellow-700 font-semibold' : 'text-gray-500'}`}>
+                    <div className={`flex items-center text-xs ${isOverdue ? 'text-red-500 font-semibold' : isToday ? 'text-green-600 font-semibold' : 'text-gray-500'}`}>
                       <Calendar size={14} className="mr-1" />
                       {formatDateForDisplay(task.dueDate)}
                     </div>

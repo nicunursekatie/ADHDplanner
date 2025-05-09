@@ -148,7 +148,7 @@ export const ImprovedTaskCard: React.FC<ImprovedTaskCardProps> = ({
     if (dueDate < today) {
       textColor = 'text-red-600 font-medium';
     } else if (dueDate.getTime() === today.getTime()) {
-      textColor = 'text-indigo-600 font-medium';
+      textColor = 'text-green-600 font-medium'; // Changed to green for today's tasks
     } else if (dueDate.getTime() === tomorrow.getTime()) {
       textColor = 'text-orange-500';
     }
@@ -161,10 +161,28 @@ export const ImprovedTaskCard: React.FC<ImprovedTaskCardProps> = ({
     );
   };
   
+  // Check if task is due today
+  const isDueToday = () => {
+    if (!task.dueDate) return false;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const [year, month, day] = task.dueDate.split('-').map(num => parseInt(num, 10));
+    const dueDate = new Date(year, month - 1, day);
+    dueDate.setHours(0, 0, 0, 0);
+    
+    return dueDate.getTime() === today.getTime();
+  };
+  
   return (
     <div 
       className={`bg-white rounded-lg shadow-sm p-4 mb-3 border-l-4 hover:shadow transition-all ${
-        task.completed ? 'border-green-500 bg-green-50' : task.priority === 'high' ? 'border-red-500' : task.priority === 'medium' ? 'border-orange-500' : 'border-indigo-500'
+        task.completed ? 'border-green-500 bg-green-50' : 
+        isDueToday() ? 'border-green-500' :
+        task.priority === 'high' ? 'border-red-500' : 
+        task.priority === 'medium' ? 'border-orange-500' : 
+        'border-indigo-500'
       } ${isSubtask ? 'ml-6' : ''}`}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
