@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { DndContext, DragEndEvent, DragOverlay, useSensor, useSensors, PointerSensor, DragStartEvent, useDroppable, useDraggable } from '@dnd-kit/core';
 import { Task, TimeBlock } from '../../types';
 import { useAppContext } from '../../context/AppContext';
-import { Plus, Clock, GripVertical, Edit, AlertCircle, Info } from 'lucide-react';
+import { Plus, Clock, GripVertical, Edit, Info } from 'lucide-react';
 import Button from '../common/Button';
 import TaskCard from '../tasks/TaskCard';
 import Empty from '../common/Empty';
@@ -38,8 +38,10 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
     const isIncomplete = !task.completed;
     const taskDate = task.dueDate ? new Date(task.dueDate + 'T00:00:00').toISOString().split('T')[0] : null;
     const isDueOnOrBefore = !taskDate || taskDate <= date;
+    // Only show top-level tasks, not subtasks (tasks without a parent)
+    const isTopLevelTask = !task.parentTaskId;
     
-    return isIncomplete && !hasTimeBlock && isDueOnOrBefore;
+    return isIncomplete && !hasTimeBlock && isDueOnOrBefore && isTopLevelTask;
   });
   
   // Configure DnD sensors
@@ -62,35 +64,53 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
       const taskId = active.id as string;
       const blockId = over.id as string;
       
-      const updatedBlocks = timeBlocks.map(block => {
-        if (block.id === blockId) {
-          // Initialize taskIds array if it doesn't exist
-          const taskIds = block.taskIds || [];
-          
-          // If using legacy taskId field, migrate to taskIds
-          if (block.taskId && !taskIds.includes(block.taskId)) {
-            taskIds.push(block.taskId);
-          }
-          
-          // Add the new task if it's not already in the array
-          if (!taskIds.includes(taskId)) {
-            taskIds.push(taskId);
-          }
-          
-          return { 
-            ...block, 
-            taskId: null, // Clear legacy field
-            taskIds: taskIds 
-          };
-        }
-        return block;
-      });
+      // Find the task that was dragged
+      const draggedTask = tasks.find(t => t.id === taskId);
       
-      saveDailyPlan({
-        id: date,
-        date,
-        timeBlocks: updatedBlocks,
-      });
+      // Only proceed if we found the task
+      if (draggedTask) {
+        const updatedBlocks = timeBlocks.map(block => {
+          if (block.id === blockId) {
+            // Initialize taskIds array if it doesn't exist
+            const taskIds = block.taskIds || [];
+            
+            // If using legacy taskId field, migrate to taskIds
+            if (block.taskId && !taskIds.includes(block.taskId)) {
+              taskIds.push(block.taskId);
+            }
+            
+            // Create a new array with the dragged task and its subtasks
+            const newTaskIds = [...taskIds];
+            
+            // Add the parent task if it's not already in the array
+            if (!newTaskIds.includes(taskId)) {
+              newTaskIds.push(taskId);
+              
+              // Optionally add all subtasks of the dragged task to the time block as well
+              if (draggedTask.subtasks && draggedTask.subtasks.length > 0) {
+                draggedTask.subtasks.forEach(subtaskId => {
+                  if (!newTaskIds.includes(subtaskId)) {
+                    newTaskIds.push(subtaskId);
+                  }
+                });
+              }
+            }
+            
+            return { 
+              ...block, 
+              taskId: null, // Clear legacy field
+              taskIds: newTaskIds 
+            };
+          }
+          return block;
+        });
+        
+        saveDailyPlan({
+          id: date,
+          date,
+          timeBlocks: updatedBlocks,
+        });
+      }
     }
     
     setActiveId(null);
@@ -162,6 +182,10 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
   };
   
   const handleRemoveTaskFromBlock = (taskId: string) => {
+    // Find the task to check if it has subtasks
+    const taskToRemove = tasks.find(t => t.id === taskId);
+    const subtaskIds = taskToRemove?.subtasks || [];
+    
     saveDailyPlan({
       id: date,
       date,
@@ -173,9 +197,10 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
         
         // Remove from taskIds array if present
         if (block.taskIds && block.taskIds.includes(taskId)) {
+          // Also remove all subtasks of this task
           return { 
             ...block, 
-            taskIds: block.taskIds.filter(id => id !== taskId) 
+            taskIds: block.taskIds.filter(id => id !== taskId && !subtaskIds.includes(id)) 
           };
         }
         
@@ -217,11 +242,22 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
       transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
     } : undefined;
 
+    // Check if task has subtasks for visual indicator
+    const hasSubtasks = task.subtasks && task.subtasks.length > 0;
+    const subtaskCount = hasSubtasks ? task.subtasks.length : 0;
+
     return (
       <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="touch-none">
-        <div className="flex items-center mb-2 text-gray-400">
-          <GripVertical size={16} className="mr-2" />
-          <span className="text-sm">Drag to schedule</span>
+        <div className="flex items-center justify-between mb-2 text-gray-400">
+          <div className="flex items-center">
+            <GripVertical size={16} className="mr-2" />
+            <span className="text-sm">Drag to schedule</span>
+          </div>
+          {hasSubtasks && (
+            <div className="flex items-center bg-indigo-50 px-2 py-0.5 rounded text-xs">
+              <span className="text-indigo-600 font-medium">{subtaskCount} subtask{subtaskCount !== 1 ? 's' : ''}</span>
+            </div>
+          )}
         </div>
         <TaskCard
           task={task}
@@ -389,11 +425,15 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
                               if (legacyTask) blockTasks.push(legacyTask);
                             }
                             
-                            // Add tasks from taskIds array
+                            // Add tasks from taskIds array, only including top-level tasks
                             if (block.taskIds && block.taskIds.length > 0) {
                               block.taskIds.forEach(id => {
                                 const task = tasks.find(t => t.id === id);
-                                if (task && !blockTasks.some(t => t.id === id)) blockTasks.push(task);
+                                // Only add top-level tasks or tasks whose parent is not in the same block
+                                if (task && !blockTasks.some(t => t.id === id) && 
+                                   (!task.parentTaskId || !block.taskIds.includes(task.parentTaskId))) {
+                                  blockTasks.push(task);
+                                }
                               });
                             }
                             
@@ -401,13 +441,21 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
                               return (
                                 <div className="mt-3 space-y-2">
                                   {blockTasks.map(task => (
-                                    <TaskCard
-                                      key={task.id}
-                                      task={task}
-                                      projects={projects}
-                                      categories={categories}
-                                      onDelete={() => handleRemoveTaskFromBlock(task.id)}
-                                    />
+                                    <div key={task.id} className="task-container">
+                                      {/* Add a visual parent indicator if this task has subtasks */}
+                                      {task.subtasks && task.subtasks.length > 0 && (
+                                        <div className="mb-1 px-2 py-0.5 bg-indigo-50 text-indigo-600 text-xs rounded inline-flex items-center">
+                                          <span className="font-medium mr-1">{task.subtasks.length}</span>
+                                          <span>subtask{task.subtasks.length !== 1 ? 's' : ''} included</span>
+                                        </div>
+                                      )}
+                                      <TaskCard
+                                        task={task}
+                                        projects={projects}
+                                        categories={categories}
+                                        onDelete={() => handleRemoveTaskFromBlock(task.id)}
+                                      />
+                                    </div>
                                   ))}
                                 </div>
                               );
