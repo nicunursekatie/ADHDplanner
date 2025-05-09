@@ -349,7 +349,10 @@ const EnhancedTaskCard: React.FC<EnhancedTaskCardProps> = ({
                     min="1"
                     step="1"
                     value={newSubtaskTime}
-                    onChange={(e) => setNewSubtaskTime(parseInt(e.target.value) || 15)}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value);
+                      setNewSubtaskTime(isNaN(value) ? 15 : value);
+                    }}
                     className="w-12 text-xs text-right border-0 p-0 focus:ring-0"
                     title="Estimated minutes"
                   />

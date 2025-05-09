@@ -456,10 +456,11 @@ export const StreamlinedTaskForm: React.FC<StreamlinedTaskFormProps> = ({
                             step="1"
                             value={subtask.estimatedMinutes || 15}
                             onChange={(e) => {
+                              const value = parseInt(e.target.value);
                               // Create an updated version of the subtask
                               const updatedSubtask = {
                                 ...subtask,
-                                estimatedMinutes: parseInt(e.target.value) || 15
+                                estimatedMinutes: isNaN(value) ? 15 : value
                               };
                               // Update the subtask
                               updateTask(updatedSubtask);
@@ -514,7 +515,10 @@ export const StreamlinedTaskForm: React.FC<StreamlinedTaskFormProps> = ({
                   min="1"
                   step="1"
                   value={newSubtaskTime}
-                  onChange={(e) => setNewSubtaskTime(parseInt(e.target.value) || 15)}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value);
+                    setNewSubtaskTime(isNaN(value) ? 15 : value);
+                  }}
                   className="w-14 text-xs text-right border border-gray-200 rounded p-1"
                   title="Estimated minutes"
                 />
@@ -702,10 +706,16 @@ export const StreamlinedTaskForm: React.FC<StreamlinedTaskFormProps> = ({
               type="number"
               id="estimatedMinutes"
               name="estimatedMinutes"
-              min="5"
-              step="5"
+              min="1"
+              step="1"
               value={formData.estimatedMinutes || 30}
-              onChange={handleChange}
+              onChange={(e) => {
+                const value = parseInt(e.target.value);
+                setFormData(prev => ({
+                  ...prev,
+                  estimatedMinutes: isNaN(value) ? 30 : value
+                }));
+              }}
               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             />
           </div>

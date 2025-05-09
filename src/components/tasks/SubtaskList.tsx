@@ -118,7 +118,10 @@ const SubtaskList: React.FC<SubtaskListProps> = ({
                           min="1"
                           step="1"
                           value={subtask.estimatedMinutes || 15}
-                          onChange={(e) => handleTimeEstimateChange(subtask.id, parseInt(e.target.value) || 15)}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value);
+                            handleTimeEstimateChange(subtask.id, isNaN(value) ? 15 : value);
+                          }}
                           className="w-12 text-xs text-right border-0 p-0 focus:ring-0"
                           title="Estimated minutes"
                         />
@@ -160,9 +163,12 @@ const SubtaskList: React.FC<SubtaskListProps> = ({
                 <input 
                   type="number"
                   min="1"
-                  step="5"
+                  step="1"
                   value={newSubtaskTime}
-                  onChange={(e) => setNewSubtaskTime(parseInt(e.target.value) || 15)}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value);
+                    setNewSubtaskTime(isNaN(value) ? 15 : value);
+                  }}
                   className="w-14 text-xs text-right border border-gray-200 rounded p-1"
                   title="Estimated minutes"
                 />

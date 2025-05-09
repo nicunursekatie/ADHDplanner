@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { DndContext, DragEndEvent, DragOverlay, useSensor, useSensors, PointerSensor, DragStartEvent, useDroppable, useDraggable } from '@dnd-kit/core';
 import { Task, TimeBlock } from '../../types';
 import { useAppContext } from '../../context/AppContext';
-import { Plus, Clock, GripVertical, Edit } from 'lucide-react';
+import { Plus, Clock, GripVertical, Edit, AlertCircle, Info } from 'lucide-react';
 import Button from '../common/Button';
 import TaskCard from '../tasks/TaskCard';
 import Empty from '../common/Empty';
-import { generateId } from '../../utils/helpers';
+import { generateId, calculateDuration } from '../../utils/helpers';
 import TimeBlockModal from './TimeBlockModal';
+import Card from '../common/Card';
 
 interface DailyPlannerGridProps {
   date: string;
@@ -234,6 +235,34 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
   
   return (
     <>
+      {/* Info card for flexible time blocking */}
+      <Card className="bg-blue-50 border border-blue-200 mb-6">
+        <div className="flex items-start gap-3">
+          <div className="bg-blue-100 p-2 rounded-full">
+            <Info size={18} className="text-blue-600" />
+          </div>
+          <div>
+            <h3 className="text-md font-medium text-blue-800 mb-1">Flexible Time Blocking</h3>
+            <p className="text-sm text-blue-700">
+              Create as many time blocks as you need with any custom start and end times.
+              Your blocks will automatically be arranged chronologically throughout the day.
+            </p>
+            <div className="flex flex-wrap gap-2 mt-2">
+              <div className="bg-white border border-blue-200 rounded-md px-3 py-1 text-xs text-blue-700 flex items-center">
+                <Clock size={12} className="mr-1" />
+                Custom time ranges
+              </div>
+              <div className="bg-white border border-blue-200 rounded-md px-3 py-1 text-xs text-blue-700">
+                Unlimited blocks
+              </div>
+              <div className="bg-white border border-blue-200 rounded-md px-3 py-1 text-xs text-blue-700">
+                Drag & drop tasks
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
+      
       <TimeBlockModal
         block={modalBlock}
         isOpen={isModalOpen}
@@ -305,19 +334,44 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
                         <div className="p-4">
                           <div className="flex justify-between items-start mb-2">
                             <h3 className="font-medium text-gray-900">{block.title}</h3>
-                            <div className="flex items-center">
-                              <span className="text-sm text-gray-500 mr-2">
-                                {block.startTime} - {block.endTime}
-                              </span>
-                              <button 
-                                className="p-1 rounded-full hover:bg-gray-100"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEditBlock(block);
-                                }}
-                              >
-                                <Edit size={14} className="text-gray-500" />
-                              </button>
+                            <div className="flex flex-col items-end">
+                              <div className="flex items-center">
+                                <span className="text-sm text-gray-500 mr-2">
+                                  {block.startTime} - {block.endTime}
+                                </span>
+                                <button 
+                                  className="p-1 rounded-full hover:bg-gray-100"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditBlock(block);
+                                  }}
+                                >
+                                  <Edit size={14} className="text-gray-500" />
+                                </button>
+                              </div>
+                              {(() => {
+                                // Get formatted duration
+                                const { hours, minutes } = calculateDuration(
+                                  block.startTime, 
+                                  block.endTime, 
+                                  { formatted: true, allowOvernight: true }
+                                );
+                                
+                                if (hours === 0 && minutes === 0) {
+                                  return null;
+                                }
+                                
+                                // Only show hours if there are any
+                                const durationText = hours > 0 ? 
+                                  `${hours}h ${minutes > 0 ? `${minutes}m` : ''}` : 
+                                  `${minutes}m`;
+                                
+                                return (
+                                  <span className="text-xs text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded mt-1">
+                                    {durationText}
+                                  </span>
+                                );
+                              })()}
                             </div>
                           </div>
                           

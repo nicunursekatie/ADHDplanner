@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { TimeBlock } from '../../types';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
-import { Save, Trash2, X } from 'lucide-react';
+import { Save, Trash2, X, AlertCircle } from 'lucide-react';
+import { calculateDuration } from '../../utils/helpers';
 
 interface TimeBlockModalProps {
   block: TimeBlock | null;
@@ -25,16 +26,25 @@ const TimeBlockModal: React.FC<TimeBlockModalProps> = ({
       startTime: '09:00',
       endTime: '10:00',
       taskId: null,
+      taskIds: [],
       title: '',
       description: '',
     }
   );
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   // Update the form data when the block prop changes
   React.useEffect(() => {
     if (block) {
-      setFormData(block);
+      // Ensure taskIds is always initialized
+      const blockWithTaskIds = {
+        ...block,
+        taskIds: block.taskIds || []
+      };
+      setFormData(blockWithTaskIds);
     }
+    // Clear validation errors when modal opens/closes
+    setValidationError(null);
   }, [block]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -43,10 +53,28 @@ const TimeBlockModal: React.FC<TimeBlockModalProps> = ({
       ...prev,
       [name]: value,
     }));
+    
+    // Clear validation errors when user starts typing
+    setValidationError(null);
+  };
+
+  const validateForm = (): boolean => {
+    // Use the utility function to validate that end time is after start time
+    const duration = calculateDuration(formData.startTime, formData.endTime);
+    
+    if (duration <= 0) {
+      setValidationError('End time must be after start time');
+      return false;
+    }
+    
+    return true;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateForm()) {
+      return;
+    }
     onSave(formData);
     onClose();
   };
@@ -58,6 +86,26 @@ const TimeBlockModal: React.FC<TimeBlockModalProps> = ({
     }
   };
 
+  // Get duration for display
+  const getDurationText = (): string => {
+    const { hours, minutes } = calculateDuration(formData.startTime, formData.endTime, { 
+      formatted: true, 
+      allowOvernight: true 
+    });
+    
+    if (hours === 0 && minutes === 0) {
+      return '';
+    } else if (hours === 0) {
+      return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
+    } else if (minutes === 0) {
+      return `${hours} hour${hours !== 1 ? 's' : ''}`;
+    } else {
+      return `${hours} hour${hours !== 1 ? 's' : ''} ${minutes} minute${minutes !== 1 ? 's' : ''}`;
+    }
+  };
+
+  const duration = getDurationText();
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={block ? 'Edit Time Block' : 'Add Custom Time Block'}>
       <div className="bg-indigo-50 border border-indigo-200 rounded-md p-3 mb-4">
@@ -66,6 +114,13 @@ const TimeBlockModal: React.FC<TimeBlockModalProps> = ({
           Create as many custom time blocks as you need with any start and end times. Your time blocks will be sorted chronologically.
         </p>
       </div>
+      
+      {validationError && (
+        <div className="bg-red-50 border border-red-200 rounded-md p-3 mb-4 flex items-start">
+          <AlertCircle size={16} className="text-red-600 mr-2 mt-0.5 flex-shrink-0" />
+          <p className="text-sm text-red-700">{validationError}</p>
+        </div>
+      )}
       
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
@@ -79,7 +134,9 @@ const TimeBlockModal: React.FC<TimeBlockModalProps> = ({
               name="startTime"
               value={formData.startTime}
               onChange={handleChange}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              className={`block w-full rounded-md shadow-sm focus:ring-indigo-500 sm:text-sm ${
+                validationError ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-indigo-500'
+              }`}
             />
             <p className="mt-1 text-xs text-gray-500">Enter any time in 24-hour format (e.g., 14:30 for 2:30 PM)</p>
           </div>
@@ -93,11 +150,20 @@ const TimeBlockModal: React.FC<TimeBlockModalProps> = ({
               name="endTime"
               value={formData.endTime}
               onChange={handleChange}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              className={`block w-full rounded-md shadow-sm focus:ring-indigo-500 sm:text-sm ${
+                validationError ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-indigo-500'
+              }`}
             />
             <p className="mt-1 text-xs text-gray-500">Enter any time in 24-hour format (e.g., 16:00 for 4:00 PM)</p>
           </div>
         </div>
+        
+        {duration && (
+          <div className="bg-gray-50 border border-gray-200 rounded-md p-2 text-sm text-gray-700 flex items-center">
+            <span className="font-medium">Duration:</span>
+            <span className="ml-2">{duration}</span>
+          </div>
+        )}
 
         <div>
           <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">

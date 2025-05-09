@@ -41,6 +41,55 @@ export const formatTimeForDisplay = (timeString: string): string => {
   });
 };
 
+/**
+ * Calculate the duration between two times in minutes
+ * @param startTime Time string in 24-hour format (HH:MM)
+ * @param endTime Time string in 24-hour format (HH:MM)
+ * @param options Optional configuration
+ * @returns The duration in minutes, or an object with hours and minutes if formatted
+ */
+export const calculateDuration = (
+  startTime: string, 
+  endTime: string,
+  options?: { 
+    formatted?: boolean,    // Return formatted string
+    allowOvernight?: boolean // Allow end time to be earlier than start time (overnight)
+  }
+) => {
+  try {
+    const startTimeParts = startTime.split(':');
+    const endTimeParts = endTime.split(':');
+    
+    if (startTimeParts.length !== 2 || endTimeParts.length !== 2) {
+      throw new Error('Invalid time format');
+    }
+    
+    const startMinutes = parseInt(startTimeParts[0], 10) * 60 + parseInt(startTimeParts[1], 10);
+    const endMinutes = parseInt(endTimeParts[0], 10) * 60 + parseInt(endTimeParts[1], 10);
+    
+    // Handle overnight blocks
+    let durationMinutes = endMinutes >= startMinutes ? 
+      endMinutes - startMinutes : 
+      (options?.allowOvernight ? (24 * 60) - startMinutes + endMinutes : 0);
+    
+    if (durationMinutes <= 0 && !options?.allowOvernight) {
+      // If end time is before or equal to start time and we don't allow overnight, return zero
+      return options?.formatted ? { hours: 0, minutes: 0 } : 0;
+    }
+    
+    const hours = Math.floor(durationMinutes / 60);
+    const minutes = durationMinutes % 60;
+    
+    if (options?.formatted) {
+      return { hours, minutes };
+    }
+    
+    return durationMinutes;
+  } catch (error) {
+    return options?.formatted ? { hours: 0, minutes: 0 } : 0;
+  }
+};
+
 // Get tasks due today
 export const getTasksDueToday = (tasks: Task[]): Task[] => {
   const today = formatDate(new Date());
