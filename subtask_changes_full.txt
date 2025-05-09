@@ -1,0 +1,219 @@
+Changes made to improve subtask handling in the planner:
+
+1. In DailyPlannerGrid.tsx:
+
+   a. Removed unused import:
+   - Removed AlertCircle from imports (line 5)
+
+   b. Modified unscheduled tasks filter to only show top-level tasks:
+```diff
+  const unscheduledTasks = tasks.filter(task => {
+    // Check if the task is in any block's taskIds array or the legacy taskId field
+    const hasTimeBlock = timeBlocks.some(block => 
+      block.taskId === task.id || (block.taskIds && block.taskIds.includes(task.id))
+    );
+    const isIncomplete = \!task.completed;
+    const taskDate = task.dueDate ? new Date(task.dueDate + 'T00:00:00').toISOString().split('T')[0] : null;
+    const isDueOnOrBefore = \!taskDate || taskDate <= date;
++   // Only show top-level tasks, not subtasks (tasks without a parent)
++   const isTopLevelTask = \!task.parentTaskId;
+    
+-   return isIncomplete && \!hasTimeBlock && isDueOnOrBefore;
++   return isIncomplete && \!hasTimeBlock && isDueOnOrBefore && isTopLevelTask;
+  });
+```
+
+   c. Enhanced handleDragEnd to include subtasks when parent task is dragged:
+```diff
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (over && active.id \!== over.id) {
+      const taskId = active.id as string;
+      const blockId = over.id as string;
+      
++     // Find the task that was dragged
++     const draggedTask = tasks.find(t => t.id === taskId);
+      
+-     const updatedBlocks = timeBlocks.map(block => {
++     // Only proceed if we found the task
++     if (draggedTask) {
++       const updatedBlocks = timeBlocks.map(block => {
+          if (block.id === blockId) {
+            // Initialize taskIds array if it doesn't exist
+            const taskIds = block.taskIds || [];
+            
+            // If using legacy taskId field, migrate to taskIds
+            if (block.taskId && \!taskIds.includes(block.taskId)) {
+              taskIds.push(block.taskId);
+            }
+            
+-           // Add the new task if it's not already in the array
+-           if (\!taskIds.includes(taskId)) {
+-             taskIds.push(taskId);
+-           }
++           // Create a new array with the dragged task and its subtasks
++           const newTaskIds = [...taskIds];
++           
++           // Add the parent task if it's not already in the array
++           if (\!newTaskIds.includes(taskId)) {
++             newTaskIds.push(taskId);
++             
++             // Optionally add all subtasks of the dragged task to the time block as well
++             if (draggedTask.subtasks && draggedTask.subtasks.length > 0) {
++               draggedTask.subtasks.forEach(subtaskId => {
++                 if (\!newTaskIds.includes(subtaskId)) {
++                   newTaskIds.push(subtaskId);
++                 }
++               });
++             }
++           }
+            
+            return { 
+              ...block, 
+              taskId: null, // Clear legacy field
+-             taskIds: taskIds 
++             taskIds: newTaskIds 
+            };
+          }
+          return block;
+        });
+        
+        saveDailyPlan({
+          id: date,
+          date,
+          timeBlocks: updatedBlocks,
+        });
++     }
+    }
+    
+    setActiveId(null);
+  };
+```
+
+   d. Modified handleRemoveTaskFromBlock to also remove subtasks:
+```diff
+  const handleRemoveTaskFromBlock = (taskId: string) => {
++   // Find the task to check if it has subtasks
++   const taskToRemove = tasks.find(t => t.id === taskId);
++   const subtaskIds = taskToRemove?.subtasks || [];
+    
+    saveDailyPlan({
+      id: date,
+      date,
+      timeBlocks: timeBlocks.map(block => {
+        // Remove from legacy taskId field
+        if (block.taskId === taskId) {
+          return { ...block, taskId: null };
+        }
+        
+        // Remove from taskIds array if present
+        if (block.taskIds && block.taskIds.includes(taskId)) {
++         // Also remove all subtasks of this task
+          return { 
+            ...block, 
+-           taskIds: block.taskIds.filter(id => id \!== taskId) 
++           taskIds: block.taskIds.filter(id => id \!== taskId && \!subtaskIds.includes(id)) 
+          };
+        }
+        
+        return block;
+      }),
+    });
+    
+    // Task is only removed from time block, not deleted from the app
+  };
+```
+
+   e. Enhanced DraggableTask to show subtask indicator:
+```diff
+  const DraggableTask = ({ task }: { task: Task }) => {
+    const { attributes, listeners, setNodeRef, transform } = useDraggable({
+      id: task.id,
+    });
+    
+    const style = transform ? {
+      transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+    } : undefined;
+
++   // Check if task has subtasks for visual indicator
++   const hasSubtasks = task.subtasks && task.subtasks.length > 0;
++   const subtaskCount = hasSubtasks ? task.subtasks.length : 0;
+
+    return (
+      <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="touch-none">
+-       <div className="flex items-center mb-2 text-gray-400">
+-         <GripVertical size={16} className="mr-2" />
+-         <span className="text-sm">Drag to schedule</span>
++       <div className="flex items-center justify-between mb-2 text-gray-400">
++         <div className="flex items-center">
++           <GripVertical size={16} className="mr-2" />
++           <span className="text-sm">Drag to schedule</span>
++         </div>
++         {hasSubtasks && (
++           <div className="flex items-center bg-indigo-50 px-2 py-0.5 rounded text-xs">
++             <span className="text-indigo-600 font-medium">{subtaskCount} subtask{subtaskCount \!== 1 ? 's' : ''}</span>
++           </div>
++         )}
+        </div>
+        <TaskCard
+          task={task}
+          projects={projects}
+          categories={categories}
+          onDelete={() => handleRemoveTaskFromBlock(task.id)}
+        />
+      </div>
+    );
+  };
+```
+
+   f. Modified task display in time blocks to show subtask indicators:
+```diff
+                                  {blockTasks.map(task => (
+-                                   <TaskCard
+-                                     key={task.id}
+-                                     task={task}
+-                                     projects={projects}
+-                                     categories={categories}
+-                                     onDelete={() => handleRemoveTaskFromBlock(task.id)}
+-                                   />
++                                   <div key={task.id} className="task-container">
++                                     {/* Add a visual parent indicator if this task has subtasks */}
++                                     {task.subtasks && task.subtasks.length > 0 && (
++                                       <div className="mb-1 px-2 py-0.5 bg-indigo-50 text-indigo-600 text-xs rounded inline-flex items-center">
++                                         <span className="font-medium mr-1">{task.subtasks.length}</span>
++                                         <span>subtask{task.subtasks.length \!== 1 ? 's' : ''} included</span>
++                                       </div>
++                                     )}
++                                     <TaskCard
++                                       task={task}
++                                       projects={projects}
++                                       categories={categories}
++                                       onDelete={() => handleRemoveTaskFromBlock(task.id)}
++                                     />
++                                   </div>
+                                  ))}
+```
+
+   g. Added filter to only include top-level tasks or tasks without parents in the same block:
+```diff
+                            // Add tasks from taskIds array
+                            if (block.taskIds && block.taskIds.length > 0) {
+                              block.taskIds.forEach(id => {
+                                const task = tasks.find(t => t.id === id);
+-                               if (task && \!blockTasks.some(t => t.id === id)) blockTasks.push(task);
++                               // Only add top-level tasks or tasks whose parent is not in the same block
++                               if (task && \!blockTasks.some(t => t.id === id) && 
++                                  (\!task.parentTaskId || \!block.taskIds.includes(task.parentTaskId))) {
++                                 blockTasks.push(task);
++                               }
+                              });
+                            }
+```
+
+These changes ensure that:
+1. Only parent tasks appear in the unscheduled task list
+2. When dragging a parent task, its subtasks come along
+3. When removing a parent task, its subtasks are also removed
+4. Tasks with subtasks have clear visual indicators
+5. The task hierarchy is preserved throughout the planning process
