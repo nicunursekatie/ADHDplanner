@@ -12,6 +12,7 @@ import CategoriesPage from './pages/CategoriesPage';
 import WhatNowPage from './pages/WhatNowPage';
 import CalendarPage from './pages/CalendarPage';
 import EnhancedPlanningPage from './pages/EnhancedPlanningPage';
+import PlannerPage from './pages/PlannerPage';
 import SettingsPage from './pages/SettingsPage';
 
 // Memory Tools Pages
@@ -32,7 +33,8 @@ function App() {
             <Route path="/categories" element={<CategoriesPage />} />
             <Route path="/what-now" element={<WhatNowPage />} />
             <Route path="/calendar" element={<CalendarPage />} />
-            <Route path="/planner" element={<EnhancedPlanningPage />} />
+            <Route path="/planner" element={<PlannerPage />} />
+            <Route path="/planning" element={<EnhancedPlanningPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             
             {/* Memory Tools Routes */}
