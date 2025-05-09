@@ -63,33 +63,7 @@ const PlannerPage: React.FC = () => {
         </div>
       </div>
       
-      {/* Time Block Info Card */}
-      <Card className="bg-blue-50 border border-blue-200">
-        <div className="flex items-start gap-3">
-          <div className="bg-blue-100 p-2 rounded-full">
-            <Info size={18} className="text-blue-600" />
-          </div>
-          <div>
-            <h3 className="text-md font-medium text-blue-800 mb-1">Flexible Time Blocking</h3>
-            <p className="text-sm text-blue-700">
-              Create as many time blocks as you need with any custom start and end times.
-              Your blocks will automatically be arranged chronologically throughout the day.
-            </p>
-            <div className="flex flex-wrap gap-2 mt-2">
-              <div className="bg-white border border-blue-200 rounded-md px-3 py-1 text-xs text-blue-700 flex items-center">
-                <Clock size={12} className="mr-1" />
-                Custom time ranges
-              </div>
-              <div className="bg-white border border-blue-200 rounded-md px-3 py-1 text-xs text-blue-700">
-                Unlimited blocks
-              </div>
-              <div className="bg-white border border-blue-200 rounded-md px-3 py-1 text-xs text-blue-700">
-                Drag & drop tasks
-              </div>
-            </div>
-          </div>
-        </div>
-      </Card>
+      {/* No info card here - now only shown inside the DailyPlannerGrid component */}
       
       {/* Date navigation */}
       <div className="flex items-center justify-between bg-white rounded-lg shadow-sm px-6 py-3">
