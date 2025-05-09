@@ -405,56 +405,99 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     localStorage.saveDailyPlans(updatedPlans);
   }, [dailyPlans]);
   
-  // Function to export time blocks to calendar as tasks
+  // Function to export time blocks to calendar as .ics file
   const exportTimeBlocksToTasks = useCallback((date: string): number => {
     // Get the daily plan for the specified date
     const plan = getDailyPlan(date);
     if (!plan || !plan.timeBlocks || plan.timeBlocks.length === 0) {
       return 0; // No time blocks to export
     }
-    
-    const timestamp = new Date().toISOString();
+
     let exportedCount = 0;
-    const newTasks: Task[] = [];
-    
-    // Create tasks for each time block
+
+    // Create ICS content
+    let icsContent = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//ADHDplanner//TimeBlocks//EN',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH'
+    ];
+
+    // Parse the date
+    const dateParts = date.split('-');
+    const year = parseInt(dateParts[0]);
+    const month = parseInt(dateParts[1]);
+    const day = parseInt(dateParts[2]);
+
+    // Process each time block
     plan.timeBlocks.forEach(block => {
       // Skip empty blocks with no title
       if (!block.title || block.title === 'New Time Block') {
         return;
       }
-      
-      // Create a title that includes the time range
-      const title = `${block.startTime}-${block.endTime}: ${block.title}`;
-      
-      // Create a new task for this time block
-      const newTask: Task = {
-        id: generateId(),
-        title,
-        description: block.description || '',
-        completed: false,
-        archived: false,
-        dueDate: date,
-        projectId: null,
-        categoryIds: [],
-        parentTaskId: null,
-        subtasks: [],
-        createdAt: timestamp,
-        updatedAt: timestamp,
+
+      // Parse time values (assuming format like "09:00")
+      const startParts = block.startTime.split(':');
+      const endParts = block.endTime.split(':');
+
+      // Create start and end datetime in UTC format for ICS
+      const startHour = parseInt(startParts[0]);
+      const startMin = parseInt(startParts[1]);
+      const endHour = parseInt(endParts[0]);
+      const endMin = parseInt(endParts[1]);
+
+      // Create Date objects
+      const startDate = new Date(year, month - 1, day, startHour, startMin);
+      const endDate = new Date(year, month - 1, day, endHour, endMin);
+
+      // Format dates as ICS format (YYYYMMDDTHHMMSSZ)
+      const formatToICS = (date: Date) => {
+        return date.getUTCFullYear() +
+          String(date.getUTCMonth() + 1).padStart(2, '0') +
+          String(date.getUTCDate()).padStart(2, '0') + 'T' +
+          String(date.getUTCHours()).padStart(2, '0') +
+          String(date.getUTCMinutes()).padStart(2, '0') +
+          String(date.getUTCSeconds()).padStart(2, '0') + 'Z';
       };
-      
-      newTasks.push(newTask);
+
+      // Format description - replace newlines with \\n
+      const description = (block.description || '').replace(/\n/g, '\\n');
+
+      // Add event to ICS content
+      icsContent = icsContent.concat([
+        'BEGIN:VEVENT',
+        `UID:${Date.now()}-${exportedCount}@adhdplanner`,
+        `DTSTAMP:${formatToICS(new Date())}`,
+        `DTSTART:${formatToICS(startDate)}`,
+        `DTEND:${formatToICS(endDate)}`,
+        `SUMMARY:${block.title}`,
+        `DESCRIPTION:${description}`,
+        'END:VEVENT'
+      ]);
+
       exportedCount++;
     });
-    
-    // Add all the new tasks to the task list
-    if (newTasks.length > 0) {
-      setTasks(prevTasks => [...prevTasks, ...newTasks]);
-      localStorage.saveTasks([...tasks, ...newTasks]);
+
+    // Finalize ICS content
+    icsContent.push('END:VCALENDAR');
+
+    // Generate downloadable file if there are events
+    if (exportedCount > 0) {
+      const icsData = icsContent.join('\r\n');
+      const blob = new Blob([icsData], { type: 'text/calendar;charset=utf-8' });
+
+      // Create a link element to trigger download
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `ADHDplanner-${date}.ics`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
-    
+
     return exportedCount;
-  }, [getDailyPlan, tasks]);
+  }, [getDailyPlan]);
   
   // Work Schedule
   const workShifts = workSchedule?.shifts || [];

@@ -55,12 +55,12 @@ const PlannerPage: React.FC = () => {
     year: 'numeric',
   });
   
-  // Handler for exporting time blocks to calendar
+  // Handler for exporting time blocks to calendar as .ics file
   const handleExportToCalendar = () => {
     const formattedDate = formatDateToYYYYMMDD(currentDate);
     const exportedCount = exportTimeBlocksToTasks(formattedDate);
     setExportSuccess(exportedCount);
-    
+
     // Clear success message after 3 seconds
     setTimeout(() => {
       setExportSuccess(null);
@@ -83,7 +83,7 @@ const PlannerPage: React.FC = () => {
             onClick={handleExportToCalendar}
             className="flex items-center"
           >
-            Export to Calendar
+            Export as Calendar File
             <ExternalLink size={14} className="ml-1" />
           </Button>
           
@@ -91,8 +91,8 @@ const PlannerPage: React.FC = () => {
             <div className={`mt-2 text-sm px-3 py-1 rounded-md ${
               exportSuccess > 0 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
             }`}>
-              {exportSuccess > 0 
-                ? `${exportSuccess} time block${exportSuccess !== 1 ? 's' : ''} exported to calendar` 
+              {exportSuccess > 0
+                ? `${exportSuccess} time block${exportSuccess !== 1 ? 's' : ''} exported as calendar file`
                 : 'No time blocks to export'}
             </div>
           )}
