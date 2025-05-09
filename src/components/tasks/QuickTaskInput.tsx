@@ -38,10 +38,12 @@ const QuickTaskInput: React.FC<QuickTaskInputProps> = ({
       e.preventDefault();
     }
     
+    // Check if the title is empty after trimming
     if (!title.trim()) return;
     
+    // Create the task with the trimmed title for storage
     const newTask: Partial<Task> = {
-      title: title.trim(),
+      title: title.trim(), // Make sure to trim when saving
       dueDate,
       projectId,
       categoryIds,
@@ -80,19 +82,22 @@ const QuickTaskInput: React.FC<QuickTaskInputProps> = ({
   
   // Process title for smart parsing
   const processTitle = (input: string) => {
+    // Keep spaces in the input when setting the title
+    setTitle(input);
+    
+    // Use a trimmed version only for pattern matching
     const titleText = input.trim();
-    setTitle(titleText);
     
     // Check for due date patterns like "!today", "!tomorrow", "!3d", "!2w"
     if (titleText.includes('!today')) {
       const today = new Date();
       setDueDate(today.toISOString().split('T')[0]);
-      setTitle(titleText.replace('!today', '').trim());
+      setTitle(input.replace('!today', ''));
     } else if (titleText.includes('!tomorrow')) {
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       setDueDate(tomorrow.toISOString().split('T')[0]);
-      setTitle(titleText.replace('!tomorrow', '').trim());
+      setTitle(input.replace('!tomorrow', ''));
     } else if (titleText.match(/!(\d+)d/)) {
       const match = titleText.match(/!(\d+)d/);
       if (match && match[1]) {
@@ -100,7 +105,7 @@ const QuickTaskInput: React.FC<QuickTaskInputProps> = ({
         const date = new Date();
         date.setDate(date.getDate() + days);
         setDueDate(date.toISOString().split('T')[0]);
-        setTitle(titleText.replace(/!(\d+)d/, '').trim());
+        setTitle(input.replace(/!(\d+)d/, ''));
       }
     } else if (titleText.match(/!(\d+)w/)) {
       const match = titleText.match(/!(\d+)w/);
@@ -109,20 +114,20 @@ const QuickTaskInput: React.FC<QuickTaskInputProps> = ({
         const date = new Date();
         date.setDate(date.getDate() + (weeks * 7));
         setDueDate(date.toISOString().split('T')[0]);
-        setTitle(titleText.replace(/!(\d+)w/, '').trim());
+        setTitle(input.replace(/!(\d+)w/, ''));
       }
     }
     
     // Check for priority markers like "!high", "!medium", "!low"
     if (titleText.includes('!high')) {
       setPriority('high');
-      setTitle(titleText.replace('!high', '').trim());
+      setTitle(input.replace('!high', ''));
     } else if (titleText.includes('!medium')) {
       setPriority('medium');
-      setTitle(titleText.replace('!medium', '').trim());
+      setTitle(input.replace('!medium', ''));
     } else if (titleText.includes('!low')) {
       setPriority('low');
-      setTitle(titleText.replace('!low', '').trim());
+      setTitle(input.replace('!low', ''));
     }
     
     // Check for project tags like "#project-name"
@@ -135,7 +140,7 @@ const QuickTaskInput: React.FC<QuickTaskInputProps> = ({
       
       if (matchedProject) {
         setProjectId(matchedProject.id);
-        setTitle(titleText.replace(/#([a-zA-Z0-9-_]+)/, '').trim());
+        setTitle(input.replace(/#([a-zA-Z0-9-_]+)/, ''));
       }
     }
     
@@ -143,7 +148,7 @@ const QuickTaskInput: React.FC<QuickTaskInputProps> = ({
     const categoryMatches = titleText.match(/@([a-zA-Z0-9-_]+)/g);
     if (categoryMatches) {
       const newCategoryIds: string[] = [];
-      let newTitle = titleText;
+      let newTitle = input;
       
       categoryMatches.forEach(match => {
         const categoryName = match.substring(1).toLowerCase();
@@ -153,7 +158,7 @@ const QuickTaskInput: React.FC<QuickTaskInputProps> = ({
         
         if (matchedCategory) {
           newCategoryIds.push(matchedCategory.id);
-          newTitle = newTitle.replace(match, '').trim();
+          newTitle = newTitle.replace(match, '');
         }
       });
       

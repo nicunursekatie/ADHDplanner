@@ -19,6 +19,7 @@ export const QuickCapture: React.FC<QuickCaptureProps> = ({
   
   // Process input for smart text parsing
   const processInput = (input: string) => {
+    // Keep spaces in the input during editing
     let processedTitle = input;
     let dueDate: string | null = null;
     let priority: 'low' | 'medium' | 'high' = 'medium';
@@ -27,21 +28,21 @@ export const QuickCapture: React.FC<QuickCaptureProps> = ({
     if (input.includes('!today')) {
       const today = new Date();
       dueDate = today.toISOString().split('T')[0];
-      processedTitle = input.replace('!today', '').trim();
+      processedTitle = input.replace('!today', '');
     } else if (input.includes('!tomorrow')) {
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       dueDate = tomorrow.toISOString().split('T')[0];
-      processedTitle = input.replace('!tomorrow', '').trim();
+      processedTitle = input.replace('!tomorrow', '');
     }
     
     // Check for priority markers
     if (input.includes('!high')) {
       priority = 'high';
-      processedTitle = processedTitle.replace('!high', '').trim();
+      processedTitle = processedTitle.replace('!high', '');
     } else if (input.includes('!low')) {
       priority = 'low';
-      processedTitle = processedTitle.replace('!low', '').trim();
+      processedTitle = processedTitle.replace('!low', '');
     }
     
     return { title: processedTitle, dueDate, priority };
@@ -59,7 +60,7 @@ export const QuickCapture: React.FC<QuickCaptureProps> = ({
     const { title: processedTitle, dueDate, priority } = processInput(title);
     
     addTask({
-      title: processedTitle,
+      title: processedTitle.trim(), // Ensure we trim the title when saving
       dueDate,
       priority,
       projectId: defaultProjectId,

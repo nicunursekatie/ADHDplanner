@@ -20,6 +20,7 @@ export const EnhancedQuickCapture: React.FC<EnhancedQuickCaptureProps> = ({
   
   // Process input for smart text parsing
   const processInput = (input: string) => {
+    // Keep the original input for preserving spaces during editing
     let processedTitle = input;
     let dueDate: string | null = null;
     let priority: 'low' | 'medium' | 'high' = 'medium';
@@ -28,12 +29,13 @@ export const EnhancedQuickCapture: React.FC<EnhancedQuickCaptureProps> = ({
     if (input.includes('!today')) {
       const today = new Date();
       dueDate = today.toISOString().split('T')[0];
-      processedTitle = input.replace('!today', '').trim();
+      // Don't trim during processing to preserve spaces
+      processedTitle = input.replace('!today', '');
     } else if (input.includes('!tomorrow')) {
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       dueDate = tomorrow.toISOString().split('T')[0];
-      processedTitle = input.replace('!tomorrow', '').trim();
+      processedTitle = input.replace('!tomorrow', '');
     } else if (input.match(/!(\d+)d/)) {
       const match = input.match(/!(\d+)d/);
       if (match && match[1]) {
@@ -41,17 +43,17 @@ export const EnhancedQuickCapture: React.FC<EnhancedQuickCaptureProps> = ({
         const date = new Date();
         date.setDate(date.getDate() + days);
         dueDate = date.toISOString().split('T')[0];
-        processedTitle = processedTitle.replace(/!(\d+)d/, '').trim();
+        processedTitle = processedTitle.replace(/!(\d+)d/, '');
       }
     }
     
     // Check for priority markers
     if (input.includes('!high')) {
       priority = 'high';
-      processedTitle = processedTitle.replace('!high', '').trim();
+      processedTitle = processedTitle.replace('!high', '');
     } else if (input.includes('!low')) {
       priority = 'low';
-      processedTitle = processedTitle.replace('!low', '').trim();
+      processedTitle = processedTitle.replace('!low', '');
     }
     
     return { title: processedTitle, dueDate, priority };
@@ -69,7 +71,7 @@ export const EnhancedQuickCapture: React.FC<EnhancedQuickCaptureProps> = ({
     const { title: processedTitle, dueDate, priority } = processInput(title);
     
     addTask({
-      title: processedTitle,
+      title: processedTitle.trim(), // Ensure the title is trimmed when saving
       dueDate,
       priority,
       projectId: defaultProjectId,
