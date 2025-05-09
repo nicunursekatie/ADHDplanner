@@ -11,7 +11,7 @@ interface WhatNowWizardProps {
 }
 
 const WhatNowWizard: React.FC<WhatNowWizardProps> = ({ onSelectTask }) => {
-  const { recommendTasks, projects, categories } = useAppContext();
+  const { recommendTasks, projects, categories, deleteTask } = useAppContext();
   
   const [step, setStep] = useState(1);
   const [criteria, setCriteria] = useState<WhatNowCriteria>({
@@ -315,6 +315,7 @@ const WhatNowWizard: React.FC<WhatNowWizardProps> = ({ onSelectTask }) => {
               projects={projects}
               categories={categories}
               onEdit={onSelectTask}
+              onDelete={deleteTask}
             />
           ))
         ) : (

@@ -18,7 +18,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
   onClose,
   isEdit = false,
 }) => {
-  const { addTask, updateTask, projects, categories } = useAppContext();
+  const { addTask, updateTask, deleteTask, projects, categories } = useAppContext();
   
   const initialState: Partial<Task> = {
     title: '',
@@ -265,20 +265,38 @@ const TaskForm: React.FC<TaskFormProps> = ({
         )}
       </div>
 
-      <div className="pt-4 border-t border-gray-200 flex justify-end space-x-3">
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={onClose}
-        >
-          Cancel
-        </Button>
-        <Button
-          type="submit"
-          variant="primary"
-        >
-          {isEdit ? 'Update Task' : 'Create Task'}
-        </Button>
+      <div className="pt-4 border-t border-gray-200 flex justify-between">
+        {/* Delete button (only show when editing) */}
+        {isEdit && task && (
+          <Button
+            type="button"
+            variant="danger"
+            onClick={() => {
+              if (window.confirm('Are you sure you want to delete this task?')) {
+                deleteTask(task.id);
+                onClose();
+              }
+            }}
+          >
+            Delete Task
+          </Button>
+        )}
+
+        <div className="flex space-x-3">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onClose}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="primary"
+          >
+            {isEdit ? 'Update Task' : 'Create Task'}
+          </Button>
+        </div>
       </div>
     </form>
   );

@@ -13,7 +13,7 @@ import ProjectForm from '../components/projects/ProjectForm';
 const ProjectDetailPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const { projects, tasks, categories, deleteProject } = useAppContext();
+  const { projects, tasks, categories, deleteProject, deleteTask } = useAppContext();
   
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -140,6 +140,7 @@ const ProjectDetailPage: React.FC = () => {
               projects={projects}
               categories={categories}
               onEdit={handleOpenTaskModal}
+              onDelete={deleteTask}
             />
           ))
         ) : (

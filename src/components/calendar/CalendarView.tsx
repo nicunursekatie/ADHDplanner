@@ -18,7 +18,7 @@ interface CalendarViewProps {
 }
 
 const CalendarView: React.FC<CalendarViewProps> = ({ onEditTask }) => {
-  const { tasks, projects, categories } = useAppContext();
+  const { tasks, projects, categories, deleteTask } = useAppContext();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('week');
   
@@ -304,6 +304,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onEditTask }) => {
                 projects={projects}
                 categories={categories}
                 onEdit={onEditTask}
+                onDelete={deleteTask}
               />
             ))}
           </div>

@@ -28,13 +28,14 @@ import {
 import { Task } from '../types';
 
 const Dashboard: React.FC = () => {
-  const { 
-    tasks, 
-    projects, 
-    categories, 
-    isLoading, 
+  const {
+    tasks,
+    projects,
+    categories,
+    isLoading,
     isDataInitialized,
-    initializeSampleData
+    initializeSampleData,
+    deleteTask
   } = useAppContext();
   
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -263,6 +264,7 @@ const Dashboard: React.FC = () => {
                 projects={projects}
                 categories={categories}
                 onEdit={handleOpenTaskModal}
+                onDelete={deleteTask}
               />
             ))}
             
@@ -303,6 +305,7 @@ const Dashboard: React.FC = () => {
                 projects={projects}
                 categories={categories}
                 onEdit={handleOpenTaskModal}
+                onDelete={deleteTask}
               />
             ))}
             
@@ -334,6 +337,7 @@ const Dashboard: React.FC = () => {
                 projects={projects}
                 categories={categories}
                 onEdit={handleOpenTaskModal}
+                onDelete={deleteTask}
               />
             ))}
             
@@ -369,6 +373,7 @@ const Dashboard: React.FC = () => {
                   projects={projects}
                   categories={categories}
                   onEdit={handleOpenTaskModal}
+                  onDelete={deleteTask}
                 />
               ))
             }
@@ -455,6 +460,7 @@ const Dashboard: React.FC = () => {
                   projects={projects}
                   categories={categories}
                   onEdit={handleOpenTaskModal}
+                  onDelete={deleteTask}
                 />
               ))
             }

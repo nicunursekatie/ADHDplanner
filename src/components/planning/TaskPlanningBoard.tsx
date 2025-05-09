@@ -17,7 +17,7 @@ const TaskPlanningBoard: React.FC<TaskPlanningBoardProps> = ({
   projectId,
   onEditTask
 }) => {
-  const { tasks, projects, categories, addTask, updateTask } = useAppContext();
+  const { tasks, projects, categories, addTask, updateTask, deleteTask } = useAppContext();
   const [viewMode, setViewMode] = useState<'board' | 'list'>('board');
   
   // Filter tasks by project if projectId is provided
@@ -296,6 +296,7 @@ const TaskPlanningBoard: React.FC<TaskPlanningBoardProps> = ({
                     projects={projects}
                     categories={categories}
                     onEdit={onEditTask}
+                    onDelete={deleteTask}
                   />
                 ))
               )}
@@ -356,6 +357,7 @@ const TaskPlanningBoard: React.FC<TaskPlanningBoardProps> = ({
                     projects={projects}
                     categories={categories}
                     onEdit={onEditTask}
+                    onDelete={deleteTask}
                   />
                 ))
               )}
@@ -378,6 +380,7 @@ const TaskPlanningBoard: React.FC<TaskPlanningBoardProps> = ({
                     projects={projects}
                     categories={categories}
                     onEdit={onEditTask}
+                    onDelete={deleteTask}
                   />
                 ))
               )}
