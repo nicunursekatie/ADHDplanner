@@ -37,6 +37,7 @@ interface AppContextType {
   dailyPlans: DailyPlan[];
   getDailyPlan: (date: string) => DailyPlan | null;
   saveDailyPlan: (plan: DailyPlan) => void;
+  exportTimeBlocksToTasks: (date: string) => number;
   
   // Work Schedule
   workSchedule: WorkSchedule | null;
@@ -403,6 +404,57 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     localStorage.saveDailyPlans(updatedPlans);
   }, [dailyPlans]);
   
+  // Function to export time blocks to calendar as tasks
+  const exportTimeBlocksToTasks = useCallback((date: string): number => {
+    // Get the daily plan for the specified date
+    const plan = getDailyPlan(date);
+    if (!plan || !plan.timeBlocks || plan.timeBlocks.length === 0) {
+      return 0; // No time blocks to export
+    }
+    
+    const timestamp = new Date().toISOString();
+    let exportedCount = 0;
+    const newTasks: Task[] = [];
+    
+    // Create tasks for each time block
+    plan.timeBlocks.forEach(block => {
+      // Skip empty blocks with no title
+      if (!block.title || block.title === 'New Time Block') {
+        return;
+      }
+      
+      // Create a title that includes the time range
+      const title = `${block.startTime}-${block.endTime}: ${block.title}`;
+      
+      // Create a new task for this time block
+      const newTask: Task = {
+        id: generateId(),
+        title,
+        description: block.description || '',
+        completed: false,
+        archived: false,
+        dueDate: date,
+        projectId: null,
+        categoryIds: [],
+        parentTaskId: null,
+        subtasks: [],
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+      
+      newTasks.push(newTask);
+      exportedCount++;
+    });
+    
+    // Add all the new tasks to the task list
+    if (newTasks.length > 0) {
+      setTasks(prevTasks => [...prevTasks, ...newTasks]);
+      localStorage.saveTasks([...tasks, ...newTasks]);
+    }
+    
+    return exportedCount;
+  }, [getDailyPlan, tasks]);
+  
   // Work Schedule
   const workShifts = workSchedule?.shifts || [];
   
@@ -646,6 +698,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     dailyPlans,
     getDailyPlan,
     saveDailyPlan,
+    exportTimeBlocksToTasks,
     
     workSchedule,
     workShifts,

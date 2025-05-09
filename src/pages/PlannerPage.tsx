@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import DailyPlannerGrid from '../components/planner/DailyPlannerGrid';
 import { formatDateForDisplay } from '../utils/helpers';
-import { ChevronLeft, ChevronRight, Clock, Info } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Calendar, ExternalLink } from 'lucide-react';
 import Button from '../components/common/Button';
 import Card from '../components/common/Card';
 
 const PlannerPage: React.FC = () => {
+  const { exportTimeBlocksToTasks } = useAppContext();
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [exportSuccess, setExportSuccess] = useState<number | null>(null);
   
   const goToPreviousDay = () => {
     const newDate = new Date(currentDate);
@@ -53,6 +55,18 @@ const PlannerPage: React.FC = () => {
     year: 'numeric',
   });
   
+  // Handler for exporting time blocks to calendar
+  const handleExportToCalendar = () => {
+    const formattedDate = formatDateToYYYYMMDD(currentDate);
+    const exportedCount = exportTimeBlocksToTasks(formattedDate);
+    setExportSuccess(exportedCount);
+    
+    // Clear success message after 3 seconds
+    setTimeout(() => {
+      setExportSuccess(null);
+    }, 3000);
+  };
+  
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -60,6 +74,28 @@ const PlannerPage: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Custom Daily Planner</h1>
           <p className="text-gray-600">Organize your day with flexible time blocks</p>
+        </div>
+        <div className="mt-3 md:mt-0 flex flex-col items-end">
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<Calendar size={16} />}
+            onClick={handleExportToCalendar}
+            className="flex items-center"
+          >
+            Export to Calendar
+            <ExternalLink size={14} className="ml-1" />
+          </Button>
+          
+          {exportSuccess !== null && (
+            <div className={`mt-2 text-sm px-3 py-1 rounded-md ${
+              exportSuccess > 0 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+            }`}>
+              {exportSuccess > 0 
+                ? `${exportSuccess} time block${exportSuccess !== 1 ? 's' : ''} exported to calendar` 
+                : 'No time blocks to export'}
+            </div>
+          )}
         </div>
       </div>
       
