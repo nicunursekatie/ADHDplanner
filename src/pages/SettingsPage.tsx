@@ -101,10 +101,45 @@ const SettingsPage: React.FC = () => {
         reader.onload = async (e) => {
           try {
             const content = e.target?.result as string;
+
+            // Basic JSON validation before trying to import
+            try {
+              // Check if it's valid JSON at all
+              const parsedJson = JSON.parse(content);
+
+              // Basic structure validation
+              if (!parsedJson || typeof parsedJson !== 'object') {
+                setImportError('The file does not contain valid data. Please select a valid TaskManager export file.');
+                setIsImporting(false);
+                return;
+              }
+
+              // Check for expected properties to make sure this is a TaskManager export
+              const requiredProperties = ['tasks', 'projects', 'categories'];
+              const hasRequiredProps = requiredProperties.some(prop =>
+                Object.prototype.hasOwnProperty.call(parsedJson, prop)
+              );
+
+              if (!hasRequiredProps) {
+                setImportError('The file does not appear to be a TaskManager export. Please select a valid export file.');
+                setIsImporting(false);
+                return;
+              }
+
+              console.log('Import validation passed, proceeding with import...');
+            } catch (jsonError) {
+              console.error('JSON parsing error:', jsonError);
+              setImportError('Invalid JSON format. Please select a valid export file.');
+              setIsImporting(false);
+              return;
+            }
+
             // Handle the Promise properly with await
+            console.log('Starting data import...');
             const result = await importData(content);
 
             if (result) {
+              console.log('Import succeeded!');
               setImportSuccess(true);
               setImportError(null);
               setIsImporting(false);
@@ -122,25 +157,39 @@ const SettingsPage: React.FC = () => {
                 }
               }, 2000);
             } else {
-              setImportError('Failed to import data. Make sure the file is a valid TaskManager export.');
+              console.error('Import returned false');
+              setImportError('Failed to import data. Make sure the file is a valid TaskManager export file and try again.');
               setIsImporting(false);
             }
           } catch (error) {
             console.error('Import error:', error);
-            setImportError('Invalid file format or incompatible data structure. Please use a file exported from this app.');
+            let errorMessage = 'An unexpected error occurred during import.';
+
+            if (error instanceof Error) {
+              console.error('Error details:', error.message);
+              // Provide more specific error message based on the error type
+              if (error.message.includes('schema') || error.message.includes('property')) {
+                errorMessage = 'The import file contains data that does not match the expected format. This might be due to a version mismatch.';
+              } else if (error.message.includes('duplicate')) {
+                errorMessage = 'The import failed due to duplicate data. Please reset your data before importing.';
+              }
+            }
+
+            setImportError(`${errorMessage} Please try again or contact support if the problem persists.`);
             setIsImporting(false);
           }
         };
 
-        reader.onerror = () => {
-          setImportError('Error reading the file');
+        reader.onerror = (error) => {
+          console.error('FileReader error:', error);
+          setImportError('Error reading the file. The file might be corrupt or inaccessible.');
           setIsImporting(false);
         };
 
         reader.readAsText(importFile);
       } catch (error) {
         console.error('Import process error:', error);
-        setImportError('An error occurred during import. Please try again.');
+        setImportError('An unexpected error occurred. Please try again or try using a different file.');
         setIsImporting(false);
       }
     }, 100);

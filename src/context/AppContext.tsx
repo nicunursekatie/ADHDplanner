@@ -877,35 +877,94 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const importData = useCallback(async (jsonData: string): Promise<boolean> => {
     try {
       setIsLoading(true);
+      setSpecificLoadingState('importExport', true);
+
+      console.log('AppContext: Starting data import...');
+
       // Using dexie storage
       const result = await storage.importData(jsonData);
 
       if (result) {
-        // Reload data
-        const [
-          tasksData,
-          projectsData,
-          categoriesData,
-          dailyPlansData,
-          workScheduleData,
-          journalEntriesData
-        ] = await Promise.all([
-          storage.getTasks(),
-          storage.getProjects(),
-          storage.getCategories(),
-          storage.getDailyPlans(),
-          storage.getWorkSchedule(),
-          storage.getJournalEntries()
-        ]);
+        console.log('AppContext: Import successful, reloading data...');
 
-        setTasks(tasksData);
-        setProjects(projectsData);
-        setCategories(categoriesData);
-        setDailyPlans(dailyPlansData);
-        setWorkSchedule(workScheduleData);
-        setJournalEntries(journalEntriesData);
+        try {
+          // Reload data with individual error handling
+          // Set loading states for each data type
+          const loadingPromises = Object.keys(loadingStates).map(key => {
+            setSpecificLoadingState(key as keyof typeof loadingStates, true);
+            return Promise.resolve();
+          });
+          await Promise.all(loadingPromises);
 
-        setIsDataInitialized(true);
+          // Load each data type separately with error handling
+          try {
+            console.log('Loading tasks...');
+            const tasksData = await storage.getTasks();
+            setTasks(tasksData);
+            setSpecificLoadingState('tasks', false);
+          } catch (taskError) {
+            console.error('Error loading tasks after import:', taskError);
+            setSpecificLoadingState('tasks', false);
+          }
+
+          try {
+            console.log('Loading projects...');
+            const projectsData = await storage.getProjects();
+            setProjects(projectsData);
+            setSpecificLoadingState('projects', false);
+          } catch (projectError) {
+            console.error('Error loading projects after import:', projectError);
+            setSpecificLoadingState('projects', false);
+          }
+
+          try {
+            console.log('Loading categories...');
+            const categoriesData = await storage.getCategories();
+            setCategories(categoriesData);
+            setSpecificLoadingState('categories', false);
+          } catch (categoryError) {
+            console.error('Error loading categories after import:', categoryError);
+            setSpecificLoadingState('categories', false);
+          }
+
+          try {
+            console.log('Loading daily plans...');
+            const dailyPlansData = await storage.getDailyPlans();
+            setDailyPlans(dailyPlansData);
+            setSpecificLoadingState('dailyPlans', false);
+          } catch (planError) {
+            console.error('Error loading daily plans after import:', planError);
+            setSpecificLoadingState('dailyPlans', false);
+          }
+
+          try {
+            console.log('Loading work schedule...');
+            const workScheduleData = await storage.getWorkSchedule();
+            setWorkSchedule(workScheduleData);
+            setSpecificLoadingState('workSchedule', false);
+          } catch (scheduleError) {
+            console.error('Error loading work schedule after import:', scheduleError);
+            setSpecificLoadingState('workSchedule', false);
+          }
+
+          try {
+            console.log('Loading journal entries...');
+            const journalEntriesData = await storage.getJournalEntries();
+            setJournalEntries(journalEntriesData);
+            setSpecificLoadingState('journalEntries', false);
+          } catch (journalError) {
+            console.error('Error loading journal entries after import:', journalError);
+            setSpecificLoadingState('journalEntries', false);
+          }
+
+          console.log('AppContext: All data reloaded successfully');
+          setIsDataInitialized(true);
+        } catch (reloadError) {
+          console.error('Error reloading data after import:', reloadError);
+          // Even if reloading fails, the import was technically successful
+        }
+      } else {
+        console.error('AppContext: Import returned false');
       }
 
       return result;
@@ -915,8 +974,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return false;
     } finally {
       setIsLoading(false);
+      setSpecificLoadingState('importExport', false);
     }
-  }, []);
+  }, [loadingStates, setSpecificLoadingState]);
 
   const resetData = useCallback(async (): Promise<void> => {
     try {

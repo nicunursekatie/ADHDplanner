@@ -281,17 +281,22 @@ export const exportData = async (): Promise<string> => {
       db.journalEntries.toArray()
     ]);
 
+    // Enhanced logging for debugging
+    console.log(`Exporting data: ${tasks.length} tasks, ${projects.length} projects, ${categories.length} categories, ${dailyPlans.length} daily plans, ${workSchedules.length} work schedules, ${journalEntries.length} journal entries`);
+
     const data = {
       tasks,
       projects,
       categories,
       dailyPlans,
+      // Use consistent field name workSchedule (not workSchedules)
       workSchedule: workSchedules.length > 0 ? workSchedules[0] : null,
       journalEntries
     };
 
     return JSON.stringify(data);
   } catch (error) {
+    console.error('Error during data export:', error);
     handleStorageError('export data', error);
   }
 };
@@ -299,10 +304,20 @@ export const exportData = async (): Promise<string> => {
 export const importData = async (jsonData: string): Promise<boolean> => {
   try {
     const data = JSON.parse(jsonData);
-    
+
+    // Add robust validation before attempting to save data
+    // Ensure we have valid data before proceeding with transaction
+    if (!data || typeof data !== 'object') {
+      console.error('Invalid import data: Not a valid object');
+      return false;
+    }
+
+    // Log the structure of data being imported for debugging
+    console.log('Importing data structure:', Object.keys(data));
+
     // Perform import in a transaction for atomicity
-    await db.transaction('rw', 
-      [db.tasks, db.projects, db.categories, db.dailyPlans, db.workSchedules, db.journalEntries], 
+    await db.transaction('rw',
+      [db.tasks, db.projects, db.categories, db.dailyPlans, db.workSchedules, db.journalEntries],
       async () => {
         // Clear all tables
         await Promise.all([
@@ -314,33 +329,70 @@ export const importData = async (jsonData: string): Promise<boolean> => {
           db.journalEntries.clear()
         ]);
 
-        // Import data into tables
-        if (data.tasks && data.tasks.length > 0) {
-          await db.tasks.bulkAdd(data.tasks);
-        }
-        if (data.projects && data.projects.length > 0) {
-          await db.projects.bulkAdd(data.projects);
-        }
-        if (data.categories && data.categories.length > 0) {
-          await db.categories.bulkAdd(data.categories);
-        }
-        if (data.dailyPlans && data.dailyPlans.length > 0) {
-          await db.dailyPlans.bulkAdd(data.dailyPlans);
-        }
-        // Check both workSchedule and workSchedules fields for compatibility with different export formats
-        if (data.workSchedule) {
-          await db.workSchedules.add(data.workSchedule);
-        } else if (data.workSchedules) {
-          await db.workSchedules.add(data.workSchedules);
-        }
-        if (data.journalEntries && data.journalEntries.length > 0) {
-          await db.journalEntries.bulkAdd(data.journalEntries);
+        // Import data into tables with better error handling
+        try {
+          if (data.tasks && Array.isArray(data.tasks) && data.tasks.length > 0) {
+            console.log(`Adding ${data.tasks.length} tasks`);
+            await db.tasks.bulkAdd(data.tasks);
+          }
+
+          if (data.projects && Array.isArray(data.projects) && data.projects.length > 0) {
+            console.log(`Adding ${data.projects.length} projects`);
+            await db.projects.bulkAdd(data.projects);
+          }
+
+          if (data.categories && Array.isArray(data.categories) && data.categories.length > 0) {
+            console.log(`Adding ${data.categories.length} categories`);
+            await db.categories.bulkAdd(data.categories);
+          }
+
+          if (data.dailyPlans && Array.isArray(data.dailyPlans) && data.dailyPlans.length > 0) {
+            console.log(`Adding ${data.dailyPlans.length} daily plans`);
+            await db.dailyPlans.bulkAdd(data.dailyPlans);
+          }
+
+          // Handle work schedule with improved validation and error handling
+          if (data.workSchedule && typeof data.workSchedule === 'object') {
+            console.log('Adding work schedule from workSchedule field');
+            // Validate the work schedule structure to make sure it has required fields
+            if (data.workSchedule.id && Array.isArray(data.workSchedule.shifts)) {
+              await db.workSchedules.add(data.workSchedule);
+            } else {
+              console.warn('Work schedule data is invalid, skipping import');
+            }
+          } else if (data.workSchedules && typeof data.workSchedules === 'object') {
+            console.log('Adding work schedule from workSchedules field');
+            // Validate the work schedule structure to make sure it has required fields
+            if (data.workSchedules.id && Array.isArray(data.workSchedules.shifts)) {
+              await db.workSchedules.add(data.workSchedules);
+            } else {
+              console.warn('Work schedule data is invalid, skipping import');
+            }
+          } else {
+            console.log('No work schedule data found in import');
+          }
+
+          if (data.journalEntries && Array.isArray(data.journalEntries) && data.journalEntries.length > 0) {
+            console.log(`Adding ${data.journalEntries.length} journal entries`);
+            await db.journalEntries.bulkAdd(data.journalEntries);
+          }
+        } catch (importError) {
+          console.error('Error during data import for specific table:', importError);
+          // Let the error propagate to our catch block below
+          throw importError;
         }
     });
 
+    console.log('Import completed successfully');
     return true;
   } catch (error) {
     console.error('Failed to import data:', error);
+    // Log more detailed error information for debugging
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
     return false;
   }
 };
