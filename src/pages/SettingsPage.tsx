@@ -3,7 +3,7 @@ import { useAppContext } from '../context/AppContext';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Modal from '../components/common/Modal';
-import { Download, Upload, Trash2, AlertCircle } from 'lucide-react';
+import { Download, Upload, Trash2, AlertCircle, Loader } from 'lucide-react';
 
 const SettingsPage: React.FC = () => {
   const { exportData, importData, resetData, initializeSampleData } = useAppContext();
@@ -13,6 +13,7 @@ const SettingsPage: React.FC = () => {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   
   const handleExportData = () => {
     const data = exportData();
@@ -35,49 +36,108 @@ const SettingsPage: React.FC = () => {
     setImportFile(null);
     setImportError(null);
     setImportSuccess(false);
-  };
-  
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setImportFile(e.target.files[0]);
-      setImportError(null);
+    setIsImporting(false);
+    // Reset file input if it exists
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
   
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup any timeout when component unmounts
+  React.useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      if (e.target.files && e.target.files[0]) {
+        // Limit file size to 10MB to prevent browser freezing
+        if (e.target.files[0].size > 10 * 1024 * 1024) {
+          setImportError('File is too large. Please select a file smaller than 10MB.');
+          // Reset the file input
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
+          return;
+        }
+
+        setImportFile(e.target.files[0]);
+        setImportError(null);
+      }
+    } catch (error) {
+      console.error('Error selecting file:', error);
+      setImportError('Error selecting file. Please try again.');
+    }
+  };
+
   const handleImportData = () => {
     if (!importFile) {
       setImportError('Please select a file to import');
       return;
     }
-    
-    const reader = new FileReader();
-    
-    reader.onload = (e) => {
+
+    // Show loading state
+    setIsImporting(true);
+    setImportError(null);
+
+    // Use a small timeout to let the UI update before starting the import
+    // This prevents the browser from freezing immediately
+    setTimeout(() => {
       try {
-        const content = e.target?.result as string;
-        const result = importData(content);
-        
-        if (result) {
-          setImportSuccess(true);
-          setImportError(null);
-          
-          // Close modal after success
-          setTimeout(() => {
-            setImportModalOpen(false);
-          }, 2000);
-        } else {
-          setImportError('Failed to import data. Make sure the file is a valid TaskManager export.');
-        }
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+          try {
+            const content = e.target?.result as string;
+            const result = importData(content);
+
+            if (result) {
+              setImportSuccess(true);
+              setImportError(null);
+              setIsImporting(false);
+
+              // Close modal after success
+              if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+              }
+
+              timeoutRef.current = setTimeout(() => {
+                setImportModalOpen(false);
+                // Reset file input
+                if (fileInputRef.current) {
+                  fileInputRef.current.value = '';
+                }
+              }, 2000);
+            } else {
+              setImportError('Failed to import data. Make sure the file is a valid TaskManager export.');
+              setIsImporting(false);
+            }
+          } catch (error) {
+            console.error('Import error:', error);
+            setImportError('Invalid file format. Please select a valid JSON file.');
+            setIsImporting(false);
+          }
+        };
+
+        reader.onerror = () => {
+          setImportError('Error reading the file');
+          setIsImporting(false);
+        };
+
+        reader.readAsText(importFile);
       } catch (error) {
-        setImportError('Invalid file format. Please select a valid JSON file.');
+        console.error('Import process error:', error);
+        setImportError('An error occurred during import. Please try again.');
+        setIsImporting(false);
       }
-    };
-    
-    reader.onerror = () => {
-      setImportError('Error reading the file');
-    };
-    
-    reader.readAsText(importFile);
+    }, 100);
   };
   
   const handleResetClick = () => {
@@ -190,7 +250,16 @@ const SettingsPage: React.FC = () => {
       {/* Import Modal */}
       <Modal
         isOpen={importModalOpen}
-        onClose={() => setImportModalOpen(false)}
+        onClose={() => {
+          setImportModalOpen(false);
+          setImportFile(null);
+          setImportError(null);
+          setIsImporting(false);
+          // Reset file input if it exists
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
+        }}
         title="Import Data"
       >
         <div className="space-y-4">
@@ -202,6 +271,7 @@ const SettingsPage: React.FC = () => {
               
               <div className="mt-4">
                 <input
+                  ref={fileInputRef}
                   type="file"
                   accept=".json"
                   className="block w-full text-sm text-gray-500
@@ -212,6 +282,9 @@ const SettingsPage: React.FC = () => {
                     hover:file:bg-indigo-100"
                   onChange={handleFileChange}
                 />
+                <p className="mt-1 text-xs text-gray-500">
+                  Maximum file size: 10MB
+                </p>
               </div>
               
               {importError && (
@@ -231,9 +304,16 @@ const SettingsPage: React.FC = () => {
                 <Button
                   variant="primary"
                   onClick={handleImportData}
-                  disabled={!importFile}
+                  disabled={!importFile || isImporting}
                 >
-                  Import
+                  {isImporting ? (
+                    <>
+                      <Loader size={16} className="mr-2 animate-spin" />
+                      Importing...
+                    </>
+                  ) : (
+                    'Import'
+                  )}
                 </Button>
               </div>
             </>
