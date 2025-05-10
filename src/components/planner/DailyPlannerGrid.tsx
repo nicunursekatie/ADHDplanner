@@ -37,8 +37,30 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
   }, []);
 
   // Get time blocks for the current date - memoize to prevent unnecessary re-renders
-  const timeBlocks = React.useMemo(() => {
-    return getDailyPlan(date)?.timeBlocks || [];
+  const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>([]);
+
+  // Fetch time blocks when date changes
+  useEffect(() => {
+    const fetchTimeBlocks = async () => {
+      try {
+        const dailyPlan = await getDailyPlan(date);
+        console.log('Fetched daily plan:', dailyPlan);
+        const blocks = dailyPlan?.timeBlocks || [];
+
+        // Ensure taskIds is always initialized for each block
+        const normalizedBlocks = blocks.map(block => ({
+          ...block,
+          taskIds: block.taskIds || []
+        }));
+
+        setTimeBlocks(normalizedBlocks);
+      } catch (error) {
+        console.error('Error fetching time blocks:', error);
+        setTimeBlocks([]);
+      }
+    };
+
+    fetchTimeBlocks();
   }, [getDailyPlan, date]);
 
   // Sort time blocks by start time for better organization
@@ -159,16 +181,18 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
     const startTime = `${String(startHour % 24).padStart(2, '0')}:00`;
     const endTime = `${String(endHour % 24).padStart(2, '0')}:00`;
 
+    // Create a new time block with explicitly initialized fields
     const newBlock: TimeBlock = {
       id: generateId(),
       startTime,
       endTime,
       taskId: null,
-      taskIds: [],
+      taskIds: [], // Explicitly initialize empty array
       title: 'New Time Block',
       description: '',
     };
 
+    console.log('Creating new time block:', newBlock);
     setModalBlock(newBlock);
     setIsModalOpen(true);
   }, []);
@@ -206,12 +230,23 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
       updatedBlocks = [...timeBlocks, updatedBlock];
     }
 
-    saveDailyPlan({
+    // Ensure taskIds is always initialized
+    updatedBlocks = updatedBlocks.map(block => ({
+      ...block,
+      taskIds: block.taskIds || []
+    }));
+
+    // Create or update the daily plan
+    const dailyPlan = {
       id: date,
       date,
       timeBlocks: updatedBlocks,
-    });
+    };
 
+    console.log('Saving daily plan with time blocks:', dailyPlan);
+    saveDailyPlan(dailyPlan);
+
+    // Update local state to ensure time blocks display immediately
     setSelectedBlock(updatedBlock);
   }, [date, timeBlocks, saveDailyPlan]);
 

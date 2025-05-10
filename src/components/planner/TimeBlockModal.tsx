@@ -41,11 +41,23 @@ const TimeBlockModal: React.FC<TimeBlockModalProps> = ({
         ...block,
         taskIds: block.taskIds || []
       };
+      console.log('Setting form data for block:', blockWithTaskIds);
       setFormData(blockWithTaskIds);
+    } else {
+      // Initialize with default values if no block provided
+      setFormData({
+        id: '',
+        startTime: '09:00',
+        endTime: '10:00',
+        taskId: null,
+        taskIds: [],
+        title: '',
+        description: '',
+      });
     }
     // Clear validation errors when modal opens/closes
     setValidationError(null);
-  }, [block]);
+  }, [block, isOpen]);
 
   // Optimize event handlers
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
