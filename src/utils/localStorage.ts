@@ -1,4 +1,4 @@
-import { Task, Project, Category, DailyPlan } from '../types';
+import { Task, Project, Category, DailyPlan, JournalEntry } from '../types';
 import { WorkSchedule, WorkShift } from '../types/WorkSchedule';
 import { transformImportedData } from './importTransform';
 
@@ -8,6 +8,7 @@ const PROJECTS_KEY = 'taskManager_projects';
 const CATEGORIES_KEY = 'taskManager_categories';
 const DAILY_PLANS_KEY = 'taskManager_dailyPlans';
 const WORK_SCHEDULE_KEY = 'taskManager_workSchedule';
+const JOURNAL_ENTRIES_KEY = 'taskManager_journalEntries';
 
 // Tasks
 export const getTasks = (): Task[] => {
@@ -222,8 +223,9 @@ export const exportData = (): string => {
     categories: getCategories(),
     dailyPlans: getDailyPlans(),
     workSchedule: getWorkSchedule(),
+    journalEntries: getJournalEntries(),
   };
-  
+
   return JSON.stringify(data);
 };
 
@@ -247,6 +249,7 @@ export const importData = (jsonData: string): boolean => {
     if (data.categories) saveCategories(data.categories);
     if (data.dailyPlans) saveDailyPlans(data.dailyPlans);
     if (data.workSchedule) saveWorkSchedule(data.workSchedule);
+    if (data.journalEntries) saveJournalEntries(data.journalEntries);
     
     return true;
   } catch (error) {
@@ -255,10 +258,47 @@ export const importData = (jsonData: string): boolean => {
   }
 };
 
+// Journal Entries
+export const getJournalEntries = (): JournalEntry[] => {
+  const entriesJSON = localStorage.getItem(JOURNAL_ENTRIES_KEY);
+  return entriesJSON ? JSON.parse(entriesJSON) : [];
+};
+
+export const saveJournalEntries = (entries: JournalEntry[]): void => {
+  localStorage.setItem(JOURNAL_ENTRIES_KEY, JSON.stringify(entries));
+};
+
+export const addJournalEntry = (entry: JournalEntry): void => {
+  const entries = getJournalEntries();
+  entries.push(entry);
+  saveJournalEntries(entries);
+};
+
+export const updateJournalEntry = (updatedEntry: JournalEntry): void => {
+  const entries = getJournalEntries();
+  const index = entries.findIndex((entry) => entry.id === updatedEntry.id);
+  if (index !== -1) {
+    entries[index] = updatedEntry;
+    saveJournalEntries(entries);
+  }
+};
+
+export const deleteJournalEntry = (entryId: string): void => {
+  const entries = getJournalEntries();
+  const updatedEntries = entries.filter((entry) => entry.id !== entryId);
+  saveJournalEntries(updatedEntries);
+};
+
+export const getJournalEntriesForDate = (date: string): JournalEntry[] => {
+  const entries = getJournalEntries();
+  return entries.filter(entry => entry.date === date);
+};
+
 export const resetData = (): void => {
   localStorage.removeItem(TASKS_KEY);
   localStorage.removeItem(PROJECTS_KEY);
   localStorage.removeItem(CATEGORIES_KEY);
   localStorage.removeItem(DAILY_PLANS_KEY);
   localStorage.removeItem(WORK_SCHEDULE_KEY);
+  localStorage.removeItem(JOURNAL_ENTRIES_KEY);
 };

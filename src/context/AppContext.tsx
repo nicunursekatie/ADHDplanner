@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { Task, Project, Category, DailyPlan, WhatNowCriteria } from '../types';
+import { Task, Project, Category, DailyPlan, WhatNowCriteria, JournalEntry } from '../types';
 import { WorkSchedule, WorkShift, ShiftType, DEFAULT_SHIFTS, DEFAULT_SHIFT } from '../types/WorkSchedule';
 import * as localStorage from '../utils/localStorage';
 import { generateId, createSampleData } from '../utils/helpers';
@@ -21,25 +21,25 @@ interface AppContextType {
   archiveCompletedTasks: () => void;
   undoDelete: () => void;
   hasRecentlyDeleted: boolean;
-  
+
   // Projects
   projects: Project[];
   addProject: (project: Partial<Project>) => Project;
   updateProject: (project: Project) => void;
   deleteProject: (projectId: string) => void;
-  
+
   // Categories
   categories: Category[];
   addCategory: (category: Partial<Category>) => Category;
   updateCategory: (category: Category) => void;
   deleteCategory: (categoryId: string) => void;
-  
+
   // Daily Plans
   dailyPlans: DailyPlan[];
   getDailyPlan: (date: string) => DailyPlan | null;
   saveDailyPlan: (plan: DailyPlan) => void;
   exportTimeBlocksToTasks: (date: string) => number;
-  
+
   // Work Schedule
   workSchedule: WorkSchedule | null;
   workShifts: WorkShift[];
@@ -48,16 +48,23 @@ interface AppContextType {
   deleteWorkShift: (shiftId: string) => void;
   getShiftsForMonth: (year: number, month: number) => WorkShift[];
   getShiftForDate: (date: string) => WorkShift | undefined;
-  
+
+  // Journal Entries
+  journalEntries: JournalEntry[];
+  addJournalEntry: (entry: Partial<JournalEntry>) => JournalEntry;
+  updateJournalEntry: (entry: JournalEntry) => void;
+  deleteJournalEntry: (entryId: string) => void;
+  getJournalEntriesForDate: (date: string) => JournalEntry[];
+
   // What Now Wizard
   recommendTasks: (criteria: WhatNowCriteria) => Task[];
-  
+
   // Data Management
   exportData: () => string;
   importData: (jsonData: string) => boolean;
   resetData: () => void;
   initializeSampleData: () => void;
-  
+
   // App State
   isLoading: boolean;
   isDataInitialized: boolean;
@@ -73,6 +80,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [categories, setCategories] = useState<Category[]>([]);
   const [dailyPlans, setDailyPlans] = useState<DailyPlan[]>([]);
   const [workSchedule, setWorkSchedule] = useState<WorkSchedule | null>(null);
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDataInitialized, setIsDataInitialized] = useState(false);
   const [deletedTasks, setDeletedTasks] = useState<DeletedTask[]>([]);
@@ -97,17 +105,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setCategories(localStorage.getCategories());
       setDailyPlans(localStorage.getDailyPlans());
       setWorkSchedule(localStorage.getWorkSchedule());
-      
+      setJournalEntries(localStorage.getJournalEntries());
+
       // Check if data exists
-      const hasData = 
-        localStorage.getTasks().length > 0 || 
-        localStorage.getProjects().length > 0 || 
+      const hasData =
+        localStorage.getTasks().length > 0 ||
+        localStorage.getProjects().length > 0 ||
         localStorage.getCategories().length > 0;
-      
+
       setIsDataInitialized(hasData);
       setIsLoading(false);
     };
-    
+
     loadData();
   }, []);
   
@@ -583,6 +592,49 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCategories(localStorage.getCategories());
     setIsDataInitialized(true);
   }, []);
+
+  // Journal Entries
+  const addJournalEntry = useCallback((entryData: Partial<JournalEntry>): JournalEntry => {
+    const timestamp = new Date().toISOString();
+    const newEntry: JournalEntry = {
+      id: generateId(),
+      date: new Date().toISOString().split('T')[0], // Today's date by default
+      content: '',
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      ...entryData
+    };
+
+    const updatedEntries = [...journalEntries, newEntry];
+    setJournalEntries(updatedEntries);
+    localStorage.saveJournalEntries(updatedEntries);
+    return newEntry;
+  }, [journalEntries]);
+
+  const updateJournalEntry = useCallback((updatedEntry: JournalEntry) => {
+    const timestamp = new Date().toISOString();
+    const entryWithTimestamp = {
+      ...updatedEntry,
+      updatedAt: timestamp
+    };
+
+    const updatedEntries = journalEntries.map(entry =>
+      entry.id === updatedEntry.id ? entryWithTimestamp : entry
+    );
+
+    setJournalEntries(updatedEntries);
+    localStorage.saveJournalEntries(updatedEntries);
+  }, [journalEntries]);
+
+  const deleteJournalEntry = useCallback((entryId: string) => {
+    const updatedEntries = journalEntries.filter(entry => entry.id !== entryId);
+    setJournalEntries(updatedEntries);
+    localStorage.saveJournalEntries(updatedEntries);
+  }, [journalEntries]);
+
+  const getJournalEntriesForDate = useCallback((date: string) => {
+    return journalEntries.filter(entry => entry.date === date);
+  }, [journalEntries]);
   
   // Create a subtask directly linked to a parent task
   const addSubtask = useCallback((parentId: string, subtaskData: Partial<Task>): Task => {
@@ -662,22 +714,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     archiveCompletedTasks,
     undoDelete,
     hasRecentlyDeleted,
-    
+
     projects,
     addProject,
     updateProject,
     deleteProject,
-    
+
     categories,
     addCategory,
     updateCategory,
     deleteCategory,
-    
+
     dailyPlans,
     getDailyPlan,
     saveDailyPlan,
     exportTimeBlocksToTasks,
-    
+
     workSchedule,
     workShifts,
     addWorkShift,
@@ -685,14 +737,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     deleteWorkShift,
     getShiftsForMonth,
     getShiftForDate,
-    
+
+    journalEntries,
+    addJournalEntry,
+    updateJournalEntry,
+    deleteJournalEntry,
+    getJournalEntriesForDate,
+
     recommendTasks,
-    
+
     exportData,
     importData,
     resetData,
     initializeSampleData,
-    
+
     isLoading,
     isDataInitialized,
   };

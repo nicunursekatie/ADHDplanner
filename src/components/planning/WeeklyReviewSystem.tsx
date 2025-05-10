@@ -1,20 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { Task, Project } from '../../types';
+import { Task, JournalEntry } from '../../types';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import { ImprovedTaskCard } from '../tasks/ImprovedTaskCard';
 import { formatDate } from '../../utils/helpers';
-import { 
-  Calendar, 
-  CheckCircle, 
-  ChevronRight, 
-  ClipboardList, 
-  Clock, 
-  LayoutGrid, 
-  NotebookPen, 
-  Plus, 
-  RefreshCw 
+import {
+  Calendar,
+  CheckCircle,
+  ChevronRight,
+  ClipboardList,
+  Clock,
+  LayoutGrid,
+  NotebookPen,
+  Plus,
+  RefreshCw,
+  Save,
+  BookOpen
 } from 'lucide-react';
 
 interface WeeklyReviewSystemProps {
@@ -31,16 +33,30 @@ type ReviewSection = {
 }
 
 const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }) => {
-  const { tasks, projects, quickAddTask, updateTask } = useAppContext();
+  const {
+    tasks,
+    projects,
+    quickAddTask,
+    updateTask,
+    addJournalEntry,
+    updateJournalEntry,
+    getJournalEntriesForDate
+  } = useAppContext();
   const [taskInput, setTaskInput] = useState('');
+  const [journalInput, setJournalInput] = useState('');
+  const [currentJournalEntry, setCurrentJournalEntry] = useState<JournalEntry | null>(null);
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
   const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
   const [reviewComplete, setReviewComplete] = useState(false);
+  const [showJournal, setShowJournal] = useState(false);
   
-  // Get dates for this week and next week
-  const today = new Date();
-  const nextWeek = new Date();
-  nextWeek.setDate(today.getDate() + 7);
+  // Get dates for this week and next week using useMemo to avoid re-creating on every render
+  const today = useMemo(() => new Date(), []);
+  const nextWeek = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() + 7);
+    return date;
+  }, []);
   
   const incompleteTasks = tasks.filter(task => !task.completed);
   const tasksDueThisWeek = incompleteTasks.filter(task => 
@@ -180,6 +196,46 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
       updateTask(updatedTask);
     }
   };
+
+  useEffect(() => {
+    // Check for existing journal entries for today
+    const todayStr = today.toISOString().split('T')[0];
+    const existingEntries = getJournalEntriesForDate(todayStr);
+
+    if (existingEntries.length > 0) {
+      // Use the most recent entry
+      setCurrentJournalEntry(existingEntries[existingEntries.length - 1]);
+      setJournalInput(existingEntries[existingEntries.length - 1].content);
+    }
+  }, [today, getJournalEntriesForDate]);
+
+  const handleSaveJournal = () => {
+    if (journalInput.trim()) {
+      const todayStr = today.toISOString().split('T')[0];
+
+      if (currentJournalEntry) {
+        // Update existing entry
+        const updatedEntry: JournalEntry = {
+          ...currentJournalEntry,
+          content: journalInput,
+          updatedAt: new Date().toISOString()
+        };
+        updateJournalEntry(updatedEntry);
+      } else {
+        // Create new entry
+        const newEntry = addJournalEntry({
+          date: todayStr,
+          content: journalInput,
+          reviewSectionId: activeSectionId || undefined
+        });
+        setCurrentJournalEntry(newEntry);
+      }
+    }
+  };
+
+  const toggleJournal = () => {
+    setShowJournal(!showJournal);
+  };
   
   return (
     <div className="space-y-6">
@@ -245,7 +301,7 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
                     <p className="text-blue-800 font-medium mb-1">Prompt {currentPromptIndex + 1} of {section.prompts.length}:</p>
                     <p className="text-gray-800">{section.prompts[currentPromptIndex]}</p>
                   </div>
-                  
+
                   {/* Task entry for this prompt */}
                   <div className="flex mb-4">
                     <input
@@ -268,6 +324,49 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
                       Add Task
                     </Button>
                   </div>
+
+                  {/* Journal Entry Button */}
+                  <div className="mb-4">
+                    <Button
+                      variant={showJournal ? "default" : "outline"}
+                      size="sm"
+                      onClick={toggleJournal}
+                      icon={<BookOpen size={16} />}
+                      className="w-full"
+                    >
+                      {showJournal ? "Hide Journal Entry" : "Add Journal Entry"}
+                    </Button>
+                  </div>
+
+                  {/* Journal Entry Text Area */}
+                  {showJournal && (
+                    <div className="mb-4 bg-gray-50 p-3 rounded-md border">
+                      <div className="flex items-center mb-2">
+                        <BookOpen size={16} className="text-blue-600 mr-2" />
+                        <h4 className="text-sm font-medium text-gray-700">Journal Entry</h4>
+                      </div>
+                      <textarea
+                        value={journalInput}
+                        onChange={(e) => setJournalInput(e.target.value)}
+                        className="w-full min-h-[120px] border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm p-2"
+                        placeholder="Use this space to jot down reflections that aren't specific tasks. What insights are you having? What patterns are you noticing? How are you feeling about your progress?"
+                      />
+                      <div className="flex justify-end mt-2">
+                        <Button
+                          size="sm"
+                          onClick={handleSaveJournal}
+                          icon={<Save size={16} />}
+                        >
+                          Save Entry
+                        </Button>
+                      </div>
+                      {currentJournalEntry && (
+                        <p className="text-xs text-gray-500 mt-2">
+                          Last updated: {new Date(currentJournalEntry.updatedAt).toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                  )}
                   
                   {/* Relevant task lists based on the section */}
                   {activeSectionId === 'overdue' && overdueTasks.length > 0 && (

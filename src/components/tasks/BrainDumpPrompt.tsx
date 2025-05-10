@@ -64,7 +64,7 @@ const BrainDumpPrompt: React.FC<BrainDumpPromptProps> = ({ onTaskCreated }) => {
   const { quickAddTask } = useAppContext();
   const [currentPrompt, setCurrentPrompt] = useState('');
   const [currentCategory, setCurrentCategory] = useState(0);
-  const [promptIndex, setPromptIndex] = useState(0);
+  // We don't need to track promptIndex since we generate random prompts
   const [taskInput, setTaskInput] = useState('');
   const [recentTasks, setRecentTasks] = useState<string[]>([]);
 
@@ -78,7 +78,6 @@ const BrainDumpPrompt: React.FC<BrainDumpPromptProps> = ({ onTaskCreated }) => {
     const category = PROMPT_CATEGORIES[randomCategoryIndex];
     const randomPromptIndex = Math.floor(Math.random() * category.prompts.length);
     setCurrentCategory(randomCategoryIndex);
-    setPromptIndex(randomPromptIndex);
     setCurrentPrompt(category.prompts[randomPromptIndex]);
   };
 
@@ -88,7 +87,7 @@ const BrainDumpPrompt: React.FC<BrainDumpPromptProps> = ({ onTaskCreated }) => {
 
   const handleAddTask = () => {
     if (taskInput.trim()) {
-      const newTask = quickAddTask(taskInput);
+      quickAddTask(taskInput);
       setRecentTasks(prev => [...prev.slice(-2), taskInput]); // Keep last 3 tasks
       setTaskInput('');
       if (onTaskCreated) {
@@ -113,8 +112,8 @@ const BrainDumpPrompt: React.FC<BrainDumpPromptProps> = ({ onTaskCreated }) => {
             <div className="text-gray-700 flex-1">
               {currentPrompt}
             </div>
-            <button 
-              onClick={handleNextPrompt} 
+            <button
+              onClick={handleNextPrompt}
               className="text-indigo-600 hover:text-indigo-800 ml-2"
               title="Get another prompt"
             >
@@ -159,18 +158,6 @@ const BrainDumpPrompt: React.FC<BrainDumpPromptProps> = ({ onTaskCreated }) => {
           </div>
         )}
         
-        <div className="flex justify-between items-center mt-4 pt-3 border-t border-gray-100">
-          <div className="text-xs text-gray-500">
-            Keep clicking through prompts to help remember tasks
-          </div>
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={handleNextPrompt}
-          >
-            Next Prompt
-          </Button>
-        </div>
       </div>
     </Card>
   );

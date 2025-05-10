@@ -75,5 +75,15 @@ export interface PhaseTask {
   description?: string;
 }
 
+// Journal entry for weekly reflections
+export interface JournalEntry {
+  id: string;
+  date: string; // ISO date string
+  content: string;
+  reviewSectionId?: string; // To associate with specific review section
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Re-export WorkSchedule types
 export * from './WorkSchedule';
