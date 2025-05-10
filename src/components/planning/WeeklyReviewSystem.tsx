@@ -226,17 +226,16 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
   // Get journal entries for the current week when component loads
   useEffect(() => {
     const entries = getJournalEntriesForWeek(weekNumber, weekYear);
-    console.log("Current week entries:", entries);
     setCurrentWeekEntries(entries);
 
     // Check if the review is already complete for this week
     const allSectionsCompleted = reviewSections.every(section => {
       const sectionEntries = entries.filter(entry => entry.reviewSectionId === section.id);
-      console.log(`Section ${section.id} entries:`, sectionEntries);
-      return sectionEntries.some(entry => entry.isCompleted);
+      return sectionEntries.some(entry =>
+        entry.isCompleted || (entry.content && entry.content.trim().length > 0)
+      );
     });
 
-    console.log("All sections completed:", allSectionsCompleted);
     setReviewComplete(allSectionsCompleted);
   }, [weekNumber, weekYear, getJournalEntriesForWeek, reviewSections]);
 
@@ -247,7 +246,6 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
       const sectionEntry = currentWeekEntries.find(entry => entry.reviewSectionId === activeSectionId);
 
       if (sectionEntry) {
-        console.log(`Found journal entry for section ${activeSectionId}:`, sectionEntry);
         setCurrentJournalEntry(sectionEntry);
         setJournalInput(sectionEntry.content || '');
         // Show journal if it exists
@@ -303,9 +301,6 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
 
   // Helper to check if a section is completed based on journal entries
   const isSectionCompleted = (sectionId: string): boolean => {
-    console.log(`Checking if section ${sectionId} is completed, entries:`,
-      currentWeekEntries.filter(e => e.reviewSectionId === sectionId));
-
     // Consider a section completed if:
     // 1. There's an entry for this section AND
     // 2. Either isCompleted is true OR it has content (for backwards compatibility)

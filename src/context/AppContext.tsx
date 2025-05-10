@@ -651,10 +651,46 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [journalEntries]);
 
   const getLatestWeeklyReview = useCallback(() => {
-    // Group entries by week
-    const weekEntries = journalEntries.reduce((acc, entry) => {
-      // Skip entries without proper week information
-      if (!entry.weekNumber || !entry.weekYear) return acc;
+    // Process all journal entries to ensure they have required fields
+
+    // Backward compatibility check: Add required fields to old entries if needed
+    const updatedEntries = journalEntries.map(entry => {
+      // Make a copy we can modify
+      const updatedEntry = {...entry};
+
+      // Add weekNumber and weekYear if they're missing
+      if (!entry.weekNumber || !entry.weekYear) {
+        try {
+          const entryDate = new Date(entry.date);
+          const { weekNumber, weekYear } = getISOWeekAndYear(entryDate);
+          updatedEntry.weekNumber = weekNumber;
+          updatedEntry.weekYear = weekYear;
+        } catch (e) {
+          console.error("Error calculating week for entry:", entry, e);
+        }
+      }
+
+      // Add isCompleted flag for old entries
+      if (entry.isCompleted === undefined) {
+        updatedEntry.isCompleted = true; // Assume old entries were completed
+      }
+
+      return updatedEntry;
+    });
+
+    // If we had to fix entries, save them back
+    if (updatedEntries.some((e, i) => e !== journalEntries[i])) {
+      // Save the fixed entries back to localStorage and state
+      setJournalEntries(updatedEntries);
+      localStorage.saveJournalEntries(updatedEntries);
+    }
+
+    // Group entries by week (now using fixed entries)
+    const weekEntries = updatedEntries.reduce((acc, entry) => {
+      // Skip entries without proper week information (shouldn't happen after our fixes)
+      if (!entry.weekNumber || !entry.weekYear) {
+        return acc;
+      }
 
       const key = `${entry.weekYear}-${entry.weekNumber}`;
       if (!acc[key]) {
@@ -663,6 +699,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       acc[key].push(entry);
       return acc;
     }, {} as Record<string, JournalEntry[]>);
+
+    // Process the entries by week
 
     // Find the latest week that has entries
     const weeks = Object.keys(weekEntries).sort().reverse();
@@ -681,11 +719,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     ];
 
     // Check if all required sections are completed
-    const isComplete = sectionIds.every(sectionId =>
-      entries.some(entry =>
-        entry.reviewSectionId === sectionId && entry.isCompleted
-      )
-    );
+    const isComplete = sectionIds.every(sectionId => {
+      // A section is considered complete if there's an entry for it that either:
+      // 1. Has isCompleted flag set to true, OR
+      // 2. Has non-empty content (for backward compatibility with older entries)
+      const hasSectionEntry = entries.some(entry =>
+        entry.reviewSectionId === sectionId &&
+        (entry.isCompleted || (entry.content && entry.content.trim().length > 0))
+      );
+      return hasSectionEntry;
+    });
 
     return {
       weekNumber,
