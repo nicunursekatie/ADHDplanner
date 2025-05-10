@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { DndContext, DragEndEvent, DragOverlay, useSensor, useSensors, PointerSensor, DragStartEvent, useDroppable, useDraggable } from '@dnd-kit/core';
 import { Task, TimeBlock } from '../../types';
 import { useAppContext } from '../../context/AppContext';
@@ -20,30 +20,51 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
   const [modalBlock, setModalBlock] = useState<TimeBlock | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
-  
-  // Get time blocks for the current date
-  const timeBlocks = getDailyPlan(date)?.timeBlocks || [];
-  
+
+  // Refs to prevent recreating functions on each render
+  const mountedRef = useRef(true);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      // Ensure we clean up any lingering state
+      setActiveId(null);
+      setSelectedBlock(null);
+      setModalBlock(null);
+      setIsModalOpen(false);
+    };
+  }, []);
+
+  // Get time blocks for the current date - memoize to prevent unnecessary re-renders
+  const timeBlocks = React.useMemo(() => {
+    return getDailyPlan(date)?.timeBlocks || [];
+  }, [getDailyPlan, date]);
+
   // Sort time blocks by start time for better organization
-  const sortedTimeBlocks = [...timeBlocks].sort((a, b) => {
-    return a.startTime.localeCompare(b.startTime);
-  });
-  
+  const sortedTimeBlocks = React.useMemo(() => {
+    return [...timeBlocks].sort((a, b) => {
+      return a.startTime.localeCompare(b.startTime);
+    });
+  }, [timeBlocks]);
+
   // Get unscheduled tasks (tasks without time blocks)
-  const unscheduledTasks = tasks.filter(task => {
-    // Check if the task is in any block's taskIds array or the legacy taskId field
-    const hasTimeBlock = timeBlocks.some(block => 
-      block.taskId === task.id || (block.taskIds && block.taskIds.includes(task.id))
-    );
-    const isIncomplete = !task.completed;
-    const taskDate = task.dueDate ? new Date(task.dueDate + 'T00:00:00').toISOString().split('T')[0] : null;
-    const isDueOnOrBefore = !taskDate || taskDate <= date;
-    // Only show top-level tasks, not subtasks (tasks without a parent)
-    const isTopLevelTask = !task.parentTaskId;
-    
-    return isIncomplete && !hasTimeBlock && isDueOnOrBefore && isTopLevelTask;
-  });
-  
+  const unscheduledTasks = React.useMemo(() => {
+    return tasks.filter(task => {
+      // Check if the task is in any block's taskIds array or the legacy taskId field
+      const hasTimeBlock = timeBlocks.some(block =>
+        block.taskId === task.id || (block.taskIds && block.taskIds.includes(task.id))
+      );
+      const isIncomplete = !task.completed;
+      const taskDate = task.dueDate ? new Date(task.dueDate + 'T00:00:00').toISOString().split('T')[0] : null;
+      const isDueOnOrBefore = !taskDate || taskDate <= date;
+      // Only show top-level tasks, not subtasks (tasks without a parent)
+      const isTopLevelTask = !task.parentTaskId;
+
+      return isIncomplete && !hasTimeBlock && isDueOnOrBefore && isTopLevelTask;
+    });
+  }, [tasks, timeBlocks, date]);
+
   // Configure DnD sensors
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -53,39 +74,43 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
     })
   );
 
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
-  };
-  
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    if (mountedRef.current) {
+      setActiveId(event.active.id as string);
+    }
+  }, []);
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    if (!mountedRef.current) return;
+
     const { active, over } = event;
-    
+
     if (over && active.id !== over.id) {
       const taskId = active.id as string;
       const blockId = over.id as string;
-      
+
       // Find the task that was dragged
       const draggedTask = tasks.find(t => t.id === taskId);
-      
+
       // Only proceed if we found the task
       if (draggedTask) {
         const updatedBlocks = timeBlocks.map(block => {
           if (block.id === blockId) {
             // Initialize taskIds array if it doesnt exist
             const taskIds = block.taskIds || [];
-            
+
             // If using legacy taskId field, migrate to taskIds
             if (block.taskId && !taskIds.includes(block.taskId)) {
               taskIds.push(block.taskId);
             }
-            
+
             // Create a new array with the dragged task and its subtasks
             const newTaskIds = [...taskIds];
-            
+
             // Add the parent task if its not already in the array
             if (!newTaskIds.includes(taskId)) {
               newTaskIds.push(taskId);
-              
+
               // Optionally add all subtasks of the dragged task to the time block as well
               if (draggedTask.subtasks && draggedTask.subtasks.length > 0) {
                 draggedTask.subtasks.forEach(subtaskId => {
@@ -95,16 +120,16 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
                 });
               }
             }
-            
-            return { 
-              ...block, 
+
+            return {
+              ...block,
               taskId: null, // Clear legacy field
-              taskIds: newTaskIds 
+              taskIds: newTaskIds
             };
           }
           return block;
         });
-        
+
         saveDailyPlan({
           id: date,
           date,
@@ -112,24 +137,28 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
         });
       }
     }
-    
-    setActiveId(null);
-  };
+
+    if (mountedRef.current) {
+      setActiveId(null);
+    }
+  }, [timeBlocks, tasks, date, saveDailyPlan]);
   
 
-  const handleAddBlock = () => {
+  const handleAddBlock = useCallback(() => {
+    if (!mountedRef.current) return;
+
     // Get current hour to set smarter default times
     const now = new Date();
     const currentHour = now.getHours();
-    
+
     // Set start time to next whole hour and end time to 1 hour later
     const startHour = currentHour + 1;
     const endHour = startHour + 1;
-    
+
     // Format as HH:00 strings
     const startTime = `${String(startHour % 24).padStart(2, '0')}:00`;
     const endTime = `${String(endHour % 24).padStart(2, '0')}:00`;
-    
+
     const newBlock: TimeBlock = {
       id: generateId(),
       startTime,
@@ -139,53 +168,60 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
       title: 'New Time Block',
       description: '',
     };
-    
+
     setModalBlock(newBlock);
     setIsModalOpen(true);
-  };
-  
-  const handleEditBlock = (block: TimeBlock) => {
+  }, []);
+
+  const handleEditBlock = useCallback((block: TimeBlock) => {
+    if (!mountedRef.current) return;
     setModalBlock(block);
     setIsModalOpen(true);
-  };
-  
-  const handleDeleteBlock = (blockId: string) => {
+  }, []);
+
+  const handleDeleteBlock = useCallback((blockId: string) => {
+    if (!mountedRef.current) return;
+
     saveDailyPlan({
       id: date,
       date,
       timeBlocks: timeBlocks.filter(block => block.id !== blockId),
     });
     setSelectedBlock(null);
-  };
-  
-  const handleSaveBlock = (updatedBlock: TimeBlock) => {
+  }, [date, timeBlocks, saveDailyPlan]);
+
+  const handleSaveBlock = useCallback((updatedBlock: TimeBlock) => {
+    if (!mountedRef.current) return;
+
     let updatedBlocks;
-    
+
     // Check if this is a new block or an existing one
     if (timeBlocks.some(block => block.id === updatedBlock.id)) {
       // Update existing block
-      updatedBlocks = timeBlocks.map(block => 
+      updatedBlocks = timeBlocks.map(block =>
         block.id === updatedBlock.id ? updatedBlock : block
       );
     } else {
       // Add new block
       updatedBlocks = [...timeBlocks, updatedBlock];
     }
-    
+
     saveDailyPlan({
       id: date,
       date,
       timeBlocks: updatedBlocks,
     });
-    
+
     setSelectedBlock(updatedBlock);
-  };
-  
-  const handleRemoveTaskFromBlock = (taskId: string) => {
+  }, [date, timeBlocks, saveDailyPlan]);
+
+  const handleRemoveTaskFromBlock = useCallback((taskId: string) => {
+    if (!mountedRef.current) return;
+
     // Find the task to check if it has subtasks
     const taskToRemove = tasks.find(t => t.id === taskId);
     const subtaskIds = taskToRemove?.subtasks || [];
-    
+
     saveDailyPlan({
       id: date,
       date,
@@ -194,50 +230,54 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
         if (block.taskId === taskId) {
           return { ...block, taskId: null };
         }
-        
+
         // Remove from taskIds array if present
         if (block.taskIds && block.taskIds.includes(taskId)) {
           // Also remove all subtasks of this task
-          return { 
-            ...block, 
-            taskIds: block.taskIds.filter(id => id !== taskId && !subtaskIds.includes(id)) 
+          return {
+            ...block,
+            taskIds: block.taskIds.filter(id => id !== taskId && !subtaskIds.includes(id))
           };
         }
-        
+
         return block;
       }),
     });
-    
+
     // Task is only removed from time block, not deleted from the app
-  };
-  
-  const handleBlockClick = (block: TimeBlock) => {
+  }, [tasks, date, timeBlocks, saveDailyPlan]);
+
+  const handleBlockClick = useCallback((block: TimeBlock) => {
+    if (!mountedRef.current) return;
+
     const isCurrentlySelected = selectedBlock?.id === block.id;
-    
+
     if (!isCurrentlySelected) {
       setSelectedBlock(block);
     } else {
       setSelectedBlock(null);
     }
-  };
+  }, [selectedBlock]);
 
-  const DroppableTimeBlock = ({ block, children }: { block: TimeBlock; children: React.ReactNode }) => {
+  // Memoize DroppableTimeBlock to prevent unnecessary re-renders
+  const DroppableTimeBlock = React.memo(({ block, children }: { block: TimeBlock; children: React.ReactNode }) => {
     const { setNodeRef } = useDroppable({
       id: block.id,
     });
-    
+
     return (
       <div ref={setNodeRef} className="h-full">
         {children}
       </div>
     );
-  };
+  });
 
-  const DraggableTask = ({ task }: { task: Task }) => {
+  // Memoize DraggableTask to prevent unnecessary re-renders
+  const DraggableTask = React.memo(({ task }: { task: Task }) => {
     const { attributes, listeners, setNodeRef, transform } = useDraggable({
       id: task.id,
     });
-    
+
     const style = transform ? {
       transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
     } : undefined;
@@ -245,6 +285,11 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
     // Check if task has subtasks for visual indicator
     const hasSubtasks = task.subtasks && task.subtasks.length > 0;
     const subtaskCount = hasSubtasks ? task.subtasks.length : 0;
+
+    // Use handleRemoveTaskFromBlock from context to avoid recreation
+    const handleRemove = useCallback(() => {
+      handleRemoveTaskFromBlock(task.id);
+    }, [task.id, handleRemoveTaskFromBlock]);
 
     return (
       <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="touch-none">
@@ -263,11 +308,11 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
           task={task}
           projects={projects}
           categories={categories}
-          onDelete={() => handleRemoveTaskFromBlock(task.id)}
+          onDelete={handleRemove}
         />
       </div>
     );
-  };
+  });
   
   return (
     <>

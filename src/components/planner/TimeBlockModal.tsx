@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { TimeBlock } from '../../types';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
@@ -34,7 +34,7 @@ const TimeBlockModal: React.FC<TimeBlockModalProps> = ({
   const [validationError, setValidationError] = useState<string | null>(null);
 
   // Update the form data when the block prop changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (block) {
       // Ensure taskIds is always initialized
       const blockWithTaskIds = {
@@ -47,52 +47,53 @@ const TimeBlockModal: React.FC<TimeBlockModalProps> = ({
     setValidationError(null);
   }, [block]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  // Optimize event handlers
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
-    
+
     // Clear validation errors when user starts typing
     setValidationError(null);
-  };
+  }, []);
 
-  const validateForm = (): boolean => {
+  const validateForm = useCallback((): boolean => {
     // Use the utility function to validate that end time is after start time
     const duration = calculateDuration(formData.startTime, formData.endTime);
-    
+
     if (duration <= 0) {
       setValidationError('End time must be after start time');
       return false;
     }
-    
-    return true;
-  };
 
-  const handleSubmit = (e: React.FormEvent) => {
+    return true;
+  }, [formData.startTime, formData.endTime]);
+
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) {
       return;
     }
     onSave(formData);
     onClose();
-  };
+  }, [validateForm, formData, onSave, onClose]);
 
-  const handleDelete = () => {
+  const handleDelete = useCallback(() => {
     if (block && window.confirm('Are you sure you want to delete this time block?')) {
       onDelete(block.id);
       onClose();
     }
-  };
+  }, [block, onDelete, onClose]);
 
-  // Get duration for display
-  const getDurationText = (): string => {
-    const { hours, minutes } = calculateDuration(formData.startTime, formData.endTime, { 
-      formatted: true, 
-      allowOvernight: true 
+  // Get duration for display - memoized to avoid recalculating on every render
+  const duration = useMemo(() => {
+    const { hours, minutes } = calculateDuration(formData.startTime, formData.endTime, {
+      formatted: true,
+      allowOvernight: true
     });
-    
+
     if (hours === 0 && minutes === 0) {
       return '';
     } else if (hours === 0) {
@@ -102,9 +103,7 @@ const TimeBlockModal: React.FC<TimeBlockModalProps> = ({
     } else {
       return `${hours} hour${hours !== 1 ? 's' : ''} ${minutes} minute${minutes !== 1 ? 's' : ''}`;
     }
-  };
-
-  const duration = getDurationText();
+  }, [formData.startTime, formData.endTime]);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={block ? 'Edit Time Block' : 'Add Custom Time Block'}>

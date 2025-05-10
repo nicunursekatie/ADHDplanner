@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAppContext } from '../context/AppContext';
 import DailyPlannerGrid from '../components/planner/DailyPlannerGrid';
 import { formatDateForDisplay } from '../utils/helpers';
@@ -10,62 +10,89 @@ const PlannerPage: React.FC = () => {
   const { exportTimeBlocksToTasks } = useAppContext();
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [exportSuccess, setExportSuccess] = useState<number | null>(null);
-  
-  const goToPreviousDay = () => {
+
+  // Refs for cleanup and optimization
+  const isMounted = useRef(true);
+  const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+
+      // Clear any pending timeouts
+      if (successTimeoutRef.current) {
+        clearTimeout(successTimeoutRef.current);
+        successTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  const goToPreviousDay = useCallback(() => {
     const newDate = new Date(currentDate);
     newDate.setDate(currentDate.getDate() - 1);
     setCurrentDate(newDate);
-  };
-  
-  const goToNextDay = () => {
+  }, [currentDate]);
+
+  const goToNextDay = useCallback(() => {
     const newDate = new Date(currentDate);
     newDate.setDate(currentDate.getDate() + 1);
     setCurrentDate(newDate);
-  };
-  
-  const goToToday = () => {
+  }, [currentDate]);
+
+  const goToToday = useCallback(() => {
     setCurrentDate(new Date());
-  };
-  
+  }, []);
+
   // Format date as ISO string (YYYY-MM-DD), handling timezone offset properly
-  const formatDateToYYYYMMDD = (date: Date) => {
+  const formatDateToYYYYMMDD = useCallback((date: Date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
-  };
-  
-  const formattedDate = formatDateToYYYYMMDD(currentDate);
-  
+  }, []);
+
+  const formattedDate = React.useMemo(() => {
+    return formatDateToYYYYMMDD(currentDate);
+  }, [currentDate, formatDateToYYYYMMDD]);
+
   // Check if date is today
-  const isToday = () => {
+  const isToday = useCallback(() => {
     const today = new Date();
     return (
       currentDate.getDate() === today.getDate() &&
       currentDate.getMonth() === today.getMonth() &&
       currentDate.getFullYear() === today.getFullYear()
     );
-  };
-  
+  }, [currentDate]);
+
   // Format date for display in header (e.g., "Monday, January 15, 2025")
-  const headerDate = currentDate.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
-  
+  const headerDate = React.useMemo(() => {
+    return currentDate.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  }, [currentDate]);
+
   // Handler for showing time blocks in the calendar view
-  const handleExportToCalendar = () => {
+  const handleExportToCalendar = useCallback(() => {
     const formattedDate = formatDateToYYYYMMDD(currentDate);
     const exportedCount = exportTimeBlocksToTasks(formattedDate);
     setExportSuccess(exportedCount);
 
     // Clear success message after 3 seconds
-    setTimeout(() => {
-      setExportSuccess(null);
+    if (successTimeoutRef.current) {
+      clearTimeout(successTimeoutRef.current);
+    }
+
+    successTimeoutRef.current = setTimeout(() => {
+      if (isMounted.current) {
+        setExportSuccess(null);
+      }
     }, 3000);
-  };
+  }, [currentDate, formatDateToYYYYMMDD, exportTimeBlocksToTasks]);
   
   return (
     <div className="space-y-6">
