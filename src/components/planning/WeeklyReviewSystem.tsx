@@ -527,6 +527,7 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
                             task={task}
                             projects={projects}
                             categories={[]}
+                            onComplete={() => handleCompleteTask(task.id)}
                           />
                         ))}
                         {tasksDueThisWeek.length > 5 && (
@@ -576,6 +577,7 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
                             task={task}
                             projects={projects}
                             categories={[]}
+                            onComplete={() => handleCompleteTask(task.id)}
                           />
                         ))}
                         {recentlyCompleted.length > 5 && (

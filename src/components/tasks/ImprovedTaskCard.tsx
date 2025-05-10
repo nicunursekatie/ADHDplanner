@@ -25,6 +25,7 @@ interface ImprovedTaskCardProps {
   isSubtask?: boolean;
   onEdit?: (task: Task) => void;
   onDelete?: (taskId: string) => void;
+  onComplete?: (taskId: string) => void;
 }
 
 export const ImprovedTaskCard: React.FC<ImprovedTaskCardProps> = ({
@@ -34,6 +35,7 @@ export const ImprovedTaskCard: React.FC<ImprovedTaskCardProps> = ({
   isSubtask = false,
   onEdit,
   onDelete,
+  onComplete,
 }) => {
   const [expanded, setExpanded] = useState(false);
   const [showActions, setShowActions] = useState(false);
@@ -57,7 +59,11 @@ export const ImprovedTaskCard: React.FC<ImprovedTaskCardProps> = ({
   
   const handleComplete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    completeTask(task.id);
+    if (onComplete) {
+      onComplete(task.id);
+    } else {
+      completeTask(task.id);
+    }
   };
   
   const handleEdit = (e: React.MouseEvent) => {
@@ -324,6 +330,7 @@ export const ImprovedTaskCard: React.FC<ImprovedTaskCardProps> = ({
                       isSubtask={true}
                       onEdit={onEdit}
                       onDelete={onDelete}
+                      onComplete={onComplete}
                     />
                   ))}
                 </div>
