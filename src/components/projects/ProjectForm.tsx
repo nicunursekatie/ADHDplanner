@@ -32,7 +32,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
     } else {
       setFormData(initialState);
     }
-  }, [project]);
+  }, [project, initialState]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>

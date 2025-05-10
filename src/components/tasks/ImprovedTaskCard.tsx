@@ -1,19 +1,17 @@
 import React, { useState } from 'react';
-import { 
-  CheckCircle2, 
-  Circle, 
-  ChevronRight, 
-  ChevronDown, 
-  Calendar, 
-  Folder, 
-  Tags, 
-  Trash2, 
+import {
+  CheckCircle2,
+  Circle,
+  ChevronRight,
+  ChevronDown,
+  Calendar,
+  Folder,
+  Tags,
+  Trash2,
   Clock,
   Edit2,
   ArrowRight,
-  Copy,
-  Flag,
-  MoreHorizontal
+  Copy
 } from 'lucide-react';
 import { Task, Project, Category } from '../../types';
 import Badge from '../common/Badge';

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { Task, Project } from '../types';
+import { Task } from '../types';
 import { Backpack, Calendar, Target, Cpu, Menu, Clock, Plus } from 'lucide-react';
 import Button from '../components/common/Button';
 import Modal from '../components/common/Modal';
@@ -9,7 +9,6 @@ import TaskForm from '../components/tasks/TaskForm';
 import TaskPlanningBoard from '../components/planning/TaskPlanningBoard';
 import BackwardPlanner from '../components/planning/BackwardPlanner';
 import ProjectBreakdown from '../components/planning/ProjectBreakdown';
-import { formatDate } from '../utils/helpers';
 
 enum PlanningMode {
   BOARD = 'board',
@@ -25,7 +24,7 @@ enum TimeBlockSlot {
 }
 
 const EnhancedPlanningPage: React.FC = () => {
-  const { projects, tasks, getDailyPlan, saveDailyPlan } = useAppContext();
+  const { projects, tasks } = useAppContext();
   
   // State
   const [activeMode, setActiveMode] = useState<PlanningMode>(PlanningMode.BOARD);
@@ -33,16 +32,11 @@ const EnhancedPlanningPage: React.FC = () => {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   
-  // Get the current day's plan
-  const today = formatDate(new Date());
-  const todayPlan = getDailyPlan(today);
-  
+
   // Time blocking state
-  const [selectedTimeBlock, setSelectedTimeBlock] = useState<TimeBlockSlot | null>(null);
-  const [availableTasks, setAvailableTasks] = useState<Task[]>([]);
-  const [morningTasks, setMorningTasks] = useState<Task[]>([]);
-  const [afternoonTasks, setAfternoonTasks] = useState<Task[]>([]);
-  const [eveningTasks, setEveningTasks] = useState<Task[]>([]);
+  const [morningTasks] = useState<Task[]>([]);
+  const [afternoonTasks] = useState<Task[]>([]);
+  const [eveningTasks] = useState<Task[]>([]);
   
   // Filter projects that have at least one task
   const activeProjects = projects.filter(project => 
@@ -65,12 +59,13 @@ const EnhancedPlanningPage: React.FC = () => {
     setEditingTask(null);
   };
   
-  const handleTimeBlockDragStart = (taskId: string) => {
-    // Add drag logic
+  // Placeholder for drag handlers
+  const handleTimeBlockDragStart = () => {
+    // Add drag logic when implemented
   };
-  
-  const handleTimeBlockDragEnd = (taskId: string, slot: TimeBlockSlot) => {
-    // Add drop logic
+
+  const handleTimeBlockDragEnd = () => {
+    // Add drop logic when implemented
   };
   
   return (

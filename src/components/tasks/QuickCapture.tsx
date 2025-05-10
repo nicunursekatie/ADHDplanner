@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { Plus, Circle } from 'lucide-react';
 

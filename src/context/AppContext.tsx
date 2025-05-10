@@ -1,12 +1,11 @@
 import React, { createContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { Task, Project, Category, DailyPlan, WhatNowCriteria, JournalEntry } from '../types';
-import { WorkSchedule, WorkShift, ShiftType, DEFAULT_SHIFTS, DEFAULT_SHIFT } from '../types/WorkSchedule';
+import { WorkSchedule, WorkShift, ShiftType, DEFAULT_SHIFTS } from '../types/WorkSchedule';
 
 // Import storage mechanisms
 import * as localStorage from '../utils/localStorage';
 import * as dexieStorage from '../utils/dexieStorage';
 import { generateId, createSampleData, getISOWeekAndYear } from '../utils/helpers';
-import { db } from '../utils/db';
 import { migrateFromLocalStorageToDexie, checkForLocalStorageData } from '../utils/migrationUtils';
 
 interface DeletedTask {
@@ -255,7 +254,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     loadData();
-  }, []);
+  }, [categories.length, loadingStates, projects.length, setSpecificLoadingState, tasks.length]);
   
   // Tasks
   const addTask = useCallback(async (taskData: Partial<Task>): Promise<Task> => {
@@ -333,18 +332,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch (error) {
       console.error('Error updating task:', error);
       setIsError(true);
-
-      // Try fallback to localStorage if Supabase fails
-      if (isSupabaseAvailable()) {
-        try {
-          await localStorage.saveTasks(tasks.map(task =>
-            task.id === updatedTask.id ? {...updatedTask, updatedAt: new Date().toISOString()} : task
-          ));
-        } catch (fallbackError) {
-          console.error('Fallback to localStorage failed:', fallbackError);
-        }
-      }
-
       throw error;
     } finally {
       // Always reset loading state
@@ -650,8 +637,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Daily Plans
   const getDailyPlan = useCallback(async (date: string): Promise<DailyPlan | null> => {
     try {
-      // Try to get from Supabase first (might be more up-to-date)
-      // Using dexie storage
+      // Get daily plan from Dexie storage
       return await storage.getDailyPlan(date);
     } catch (error) {
       console.error('Error getting daily plan:', error);
@@ -1190,7 +1176,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       let processedTitle = title.trim();
       let dueDate: string | null = null;
       let priority: 'low' | 'medium' | 'high' = 'medium';
-      let categoryIds: string[] = [];
+      const categoryIds: string[] = [];
 
       // Extract date patterns
       if (processedTitle.includes('!today')) {
@@ -1301,6 +1287,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   );
 };
 
+// Separate this function from the component to avoid problems with React Refresh
 export const useAppContext = (): AppContextType => {
   const context = React.useContext(AppContext);
   if (context === undefined) {

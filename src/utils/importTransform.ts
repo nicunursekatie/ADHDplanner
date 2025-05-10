@@ -1,5 +1,4 @@
 import { Task, Project, Category } from '../types';
-import { generateId } from './helpers';
 
 interface LegacyTask {
   id: string;

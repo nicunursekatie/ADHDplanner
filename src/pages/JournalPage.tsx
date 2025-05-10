@@ -36,14 +36,11 @@ const JournalPage: React.FC = () => {
     // Sort by week (most recent first)
     return Object.entries(grouped)
       .sort(([keyA], [keyB]) => keyB.localeCompare(keyA))
-      .map(([_, value]) => value);
+      .map(([, value]) => value);
   }, [journalEntries]);
   
   // Get week date range string
   const getWeekDateRange = (weekNumber: number, weekYear: number): string => {
-    // Get first day of the year
-    const firstDayOfYear = new Date(weekYear, 0, 1);
-    
     // Calculate first day of the week (Monday)
     const firstDayOfWeek = new Date(weekYear, 0, 1 + (weekNumber - 1) * 7);
     

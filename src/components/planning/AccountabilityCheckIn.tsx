@@ -104,7 +104,7 @@ const AccountabilityCheckIn: React.FC<AccountabilityCheckInProps> = ({ onTaskUpd
       customReason: '',
       action: null
     })));
-  }, [tasks]);
+  }, [tasks, overdueTasks, lastWeekStr, today]);
   
   const handleReasonSelect = (taskId: string, reasonId: string) => {
     setTasksWithReasons(prev => 
@@ -148,7 +148,7 @@ const AccountabilityCheckIn: React.FC<AccountabilityCheckInProps> = ({ onTaskUpd
   const handleTaskUpdate = (taskWithReason: TaskWithReason) => {
     const { task, action } = taskWithReason;
     
-    let updatedTask: Task = { ...task };
+    const updatedTask: Task = { ...task };
     
     // Apply action to the task
     if (action === 'reschedule') {

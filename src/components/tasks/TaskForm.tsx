@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Task, Project, Category } from '../../types';
+import { Task } from '../../types';
 import { useAppContext } from '../../context/AppContext';
 import Button from '../common/Button';
 import SubtaskList from './SubtaskList';
@@ -46,7 +46,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
     } else {
       setFormData(initialState);
     }
-  }, [task, parentTask]);
+  }, [task, parentTask, initialState]);
   
   // Debug current formData
   useEffect(() => {

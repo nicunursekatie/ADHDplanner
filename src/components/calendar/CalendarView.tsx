@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
 import { Task } from '../../types';
 import { useAppContext } from '../../context/AppContext';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Calendar as CalendarIcon, 
-  GridIcon,
+import {
+  ChevronLeft,
+  ChevronRight,
+  Calendar as CalendarIcon,
   List,
   Clock
 } from 'lucide-react';
-import Badge from '../common/Badge';
 import TaskCard from '../tasks/TaskCard';
 import Button from '../common/Button';
 
@@ -182,11 +180,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onEditTask }) => {
     );
   };
   
-  // Check if a date has a work shift
+  // Check if a date has a work shift using the appContext (passed as argument)
   const getDateShift = (date: Date): { timeRange: string, shiftType: string } | null => {
-    const appContext = useAppContext();
     const dateStr = date.toISOString().split('T')[0];
-    const shift = appContext.getShiftForDate(dateStr);
+    const shift = getShiftForDate(dateStr);
     
     if (!shift) return null;
     

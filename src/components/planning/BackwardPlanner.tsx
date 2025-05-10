@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { Task, Project, Category } from '../../types';
+import { Task } from '../../types';
 import { useAppContext } from '../../context/AppContext';
 import Button from '../common/Button';
 import { Calendar, Flag, ArrowDownCircle, Save, Plus, Target } from 'lucide-react';
-import { formatDate } from '../../utils/helpers';
 
 interface BackwardPlannerProps {
   projectId?: string;
@@ -85,7 +84,7 @@ const BackwardPlanner: React.FC<BackwardPlannerProps> = ({
     
     // Create milestone tasks in reverse order (backward planning)
     let previousTaskId = null;
-    let subtaskIds: string[] = [];
+    const subtaskIds: string[] = [];
     
     // Sort milestones by date, furthest date first (backward planning)
     const sortedMilestones = [...milestones].sort((a, b) => 
@@ -307,7 +306,7 @@ const BackwardPlanner: React.FC<BackwardPlannerProps> = ({
           </div>
           
           <div className="space-y-2">
-            {milestones.map((milestone, index) => (
+            {milestones.map((milestone) => (
               <div key={milestone.id} className="flex items-center bg-gray-50 p-3 rounded-md">
                 <span className="font-medium">{milestone.title}</span>
                 <span className="ml-auto text-sm text-gray-500">{milestone.dueDate}</span>

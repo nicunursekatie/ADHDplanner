@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAppContext } from '../context/AppContext';
 import DailyPlannerGrid from '../components/planner/DailyPlannerGrid';
-import { formatDateForDisplay } from '../utils/helpers';
-import { ChevronLeft, ChevronRight, Clock, Calendar, ExternalLink } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import Button from '../components/common/Button';
-import Card from '../components/common/Card';
 
 const PlannerPage: React.FC = () => {
   const { exportTimeBlocksToTasks } = useAppContext();

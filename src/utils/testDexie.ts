@@ -14,7 +14,6 @@ export const testDexieDatabase = async (): Promise<{
   
   try {
     // Test 1: Can add and retrieve a task
-    let success = true;
     try {
       const testId = `test-${generateId()}`;
       const testTask = {
@@ -61,7 +60,7 @@ export const testDexieDatabase = async (): Promise<{
         success: true,
         message: 'Successfully added, retrieved, and deleted a task'
       });
-    } catch (error: any) {
+    } catch (error: { message?: string }) {
       results.push({
         test: 'Task CRUD operations',
         success: false,
@@ -138,7 +137,7 @@ export const testDexieDatabase = async (): Promise<{
         success: true,
         message: 'Successfully queried tasks using indexes'
       });
-    } catch (error: any) {
+    } catch (error: { message?: string }) {
       results.push({
         test: 'Database indexes',
         success: false,
@@ -155,7 +154,7 @@ export const testDexieDatabase = async (): Promise<{
         : 'Some Dexie database tests failed',
       details: results
     };
-  } catch (error: any) {
+  } catch (error: { message?: string }) {
     return {
       success: false,
       message: `Failed to run Dexie database tests: ${error.message || 'Unknown error'}`,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Task, Project, Category } from '../../types';
+import { Task } from '../../types';
 import { useAppContext } from '../../context/AppContext';
 import Button from '../common/Button';
 import { 
@@ -67,7 +67,7 @@ export const StreamlinedTaskForm: React.FC<StreamlinedTaskFormProps> = ({
     } else {
       setFormData(initialState);
     }
-  }, [task, parentTask]);
+  }, [task, parentTask, initialState]);
 
   const handleChange = useCallback((
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -192,25 +192,6 @@ export const StreamlinedTaskForm: React.FC<StreamlinedTaskFormProps> = ({
     onClose();
   }, [validateForm, isEdit, task, formData, updateTask, addTask, onClose]);
   
-  // Get color based on priority
-  const getPriorityColor = useCallback((priority: string | undefined): string => {
-    switch (priority) {
-      case 'high': return 'bg-red-500';
-      case 'medium': return 'bg-orange-500';
-      case 'low': return 'bg-green-500';
-      default: return 'bg-gray-400';
-    }
-  }, []);
-  
-  // Get color based on energy level
-  const getEnergyLevelColor = useCallback((level: string | undefined): string => {
-    switch (level) {
-      case 'high': return 'bg-yellow-500';
-      case 'medium': return 'bg-blue-500';
-      case 'low': return 'bg-purple-500';
-      default: return 'bg-gray-400';
-    }
-  }, []);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">

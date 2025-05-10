@@ -289,7 +289,7 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
     // Use handleRemoveTaskFromBlock from context to avoid recreation
     const handleRemove = useCallback(() => {
       handleRemoveTaskFromBlock(task.id);
-    }, [task.id, handleRemoveTaskFromBlock]);
+    }, [task.id]);
 
     return (
       <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="touch-none">

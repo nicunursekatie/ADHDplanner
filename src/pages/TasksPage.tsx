@@ -7,9 +7,8 @@ import Modal from '../components/common/Modal';
 import Button from '../components/common/Button';
 import Card from '../components/common/Card';
 import Empty from '../components/common/Empty';
-import { QuickCapture } from '../components/tasks/QuickCapture';
 import { EnhancedQuickCapture } from '../components/tasks/EnhancedQuickCapture';
-import { Plus, Filter, CheckSquare, Clock, X, Undo2, Archive, AlertTriangle, CalendarDays, Calendar, Layers } from 'lucide-react';
+import { Plus, Filter, X, Undo2, Archive, AlertTriangle, CalendarDays, Calendar, Layers } from 'lucide-react';
 import { formatDate, getOverdueTasks, getTasksDueToday, getTasksDueThisWeek } from '../utils/helpers';
 
 const TasksPage: React.FC = () => {

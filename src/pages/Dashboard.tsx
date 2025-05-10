@@ -1,11 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Clock,
-  Calendar,
-  CheckCircle2,
-  Folder,
-  Tag,
   Plus,
   ArrowRight,
   HelpCircle,
@@ -227,7 +222,6 @@ const Dashboard: React.FC = () => {
                   placeholder="Add something you just remembered..."
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-                      const value = e.currentTarget.value;
                       handleOpenTaskModal();
                       e.currentTarget.value = '';
                     }

@@ -31,7 +31,7 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
     } else {
       setFormData(initialState);
     }
-  }, [category]);
+  }, [category, initialState]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement>

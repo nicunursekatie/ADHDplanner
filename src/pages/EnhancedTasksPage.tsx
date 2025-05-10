@@ -9,7 +9,7 @@ import Modal from '../components/common/Modal';
 import Button from '../components/common/Button';
 import Card from '../components/common/Card';
 import Empty from '../components/common/Empty';
-import { Plus, Filter, List, Calendar, CheckSquare, Clock, X, Undo2, Archive, 
+import { Plus, Filter, List, Calendar, X, Undo2, Archive,
          AlertTriangle, CalendarDays, Layers, Network } from 'lucide-react';
 import { formatDate, getOverdueTasks, getTasksDueToday, getTasksDueThisWeek } from '../utils/helpers';
 
@@ -629,7 +629,7 @@ const EnhancedTasksPage: React.FC = () => {
                   projects={projects}
                   categories={categories}
                   onEditTask={handleOpenModal}
-                  onAddSubtask={(parentTask) => {
+                  onAddSubtask={() => {
                     setEditingTask(null);
                     setIsModalOpen(true);
                     // Note: we'd need to update TaskForm to accept a parentTask prop

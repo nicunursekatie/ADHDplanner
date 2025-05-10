@@ -1,12 +1,12 @@
 import { Task, Project, Category, DailyPlan, JournalEntry } from '../types';
 import { WorkSchedule } from '../types/WorkSchedule';
 import { db } from './db';
-import { generateId } from './helpers';
 
 // Error handling utilities
-const handleStorageError = (operation: string, error: any): never => {
+const handleStorageError = (operation: string, error: Error | unknown): never => {
   console.error(`Dexie ${operation} operation failed:`, error);
-  throw new Error(`Failed to ${operation}: ${error.message || 'Unknown error'}`);
+  const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+  throw new Error(`Failed to ${operation}: ${errorMessage}`);
 };
 
 // Tasks

@@ -16,7 +16,7 @@ export const WorkScheduleSelector: React.FC<WorkScheduleSelectorProps> = ({
   const [selectedShiftType, setSelectedShiftType] = useState<ShiftType>('full');
   
   // Get work schedule data from context
-  const { workShifts, addWorkShift, updateWorkShift, deleteWorkShift, getShiftsForMonth } = useAppContext();
+  const { addWorkShift, updateWorkShift, deleteWorkShift, getShiftsForMonth } = useAppContext();
 
   // Get shifts for the current month
   const monthShifts = getShiftsForMonth(currentYear, currentMonth);

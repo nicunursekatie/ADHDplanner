@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Task } from '../../types';
 import { useAppContext } from '../../context/AppContext';
-import { Plus, Circle, Calendar, Folder, Tag, Clock } from 'lucide-react';
-import Button from '../common/Button';
+import { Plus, Circle, Calendar, Folder, Tag } from 'lucide-react';
 
 interface QuickTaskInputProps {
   onTaskAdded?: () => void;

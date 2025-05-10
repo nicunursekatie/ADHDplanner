@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Task, Project, Category } from '../../types';
+import { Task } from '../../types';
 import EnhancedTaskCard from '../tasks/EnhancedTaskCard';
 import { useAppContext } from '../../context/AppContext';
 import { Clock, Target, Menu, Download, LayoutGrid, List, ArrowLeft, ArrowRight, Plus } from 'lucide-react';
@@ -52,7 +52,7 @@ const TaskPlanningBoard: React.FC<TaskPlanningBoardProps> = ({
   );
 
   const handleMoveTask = (task: Task, targetColumn: ColumnType) => {
-    let updatedTask = { ...task };
+    const updatedTask = { ...task };
     
     // Update task based on target column
     switch (targetColumn) {

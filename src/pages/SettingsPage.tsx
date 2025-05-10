@@ -17,7 +17,7 @@ const SettingsPage: React.FC = () => {
   const [isImporting, setIsImporting] = useState(false);
 
   // State for database test
-  const [testResults, setTestResults] = useState<any>(null);
+  const [testResults, setTestResults] = useState<{success: boolean; message: string; details?: {test: string; success: boolean; message: string}[]}>(null);
   const [isTesting, setIsTesting] = useState(false);
   
   const handleExportData = () => {
@@ -98,10 +98,11 @@ const SettingsPage: React.FC = () => {
       try {
         const reader = new FileReader();
 
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
           try {
             const content = e.target?.result as string;
-            const result = importData(content);
+            // Handle the Promise properly with await
+            const result = await importData(content);
 
             if (result) {
               setImportSuccess(true);
@@ -126,7 +127,7 @@ const SettingsPage: React.FC = () => {
             }
           } catch (error) {
             console.error('Import error:', error);
-            setImportError('Invalid file format. Please select a valid JSON file.');
+            setImportError('Invalid file format or incompatible data structure. Please use a file exported from this app.');
             setIsImporting(false);
           }
         };
@@ -302,7 +303,7 @@ const SettingsPage: React.FC = () => {
 
                     {testResults.details && testResults.details.length > 0 && (
                       <div className="mt-2 space-y-1 text-sm">
-                        {testResults.details.map((detail: any, idx: number) => (
+                        {testResults.details.map((detail, idx) => (
                           <div key={idx} className="flex items-start">
                             {detail.success ? (
                               <Check size={12} className="text-green-600 mr-1 mt-1 flex-shrink-0" />
