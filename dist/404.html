@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>ADHD Planner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="shortcut icon" href="/ADHDplanner/favicon.ico" />
+  <script type="text/javascript">
+    // Single Page Apps for GitHub Pages
+    // MIT License
+    // https://github.com/rafgraph/spa-github-pages
+    // Modified for our specific deployment
+    var segmentCount = 0;
+    
+    // GitHub Pages specific logic for project pages - ADHDplanner is in the path
+    var hostname = window.location.hostname;
+    if (hostname.indexOf('github.io') !== -1 || hostname.indexOf('pages.dev') !== -1) {
+      segmentCount = 1; // When hosted on GitHub Pages or similar platforms
+    }
+    
+    var l = window.location;
+    
+    // Check if we're at the root path
+    var isRootPath = l.pathname === "/" || l.pathname === "/ADHDplanner/" || l.pathname === "/ADHDplanner";
+    
+    if (!isRootPath) {
+      l.replace(
+        l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+        l.pathname.split('/').slice(0, 1 + segmentCount).join('/') + '/?p=/' +
+        l.pathname.slice(1).split('/').slice(segmentCount).join('/').replace(/&/g, '~and~') +
+        (l.search ? '&q=' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+        l.hash
+      );
+    } else {
+      // If we're already at the root, just go to the index page
+      window.location.href = '/ADHDplanner/';
+    }
+  </script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: #f7f7f7;
+    }
+    .message {
+      text-align: center;
+      padding: 2rem;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      max-width: 500px;
+    }
+    h1 {
+      color: #4F46E5;
+      margin-top: 0;
+    }
+    /* Add a special comment to ensure the file is served with the right MIME type */
+    /* text/html */
+  </style>
+</head>
+<body>
+  <div class="message">
+    <h1>Redirecting...</h1>
+    <p>If you are not redirected automatically, click <a href="/ADHDplanner/">here</a>.</p>
+  </div>
+</body>
+</html>
