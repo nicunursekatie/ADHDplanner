@@ -3,7 +3,7 @@ import { useAppContext } from '../context/AppContext';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Modal from '../components/common/Modal';
-import { Download, Upload, Trash2, AlertCircle, Loader } from 'lucide-react';
+import { Download, Upload, Trash2, AlertCircle, Loader, Database } from 'lucide-react';
 
 const SettingsPage: React.FC = () => {
   const { exportData, importData, resetData, initializeSampleData } = useAppContext();
@@ -235,6 +235,28 @@ const SettingsPage: React.FC = () => {
         </div>
       </Card>
       
+      {/* Storage Information */}
+      <Card title="Storage Information">
+        <div className="space-y-4">
+          <div className="flex items-start space-x-3">
+            <div className="mt-1">
+              <Database size={24} className="text-indigo-500" />
+            </div>
+            <div>
+              <h3 className="text-lg font-medium text-gray-900">Local IndexedDB Storage</h3>
+              <p className="text-sm text-gray-500 mb-3">
+                All your data is stored locally in your browser using IndexedDB,
+                which means it's available even when you're offline. Regular backups
+                are recommended using the Export feature above.
+              </p>
+              <p className="text-sm text-gray-600">
+                Your data is stored only on this device and never sent to any server.
+              </p>
+            </div>
+          </div>
+        </div>
+      </Card>
+
       {/* About */}
       <Card title="About TaskManager">
         <div className="space-y-2">

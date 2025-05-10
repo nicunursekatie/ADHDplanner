@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { Task, JournalEntry } from '../../types';
 import { getISOWeekAndYear } from '../../utils/helpers';
@@ -17,7 +17,8 @@ import {
   Plus,
   RefreshCw,
   Save,
-  BookOpen
+  BookOpen,
+  Loader
 } from 'lucide-react';
 
 interface WeeklyReviewSystemProps {
@@ -43,16 +44,27 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
     updateJournalEntry,
     getJournalEntriesForWeek
   } = useAppContext();
+
+  // Refs for component lifecycle and performance
+  const isMounted = useRef(true);
   const [taskInput, setTaskInput] = useState('');
   const [journalInput, setJournalInput] = useState('');
   const [currentJournalEntry, setCurrentJournalEntry] = useState<JournalEntry | null>(null);
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
   const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
+  const [isSavingJournal, setIsSavingJournal] = useState(false);
   const [reviewComplete, setReviewComplete] = useState(false);
   const [showJournal, setShowJournal] = useState(false);
 
   // Get dates for this week and next week using useMemo to avoid re-creating on every render
   const today = useMemo(() => new Date(), []);
+
+  // Cleanup when component unmounts
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
   // Get current week information
   const { weekNumber, weekYear } = useMemo(() => getISOWeekAndYear(today), [today]);
@@ -259,45 +271,76 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
     }
   }, [activeSectionId, currentWeekEntries]);
 
-  const handleSaveJournal = () => {
-    if (journalInput.trim()) {
+  const handleSaveJournal = useCallback(() => {
+    if (!journalInput.trim() || isSavingJournal) return;
+
+    // Set loading state
+    setIsSavingJournal(true);
+
+    try {
       const todayStr = today.toISOString().split('T')[0];
 
-      if (currentJournalEntry) {
-        // Update existing entry
-        const updatedEntry: JournalEntry = {
-          ...currentJournalEntry,
-          content: journalInput,
-          isCompleted: true, // Mark as completed when saved
-          updatedAt: new Date().toISOString()
-        };
-        updateJournalEntry(updatedEntry);
+      setTimeout(() => {
+        if (!isMounted.current) return;
 
-        // Update the current week entries
-        setCurrentWeekEntries(prev =>
-          prev.map(entry => entry.id === updatedEntry.id ? updatedEntry : entry)
-        );
-      } else {
-        // Create new entry
-        const newEntry = addJournalEntry({
-          date: todayStr,
-          content: journalInput,
-          reviewSectionId: activeSectionId || undefined,
-          weekNumber,
-          weekYear,
-          isCompleted: true
-        });
-        setCurrentJournalEntry(newEntry);
+        try {
+          if (currentJournalEntry) {
+            // Update existing entry
+            const updatedEntry: JournalEntry = {
+              ...currentJournalEntry,
+              content: journalInput,
+              isCompleted: true, // Mark as completed when saved
+              updatedAt: new Date().toISOString()
+            };
+            updateJournalEntry(updatedEntry);
 
-        // Add to current week entries
-        setCurrentWeekEntries(prev => [...prev, newEntry]);
+            // Update the current week entries if component is still mounted
+            if (isMounted.current) {
+              setCurrentWeekEntries(prev =>
+                prev.map(entry => entry.id === updatedEntry.id ? updatedEntry : entry)
+              );
+              setCurrentJournalEntry(updatedEntry);
+            }
+          } else {
+            // Create new entry
+            const newEntry = addJournalEntry({
+              date: todayStr,
+              content: journalInput,
+              reviewSectionId: activeSectionId || undefined,
+              weekNumber,
+              weekYear,
+              isCompleted: true
+            });
+
+            // Update state if component is still mounted
+            if (isMounted.current) {
+              setCurrentJournalEntry(newEntry);
+              // Add to current week entries
+              setCurrentWeekEntries(prev => [...prev, newEntry]);
+            }
+          }
+        } catch (error) {
+          console.error('Error saving journal entry:', error);
+        } finally {
+          // Reset loading state if component is still mounted
+          if (isMounted.current) {
+            setIsSavingJournal(false);
+          }
+        }
+      }, 100); // Small delay to let UI update first
+    } catch (error) {
+      console.error('Error in handleSaveJournal:', error);
+      if (isMounted.current) {
+        setIsSavingJournal(false);
       }
     }
-  };
+  }, [journalInput, currentJournalEntry, today, activeSectionId, weekNumber, weekYear, updateJournalEntry, addJournalEntry, isSavingJournal]);
 
-  const toggleJournal = () => {
-    setShowJournal(!showJournal);
-  };
+  const toggleJournal = useCallback(() => {
+    if (isMounted.current) {
+      setShowJournal(prev => !prev);
+    }
+  }, []);
 
   // Helper to check if a section is completed based on journal entries
   const isSectionCompleted = (sectionId: string): boolean => {
@@ -437,9 +480,10 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
                         <Button
                           size="sm"
                           onClick={handleSaveJournal}
-                          icon={<Save size={16} />}
+                          icon={isSavingJournal ? <Loader size={16} className="animate-spin" /> : <Save size={16} />}
+                          disabled={isSavingJournal || !journalInput.trim()}
                         >
-                          Save Entry
+                          {isSavingJournal ? 'Saving...' : 'Save Entry'}
                         </Button>
                       </div>
                       {currentJournalEntry && (
