@@ -29,13 +29,7 @@ export class ADHDPlannerDB extends Dexie {
       journalEntries: 'id, date, weekNumber, weekYear, createdAt, updatedAt'
     });
 
-    // Optional: Add hooks and methods to classes
-    this.tasks.mapToClass(Task);
-    this.projects.mapToClass(Project);
-    this.categories.mapToClass(Category);
-    this.dailyPlans.mapToClass(DailyPlan);
-    this.workSchedules.mapToClass(WorkSchedule);
-    this.journalEntries.mapToClass(JournalEntry);
+    // Note: We're using interfaces, not classes, so we don't use mapToClass
   }
 
   /**

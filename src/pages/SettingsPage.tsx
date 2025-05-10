@@ -3,7 +3,8 @@ import { useAppContext } from '../context/AppContext';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Modal from '../components/common/Modal';
-import { Download, Upload, Trash2, AlertCircle, Loader, Database } from 'lucide-react';
+import { testDexieDatabase } from '../utils/testDexie';
+import { Download, Upload, Trash2, AlertCircle, Loader, Database, Check, XCircle } from 'lucide-react';
 
 const SettingsPage: React.FC = () => {
   const { exportData, importData, resetData, initializeSampleData } = useAppContext();
@@ -14,6 +15,10 @@ const SettingsPage: React.FC = () => {
   const [importError, setImportError] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+
+  // State for database test
+  const [testResults, setTestResults] = useState<any>(null);
+  const [isTesting, setIsTesting] = useState(false);
   
   const handleExportData = () => {
     const data = exportData();
@@ -252,6 +257,68 @@ const SettingsPage: React.FC = () => {
               <p className="text-sm text-gray-600">
                 Your data is stored only on this device and never sent to any server.
               </p>
+
+              <div className="mt-4">
+                <Button
+                  variant="secondary"
+                  size="small"
+                  onClick={async () => {
+                    setIsTesting(true);
+                    try {
+                      const results = await testDexieDatabase();
+                      setTestResults(results);
+                    } catch (error) {
+                      console.error('Error running database tests:', error);
+                      setTestResults({
+                        success: false,
+                        message: `Error running tests: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                        details: []
+                      });
+                    } finally {
+                      setIsTesting(false);
+                    }
+                  }}
+                  disabled={isTesting}
+                >
+                  {isTesting ? 'Testing...' : 'Test Database Connection'}
+                </Button>
+
+                {testResults && (
+                  <div className={`mt-3 p-3 rounded-md ${
+                    testResults.success ? 'bg-green-50' : 'bg-red-50'
+                  }`}>
+                    <div className="flex items-center mb-2">
+                      {testResults.success ? (
+                        <Check size={16} className="text-green-600 mr-2" />
+                      ) : (
+                        <XCircle size={16} className="text-red-600 mr-2" />
+                      )}
+                      <span className={`font-medium ${
+                        testResults.success ? 'text-green-700' : 'text-red-700'
+                      }`}>
+                        {testResults.message}
+                      </span>
+                    </div>
+
+                    {testResults.details && testResults.details.length > 0 && (
+                      <div className="mt-2 space-y-1 text-sm">
+                        {testResults.details.map((detail: any, idx: number) => (
+                          <div key={idx} className="flex items-start">
+                            {detail.success ? (
+                              <Check size={12} className="text-green-600 mr-1 mt-1 flex-shrink-0" />
+                            ) : (
+                              <XCircle size={12} className="text-red-600 mr-1 mt-1 flex-shrink-0" />
+                            )}
+                            <div>
+                              <span className="font-medium">{detail.test}:</span> {detail.message}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
