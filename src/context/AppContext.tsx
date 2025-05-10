@@ -73,6 +73,7 @@ interface AppContextType {
   importData: (jsonData: string) => Promise<boolean>;
   resetData: () => Promise<void>;
   initializeSampleData: () => Promise<void>;
+  performDatabaseMaintenance: () => Promise<void>;
 
   // App State
   isLoading: boolean;
@@ -130,16 +131,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Helper to update specific loading states
   const setSpecificLoadingState = useCallback((key: keyof typeof loadingStates, isLoading: boolean) => {
-    setLoadingStates(prev => ({
-      ...prev,
-      [key]: isLoading
-    }));
-  }, []);
+    if (loadingStates[key] !== isLoading) {
+      setLoadingStates(prev => ({
+        ...prev,
+        [key]: isLoading
+      }));
+    }
+  }, [loadingStates]);
 
-  // Load data on initial render
+  // Load data on initial render - use an empty dependency array to ensure it only runs once
   useEffect(() => {
     const loadData = async () => {
       try {
+        console.log('Initial data loading started');
         setIsLoading(true);
         setIsError(false);
 
@@ -165,86 +169,128 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           }
         }
 
+        // Create local variables to check if data exists
+        let loadedTasks: Task[] = [];
+        let loadedProjects: Project[] = [];
+        let loadedCategories: Category[] = [];
+
         // Load data with individual error handling for each resource type
         try {
+          console.log('Loading tasks...');
           const tasksData = await storage.getTasks();
+          loadedTasks = tasksData;
           setTasks(tasksData);
           setSpecificLoadingState('tasks', false);
         } catch (error) {
           console.error('Error loading tasks:', error);
           // Try localStorage as fallback
-          const tasksData = await localStorage.getTasks();
-          setTasks(tasksData);
+          try {
+            const tasksData = await localStorage.getTasks();
+            loadedTasks = tasksData;
+            setTasks(tasksData);
+          } catch (fallbackError) {
+            console.error('Fallback loading of tasks also failed:', fallbackError);
+          }
           setSpecificLoadingState('tasks', false);
         }
 
         try {
+          console.log('Loading projects...');
           const projectsData = await storage.getProjects();
+          loadedProjects = projectsData;
           setProjects(projectsData);
           setSpecificLoadingState('projects', false);
         } catch (error) {
           console.error('Error loading projects:', error);
           // Try localStorage as fallback
-          const projectsData = await localStorage.getProjects();
-          setProjects(projectsData);
+          try {
+            const projectsData = await localStorage.getProjects();
+            loadedProjects = projectsData;
+            setProjects(projectsData);
+          } catch (fallbackError) {
+            console.error('Fallback loading of projects also failed:', fallbackError);
+          }
           setSpecificLoadingState('projects', false);
         }
 
         try {
+          console.log('Loading categories...');
           const categoriesData = await storage.getCategories();
+          loadedCategories = categoriesData;
           setCategories(categoriesData);
           setSpecificLoadingState('categories', false);
         } catch (error) {
           console.error('Error loading categories:', error);
           // Try localStorage as fallback
-          const categoriesData = await localStorage.getCategories();
-          setCategories(categoriesData);
+          try {
+            const categoriesData = await localStorage.getCategories();
+            loadedCategories = categoriesData;
+            setCategories(categoriesData);
+          } catch (fallbackError) {
+            console.error('Fallback loading of categories also failed:', fallbackError);
+          }
           setSpecificLoadingState('categories', false);
         }
 
         try {
+          console.log('Loading daily plans...');
           const dailyPlansData = await storage.getDailyPlans();
           setDailyPlans(dailyPlansData);
           setSpecificLoadingState('dailyPlans', false);
         } catch (error) {
           console.error('Error loading daily plans:', error);
           // Try localStorage as fallback
-          const dailyPlansData = await localStorage.getDailyPlans();
-          setDailyPlans(dailyPlansData);
+          try {
+            const dailyPlansData = await localStorage.getDailyPlans();
+            setDailyPlans(dailyPlansData);
+          } catch (fallbackError) {
+            console.error('Fallback loading of daily plans also failed:', fallbackError);
+          }
           setSpecificLoadingState('dailyPlans', false);
         }
 
         try {
+          console.log('Loading work schedule...');
           const workScheduleData = await storage.getWorkSchedule();
           setWorkSchedule(workScheduleData);
           setSpecificLoadingState('workSchedule', false);
         } catch (error) {
           console.error('Error loading work schedule:', error);
           // Try localStorage as fallback
-          const workScheduleData = await localStorage.getWorkSchedule();
-          setWorkSchedule(workScheduleData);
+          try {
+            const workScheduleData = await localStorage.getWorkSchedule();
+            setWorkSchedule(workScheduleData);
+          } catch (fallbackError) {
+            console.error('Fallback loading of work schedule also failed:', fallbackError);
+          }
           setSpecificLoadingState('workSchedule', false);
         }
 
         try {
+          console.log('Loading journal entries...');
           const journalEntriesData = await storage.getJournalEntries();
           setJournalEntries(journalEntriesData);
           setSpecificLoadingState('journalEntries', false);
         } catch (error) {
           console.error('Error loading journal entries:', error);
           // Try localStorage as fallback
-          const journalEntriesData = await localStorage.getJournalEntries();
-          setJournalEntries(journalEntriesData);
+          try {
+            const journalEntriesData = await localStorage.getJournalEntries();
+            setJournalEntries(journalEntriesData);
+          } catch (fallbackError) {
+            console.error('Fallback loading of journal entries also failed:', fallbackError);
+          }
           setSpecificLoadingState('journalEntries', false);
         }
 
-        // Check if data exists
+        // Check if data exists using our local variables (not state)
         const hasData =
-          tasks.length > 0 ||
-          projects.length > 0 ||
-          categories.length > 0;
+          loadedTasks.length > 0 ||
+          loadedProjects.length > 0 ||
+          loadedCategories.length > 0;
 
         setIsDataInitialized(hasData);
+        console.log('Initial data loading completed');
       } catch (error) {
         console.error('Error loading data:', error);
         setIsError(true);
@@ -254,7 +300,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     loadData();
-  }, [categories.length, loadingStates, projects.length, setSpecificLoadingState, tasks.length]);
+  // Use empty dependency array to ensure this only runs once at mount
+  }, []);
   
   // Tasks
   const addTask = useCallback(async (taskData: Partial<Task>): Promise<Task> => {
@@ -1284,6 +1331,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [addTask]);
 
+  // Database maintenance
+  const performDatabaseMaintenance = useCallback(async (): Promise<void> => {
+    try {
+      setIsLoading(true);
+      console.log('Starting database maintenance...');
+      await storage.performDatabaseMaintenance();
+      console.log('Database maintenance completed');
+
+      // Reload tasks after maintenance to reflect any changes
+      try {
+        const tasksData = await storage.getTasks();
+        setTasks(tasksData);
+      } catch (error) {
+        console.error('Error reloading tasks after maintenance:', error);
+      }
+    } catch (error) {
+      console.error('Error performing database maintenance:', error);
+      setIsError(true);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const contextValue: AppContextType = {
     tasks,
     addTask,
@@ -1333,6 +1403,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     importData,
     resetData,
     initializeSampleData,
+    performDatabaseMaintenance,
 
     isLoading,
     loadingStates,

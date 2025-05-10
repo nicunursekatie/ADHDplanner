@@ -81,6 +81,31 @@ export class ADHDPlannerDB extends Dexie {
   async getDailyPlanForDate(date: string): Promise<DailyPlan | undefined> {
     return this.dailyPlans.where('date').equals(date).first();
   }
+
+  /**
+   * Compact the database to reclaim space and optimize performance
+   * This can help prevent memory issues over time
+   */
+  async compact(): Promise<void> {
+    console.log('Compacting database to optimize performance...');
+    try {
+      // Ensure we're in a good state first
+      await this.close();
+      // Reopen and compact
+      await this.open();
+      // Dexie 4.0+ supports this directly
+      return super.compact();
+    } catch (error) {
+      console.error('Error compacting database:', error);
+      // Make sure db is reopened even if compact fails
+      try {
+        await this.open();
+      } catch (reopenError) {
+        console.error('Error reopening database after failed compact:', reopenError);
+      }
+      throw error;
+    }
+  }
 }
 
 // Create and export a singleton instance

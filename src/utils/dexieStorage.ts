@@ -271,39 +271,76 @@ export const deleteJournalEntry = async (entryId: string): Promise<void> => {
 // Data Import/Export
 export const exportData = async (): Promise<string> => {
   try {
-    // Get all data from tables
-    const [tasks, projects, categories, dailyPlans, workSchedules, journalEntries] = await Promise.all([
-      db.tasks.toArray(),
-      db.projects.toArray(),
-      db.categories.toArray(),
-      db.dailyPlans.toArray(),
-      db.workSchedules.toArray(),
-      db.journalEntries.toArray()
-    ]);
+    // Create an export object, building it incrementally to prevent excessive memory use
+    const exportObject: any = {};
 
-    // Enhanced logging for debugging
-    console.log(`Exporting data: ${tasks.length} tasks, ${projects.length} projects, ${categories.length} categories, ${dailyPlans.length} daily plans, ${workSchedules.length} work schedules, ${journalEntries.length} journal entries`);
+    // Export each type of data separately to manage memory better
+    console.log('Starting data export...');
 
-    const data = {
-      tasks,
-      projects,
-      categories,
-      dailyPlans,
-      // Use consistent field name workSchedule (not workSchedules)
-      workSchedule: workSchedules.length > 0 ? workSchedules[0] : null,
-      journalEntries
-    };
+    // Export tasks
+    const tasks = await db.tasks.toArray();
+    console.log(`Exporting ${tasks.length} tasks`);
+    exportObject.tasks = tasks;
 
-    return JSON.stringify(data);
+    // Export projects
+    const projects = await db.projects.toArray();
+    console.log(`Exporting ${projects.length} projects`);
+    exportObject.projects = projects;
+
+    // Export categories
+    const categories = await db.categories.toArray();
+    console.log(`Exporting ${categories.length} categories`);
+    exportObject.categories = categories;
+
+    // Export daily plans
+    const dailyPlans = await db.dailyPlans.toArray();
+    console.log(`Exporting ${dailyPlans.length} daily plans`);
+    exportObject.dailyPlans = dailyPlans;
+
+    // Export work schedule
+    const workSchedules = await db.workSchedules.toArray();
+    console.log(`Exporting ${workSchedules.length} work schedules`);
+    // Use consistent field name workSchedule (not workSchedules)
+    exportObject.workSchedule = workSchedules.length > 0 ? workSchedules[0] : null;
+
+    // Export journal entries
+    const journalEntries = await db.journalEntries.toArray();
+    console.log(`Exporting ${journalEntries.length} journal entries`);
+    exportObject.journalEntries = journalEntries;
+
+    // Convert to JSON string in chunks if necessary for very large datasets
+    console.log('Converting data to JSON...');
+    return JSON.stringify(exportObject);
   } catch (error) {
     console.error('Error during data export:', error);
     handleStorageError('export data', error);
   }
 };
 
+/**
+ * Chunks an array into smaller arrays of the specified size
+ * to prevent memory issues when handling large datasets
+ */
+const chunkArray = <T>(array: T[], chunkSize: number): T[][] => {
+  const chunks: T[][] = [];
+  for (let i = 0; i < array.length; i += chunkSize) {
+    chunks.push(array.slice(i, i + chunkSize));
+  }
+  return chunks;
+};
+
 export const importData = async (jsonData: string): Promise<boolean> => {
   try {
-    const data = JSON.parse(jsonData);
+    // Parse the data in a controlled way to prevent memory issues
+    let data;
+    try {
+      data = JSON.parse(jsonData);
+      // Immediately clear the jsonData string to help garbage collection
+      jsonData = '';
+    } catch (parseError) {
+      console.error('JSON parsing error:', parseError);
+      return false;
+    }
 
     // Add robust validation before attempting to save data
     // Ensure we have valid data before proceeding with transaction
@@ -315,76 +352,125 @@ export const importData = async (jsonData: string): Promise<boolean> => {
     // Log the structure of data being imported for debugging
     console.log('Importing data structure:', Object.keys(data));
 
-    // Perform import in a transaction for atomicity
-    await db.transaction('rw',
-      [db.tasks, db.projects, db.categories, db.dailyPlans, db.workSchedules, db.journalEntries],
-      async () => {
-        // Clear all tables
-        await Promise.all([
-          db.tasks.clear(),
-          db.projects.clear(),
-          db.categories.clear(),
-          db.dailyPlans.clear(),
-          db.workSchedules.clear(),
-          db.journalEntries.clear()
-        ]);
+    // First clear all tables to free up memory
+    console.log('Clearing existing data...');
+    await Promise.all([
+      db.tasks.clear(),
+      db.projects.clear(),
+      db.categories.clear(),
+      db.dailyPlans.clear(),
+      db.workSchedules.clear(),
+      db.journalEntries.clear()
+    ]);
 
-        // Import data into tables with better error handling
-        try {
-          if (data.tasks && Array.isArray(data.tasks) && data.tasks.length > 0) {
-            console.log(`Adding ${data.tasks.length} tasks`);
-            await db.tasks.bulkAdd(data.tasks);
-          }
+    // Define chunk size - adjust based on testing
+    const CHUNK_SIZE = 100;
 
-          if (data.projects && Array.isArray(data.projects) && data.projects.length > 0) {
-            console.log(`Adding ${data.projects.length} projects`);
-            await db.projects.bulkAdd(data.projects);
+    try {
+      // Import tasks in chunks to prevent memory issues
+      if (data.tasks && Array.isArray(data.tasks) && data.tasks.length > 0) {
+        console.log(`Adding ${data.tasks.length} tasks in chunks`);
+        const taskChunks = chunkArray(data.tasks, CHUNK_SIZE);
+        for (let i = 0; i < taskChunks.length; i++) {
+          console.log(`Importing tasks chunk ${i+1}/${taskChunks.length}`);
+          await db.tasks.bulkAdd(taskChunks[i]);
+          // Allow a small delay for garbage collection between chunks
+          if (i < taskChunks.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 10));
           }
-
-          if (data.categories && Array.isArray(data.categories) && data.categories.length > 0) {
-            console.log(`Adding ${data.categories.length} categories`);
-            await db.categories.bulkAdd(data.categories);
-          }
-
-          if (data.dailyPlans && Array.isArray(data.dailyPlans) && data.dailyPlans.length > 0) {
-            console.log(`Adding ${data.dailyPlans.length} daily plans`);
-            await db.dailyPlans.bulkAdd(data.dailyPlans);
-          }
-
-          // Handle work schedule with improved validation and error handling
-          if (data.workSchedule && typeof data.workSchedule === 'object') {
-            console.log('Adding work schedule from workSchedule field');
-            // Validate the work schedule structure to make sure it has required fields
-            if (data.workSchedule.id && Array.isArray(data.workSchedule.shifts)) {
-              await db.workSchedules.add(data.workSchedule);
-            } else {
-              console.warn('Work schedule data is invalid, skipping import');
-            }
-          } else if (data.workSchedules && typeof data.workSchedules === 'object') {
-            console.log('Adding work schedule from workSchedules field');
-            // Validate the work schedule structure to make sure it has required fields
-            if (data.workSchedules.id && Array.isArray(data.workSchedules.shifts)) {
-              await db.workSchedules.add(data.workSchedules);
-            } else {
-              console.warn('Work schedule data is invalid, skipping import');
-            }
-          } else {
-            console.log('No work schedule data found in import');
-          }
-
-          if (data.journalEntries && Array.isArray(data.journalEntries) && data.journalEntries.length > 0) {
-            console.log(`Adding ${data.journalEntries.length} journal entries`);
-            await db.journalEntries.bulkAdd(data.journalEntries);
-          }
-        } catch (importError) {
-          console.error('Error during data import for specific table:', importError);
-          // Let the error propagate to our catch block below
-          throw importError;
         }
-    });
+        // Clear reference to help garbage collection
+        data.tasks = null;
+      }
 
-    console.log('Import completed successfully');
-    return true;
+      // Import projects - usually smaller so might not need chunking
+      if (data.projects && Array.isArray(data.projects) && data.projects.length > 0) {
+        console.log(`Adding ${data.projects.length} projects`);
+        if (data.projects.length > CHUNK_SIZE) {
+          const projectChunks = chunkArray(data.projects, CHUNK_SIZE);
+          for (const chunk of projectChunks) {
+            await db.projects.bulkAdd(chunk);
+          }
+        } else {
+          await db.projects.bulkAdd(data.projects);
+        }
+        data.projects = null;
+      }
+
+      // Import categories - usually smaller so might not need chunking
+      if (data.categories && Array.isArray(data.categories) && data.categories.length > 0) {
+        console.log(`Adding ${data.categories.length} categories`);
+        await db.categories.bulkAdd(data.categories);
+        data.categories = null;
+      }
+
+      // Import daily plans in chunks if needed
+      if (data.dailyPlans && Array.isArray(data.dailyPlans) && data.dailyPlans.length > 0) {
+        console.log(`Adding ${data.dailyPlans.length} daily plans`);
+        if (data.dailyPlans.length > CHUNK_SIZE) {
+          const planChunks = chunkArray(data.dailyPlans, CHUNK_SIZE);
+          for (const chunk of planChunks) {
+            await db.dailyPlans.bulkAdd(chunk);
+          }
+        } else {
+          await db.dailyPlans.bulkAdd(data.dailyPlans);
+        }
+        data.dailyPlans = null;
+      }
+
+      // Handle work schedule with improved validation and error handling
+      if (data.workSchedule && typeof data.workSchedule === 'object') {
+        console.log('Adding work schedule from workSchedule field');
+        // Validate the work schedule structure to make sure it has required fields
+        if (data.workSchedule.id && Array.isArray(data.workSchedule.shifts)) {
+          await db.workSchedules.add(data.workSchedule);
+        } else {
+          console.warn('Work schedule data is invalid, skipping import');
+        }
+      } else if (data.workSchedules && typeof data.workSchedules === 'object') {
+        console.log('Adding work schedule from workSchedules field');
+        // Validate the work schedule structure to make sure it has required fields
+        if (data.workSchedules.id && Array.isArray(data.workSchedules.shifts)) {
+          await db.workSchedules.add(data.workSchedules);
+        } else {
+          console.warn('Work schedule data is invalid, skipping import');
+        }
+      } else {
+        console.log('No work schedule data found in import');
+      }
+      // Clear references
+      data.workSchedule = null;
+      data.workSchedules = null;
+
+      // Import journal entries in chunks if needed
+      if (data.journalEntries && Array.isArray(data.journalEntries) && data.journalEntries.length > 0) {
+        console.log(`Adding ${data.journalEntries.length} journal entries`);
+        if (data.journalEntries.length > CHUNK_SIZE) {
+          const entryChunks = chunkArray(data.journalEntries, CHUNK_SIZE);
+          for (const chunk of entryChunks) {
+            await db.journalEntries.bulkAdd(chunk);
+          }
+        } else {
+          await db.journalEntries.bulkAdd(data.journalEntries);
+        }
+        data.journalEntries = null;
+      }
+
+      // Force clear the data object to help garbage collection
+      data = null;
+
+      console.log('Import completed successfully');
+      return true;
+    } catch (importError) {
+      console.error('Error during data import for specific table:', importError);
+      // Log more detailed error information for debugging
+      if (importError instanceof Error) {
+        console.error('Error name:', importError.name);
+        console.error('Error message:', importError.message);
+        console.error('Error stack:', importError.stack);
+      }
+      return false;
+    }
   } catch (error) {
     console.error('Failed to import data:', error);
     // Log more detailed error information for debugging
@@ -400,19 +486,70 @@ export const importData = async (jsonData: string): Promise<boolean> => {
 // Reset data
 export const resetData = async (): Promise<void> => {
   try {
-    await db.transaction('rw', 
-      [db.tasks, db.projects, db.categories, db.dailyPlans, db.workSchedules, db.journalEntries], 
-      async () => {
-        await Promise.all([
-          db.tasks.clear(),
-          db.projects.clear(),
-          db.categories.clear(),
-          db.dailyPlans.clear(),
-          db.workSchedules.clear(),
-          db.journalEntries.clear()
-        ]);
-    });
+    console.log('Starting database reset...');
+
+    // Clear each table separately to better manage memory
+    console.log('Clearing tasks...');
+    await db.tasks.clear();
+
+    console.log('Clearing projects...');
+    await db.projects.clear();
+
+    console.log('Clearing categories...');
+    await db.categories.clear();
+
+    console.log('Clearing daily plans...');
+    await db.dailyPlans.clear();
+
+    console.log('Clearing work schedules...');
+    await db.workSchedules.clear();
+
+    console.log('Clearing journal entries...');
+    await db.journalEntries.clear();
+
+    console.log('Database reset complete');
   } catch (error) {
+    console.error('Error during data reset:', error);
     handleStorageError('reset data', error);
+  }
+};
+
+/**
+ * Performs periodic database maintenance to optimize performance
+ * and prevent memory issues
+ */
+export const performDatabaseMaintenance = async (): Promise<void> => {
+  try {
+    console.log('Starting database maintenance...');
+
+    // Compact the database to reclaim space
+    await db.compact();
+
+    // Archive old completed tasks to reduce database size
+    const threeMonthsAgo = new Date();
+    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+    const cutoffDate = threeMonthsAgo.toISOString();
+
+    // Count old completed tasks
+    const oldCompletedTasks = await db.tasks
+      .where('completed')
+      .equals(true)
+      .and(task => task.updatedAt < cutoffDate)
+      .count();
+
+    if (oldCompletedTasks > 0) {
+      console.log(`Archiving ${oldCompletedTasks} old completed tasks...`);
+
+      // Set archived flag on old completed tasks
+      await db.tasks
+        .where('completed')
+        .equals(true)
+        .and(task => task.updatedAt < cutoffDate)
+        .modify({ archived: true });
+    }
+
+    console.log('Database maintenance completed');
+  } catch (error) {
+    console.error('Error during database maintenance:', error);
   }
 };

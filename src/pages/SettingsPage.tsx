@@ -7,14 +7,16 @@ import { testDexieDatabase } from '../utils/testDexie';
 import { Download, Upload, Trash2, AlertCircle, Loader, Database, Check, XCircle } from 'lucide-react';
 
 const SettingsPage: React.FC = () => {
-  const { exportData, importData, resetData, initializeSampleData } = useAppContext();
-  
+  const { exportData, importData, resetData, initializeSampleData, performDatabaseMaintenance } = useAppContext();
+
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [resetModalOpen, setResetModalOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isPerformingMaintenance, setIsPerformingMaintenance] = useState(false);
+  const [maintenanceSuccess, setMaintenanceSuccess] = useState(false);
 
   // State for database test
   const [testResults, setTestResults] = useState<{success: boolean; message: string; details?: {test: string; success: boolean; message: string}[]}>(null);
@@ -207,6 +209,26 @@ const SettingsPage: React.FC = () => {
   const handleLoadSampleData = () => {
     initializeSampleData();
   };
+
+  const handleDatabaseMaintenance = async () => {
+    try {
+      setIsPerformingMaintenance(true);
+      setMaintenanceSuccess(false);
+
+      await performDatabaseMaintenance();
+
+      setMaintenanceSuccess(true);
+
+      // Reset success message after a delay
+      setTimeout(() => {
+        setMaintenanceSuccess(false);
+      }, 3000);
+    } catch (error) {
+      console.error('Error during database maintenance:', error);
+    } finally {
+      setIsPerformingMaintenance(false);
+    }
+  };
   
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
@@ -308,30 +330,55 @@ const SettingsPage: React.FC = () => {
                 Your data is stored only on this device and never sent to any server.
               </p>
 
-              <div className="mt-4">
-                <Button
-                  variant="secondary"
-                  size="small"
-                  onClick={async () => {
-                    setIsTesting(true);
-                    try {
-                      const results = await testDexieDatabase();
-                      setTestResults(results);
-                    } catch (error) {
-                      console.error('Error running database tests:', error);
-                      setTestResults({
-                        success: false,
-                        message: `Error running tests: ${error instanceof Error ? error.message : 'Unknown error'}`,
-                        details: []
-                      });
-                    } finally {
-                      setIsTesting(false);
-                    }
-                  }}
-                  disabled={isTesting}
-                >
-                  {isTesting ? 'Testing...' : 'Test Database Connection'}
-                </Button>
+              <div className="mt-4 space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="secondary"
+                    size="small"
+                    onClick={async () => {
+                      setIsTesting(true);
+                      try {
+                        const results = await testDexieDatabase();
+                        setTestResults(results);
+                      } catch (error) {
+                        console.error('Error running database tests:', error);
+                        setTestResults({
+                          success: false,
+                          message: `Error running tests: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                          details: []
+                        });
+                      } finally {
+                        setIsTesting(false);
+                      }
+                    }}
+                    disabled={isTesting || isPerformingMaintenance}
+                  >
+                    {isTesting ? 'Testing...' : 'Test Database Connection'}
+                  </Button>
+
+                  <Button
+                    variant="secondary"
+                    size="small"
+                    onClick={handleDatabaseMaintenance}
+                    disabled={isTesting || isPerformingMaintenance}
+                  >
+                    {isPerformingMaintenance ? (
+                      <>
+                        <Loader size={14} className="mr-2 animate-spin" />
+                        Optimizing...
+                      </>
+                    ) : (
+                      'Optimize Database'
+                    )}
+                  </Button>
+
+                  {maintenanceSuccess && (
+                    <span className="inline-flex items-center text-sm text-green-700">
+                      <Check size={14} className="mr-1" />
+                      Database optimized
+                    </span>
+                  )}
+                </div>
 
                 {testResults && (
                   <div className={`mt-3 p-3 rounded-md ${
@@ -368,6 +415,16 @@ const SettingsPage: React.FC = () => {
                     )}
                   </div>
                 )}
+              </div>
+
+              <div className="mt-4 p-3 bg-blue-50 rounded-md text-sm text-blue-700">
+                <h4 className="font-medium mb-1">Memory Usage Tips</h4>
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  <li>Regularly use the "Optimize Database" feature if the app becomes slow</li>
+                  <li>Archive completed tasks frequently to improve performance</li>
+                  <li>Export your data regularly as a backup</li>
+                  <li>If experiencing memory issues, try refreshing the page</li>
+                </ul>
               </div>
             </div>
           </div>
