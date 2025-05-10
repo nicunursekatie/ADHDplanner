@@ -24,9 +24,10 @@ const WeeklyReviewReminder: React.FC<WeeklyReviewReminderProps> = ({ onDismiss }
     const latestReview = getLatestWeeklyReview();
     
     // Check if review is already done for this week
-    const isReviewCompleted = latestReview && 
-      latestReview.weekNumber === weekNumber && 
-      latestReview.weekYear === weekYear;
+    const isReviewCompleted = latestReview &&
+      latestReview.weekNumber === weekNumber &&
+      latestReview.weekYear === weekYear &&
+      latestReview.isComplete;
     
     if (isReviewCompleted) {
       setShouldShow(false);

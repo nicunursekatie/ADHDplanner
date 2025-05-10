@@ -653,6 +653,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const getLatestWeeklyReview = useCallback(() => {
     // Group entries by week
     const weekEntries = journalEntries.reduce((acc, entry) => {
+      // Skip entries without proper week information
+      if (!entry.weekNumber || !entry.weekYear) return acc;
+
       const key = `${entry.weekYear}-${entry.weekNumber}`;
       if (!acc[key]) {
         acc[key] = [];
@@ -667,10 +670,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const latestWeek = weeks[0];
     const [yearStr, weekStr] = latestWeek.split('-');
+
+    const weekNumber = parseInt(weekStr, 10);
+    const weekYear = parseInt(yearStr, 10);
+    const entries = weekEntries[latestWeek];
+
+    // Get unique section IDs
+    const sectionIds = [
+      'reflect', 'overdue', 'upcoming', 'projects', 'life-areas'
+    ];
+
+    // Check if all required sections are completed
+    const isComplete = sectionIds.every(sectionId =>
+      entries.some(entry =>
+        entry.reviewSectionId === sectionId && entry.isCompleted
+      )
+    );
+
     return {
-      weekNumber: parseInt(weekStr, 10),
-      weekYear: parseInt(yearStr, 10),
-      entries: weekEntries[latestWeek]
+      weekNumber,
+      weekYear,
+      entries,
+      isComplete
     };
   }, [journalEntries]);
   

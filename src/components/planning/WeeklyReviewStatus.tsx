@@ -24,11 +24,16 @@ const WeeklyReviewStatus: React.FC<WeeklyReviewStatusProps> = ({ compact = false
   const isReviewDue = useMemo(() => {
     if (!latestReview || !latestReview.weekYear || !latestReview.weekNumber) return true;
 
-    // Check if we're in a new week compared to the last review
-    if (latestReview.weekYear < currentWeekYear) return true;
-    if (latestReview.weekYear === currentWeekYear && latestReview.weekNumber < currentWeekNumber) return true;
+    // If current week's review is already complete, no review is due
+    if (latestReview.weekYear === currentWeekYear &&
+        latestReview.weekNumber === currentWeekNumber &&
+        latestReview.isComplete) {
+      return false;
+    }
 
-    return false;
+    // Otherwise, review is due if we're in a new week compared to the last review
+    // or if the review for the current week isn't complete yet
+    return true;
   }, [latestReview, currentWeekNumber, currentWeekYear]);
   
   // Format date nicely for display
