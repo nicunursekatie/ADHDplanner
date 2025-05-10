@@ -11,7 +11,8 @@ export const testDexieDatabase = async (): Promise<{
   details: Array<{test: string; success: boolean; message: string}>;
 }> => {
   const results: Array<{test: string; success: boolean; message: string}> = [];
-  
+  let success = true; // Initialize success variable
+
   try {
     // Test 1: Can add and retrieve a task
     try {
@@ -148,9 +149,9 @@ export const testDexieDatabase = async (): Promise<{
     
     // Overall result
     return {
-      success: results.every(r => r.success),
-      message: results.every(r => r.success) 
-        ? 'All Dexie database tests passed' 
+      success: success && results.every(r => r.success),
+      message: success && results.every(r => r.success)
+        ? 'All Dexie database tests passed'
         : 'Some Dexie database tests failed',
       details: results
     };
