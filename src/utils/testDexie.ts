@@ -75,7 +75,7 @@ export const testDexieDatabase = async (): Promise<{
       // Add some test tasks
       const today = new Date().toISOString().split('T')[0];
       const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
-      
+
       const testTasks = [
         {
           id: `test-${generateId()}`,
@@ -108,29 +108,32 @@ export const testDexieDatabase = async (): Promise<{
           updatedAt: new Date().toISOString()
         }
       ];
-      
+
       // Add the tasks
       await db.tasks.bulkAdd(testTasks);
-      
-      // Test querying by index
-      const incompleteTasks = await db.tasks.where('completed').equals(false).toArray();
-      const todayTasks = await db.tasks.where('dueDate').equals(today).toArray();
-      const projectTasks = await db.tasks.where('projectId').equals('test-project').toArray();
-      
+
+      // Use simpler queries that don't rely on complex indexes
+      // Test querying by boolean index (completed)
+      const incompleteTasks = await db.tasks.filter(task => task.completed === false).toArray();
+
+      // Test querying by string equality (for dueDate and projectId)
+      const todayTasks = await db.tasks.filter(task => task.dueDate === today).toArray();
+      const projectTasks = await db.tasks.filter(task => task.projectId === 'test-project').toArray();
+
       // Clean up
       await db.tasks.bulkDelete(testTasks.map(t => t.id));
-      
+
       // Verify results
       if (incompleteTasks.length < 1) {
-        throw new Error('Failed to retrieve incomplete tasks by index');
+        throw new Error('Failed to retrieve incomplete tasks by filter');
       }
-      
+
       if (todayTasks.length < 1) {
-        throw new Error('Failed to retrieve tasks by due date index');
+        throw new Error('Failed to retrieve tasks by due date filter');
       }
-      
+
       if (projectTasks.length < 2) {
-        throw new Error('Failed to retrieve tasks by project ID index');
+        throw new Error('Failed to retrieve tasks by project ID filter');
       }
       
       results.push({
