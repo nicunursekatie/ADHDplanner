@@ -11,7 +11,8 @@ import {
   HelpCircle,
   BrainCircuit,
   RefreshCw,
-  ListChecks
+  ListChecks,
+  BookOpen
 } from 'lucide-react';
 import WeeklyReviewStatus from '../components/planning/WeeklyReviewStatus';
 import { useAppContext } from '../context/AppContext';
@@ -174,6 +175,16 @@ const Dashboard: React.FC = () => {
                       <span className="font-medium">Accountability Check-In</span>
                     </div>
                     <ArrowRight size={16} className="text-orange-500" />
+                  </div>
+                </Link>
+
+                <Link to="/journal">
+                  <div className="p-3 bg-violet-50 rounded-lg hover:bg-violet-100 transition-colors cursor-pointer flex items-center justify-between">
+                    <div className="flex items-center">
+                      <BookOpen className="w-5 h-5 text-violet-600 mr-2" />
+                      <span className="font-medium">Journal Entries</span>
+                    </div>
+                    <ArrowRight size={16} className="text-violet-500" />
                   </div>
                 </Link>
 
