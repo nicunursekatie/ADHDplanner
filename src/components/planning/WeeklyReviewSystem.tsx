@@ -544,15 +544,28 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
                   )}
                   
                   <div className="flex justify-between pt-3 border-t border-gray-100">
-                    <Button 
-                      variant="outline"
-                      onClick={() => {
-                        setActiveSectionId(null);
-                        setCurrentPromptIndex(0);
-                      }}
-                    >
-                      Back to Review
-                    </Button>
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setActiveSectionId(null);
+                          setCurrentPromptIndex(0);
+                        }}
+                      >
+                        Back to Review
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        as="a"
+                        href="/journal"
+                        icon={<BookOpen size={16} />}
+                      >
+                        View All Journal Entries
+                      </Button>
+                    </div>
+
                     <Button onClick={handleNextPrompt}>
                       {currentPromptIndex < section.prompts.length - 1 ? 'Next Prompt' : 'Complete Section'}
                     </Button>

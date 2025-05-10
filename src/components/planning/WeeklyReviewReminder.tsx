@@ -71,14 +71,20 @@ const WeeklyReviewReminder: React.FC<WeeklyReviewReminderProps> = ({ onDismiss }
           </span>
         </div>
         <div className="flex items-center space-x-3">
-          <Link 
-            to="/weekly-review" 
+          <Link
+            to="/weekly-review"
             className="text-xs bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded-full transition-colors"
           >
             Do it now
           </Link>
-          <button 
-            onClick={handleDismiss} 
+          <Link
+            to="/journal"
+            className="text-xs bg-violet-600 hover:bg-violet-700 text-white py-1 px-3 rounded-full transition-colors"
+          >
+            View journal entries
+          </Link>
+          <button
+            onClick={handleDismiss}
             className="p-1 text-blue-600 hover:text-blue-800 rounded-full hover:bg-blue-100"
             aria-label="Dismiss"
           >
