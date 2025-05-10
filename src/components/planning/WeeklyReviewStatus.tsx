@@ -22,25 +22,28 @@ const WeeklyReviewStatus: React.FC<WeeklyReviewStatusProps> = ({ compact = false
   
   // Determine if review is due
   const isReviewDue = useMemo(() => {
-    if (!latestReview) return true;
-    
+    if (!latestReview || !latestReview.weekYear || !latestReview.weekNumber) return true;
+
     // Check if we're in a new week compared to the last review
     if (latestReview.weekYear < currentWeekYear) return true;
     if (latestReview.weekYear === currentWeekYear && latestReview.weekNumber < currentWeekNumber) return true;
-    
+
     return false;
   }, [latestReview, currentWeekNumber, currentWeekYear]);
   
   // Format date nicely for display
-  const formatDate = (entries: { updatedAt: string }[]) => {
-    if (!entries || entries.length === 0) return 'Never';
-    
+  const formatDate = (entries?: { updatedAt: string }[]) => {
+    if (!entries || !Array.isArray(entries) || entries.length === 0) return 'Never';
+
     // Find the most recent entry
-    const sortedEntries = [...entries].sort((a, b) => 
-      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    const sortedEntries = [...entries].sort((a, b) =>
+      new Date(b.updatedAt || '').getTime() - new Date(a.updatedAt || '').getTime()
     );
     
     const latestEntry = sortedEntries[0];
+
+    if (!latestEntry || !latestEntry.updatedAt) return 'Never';
+
     const date = new Date(latestEntry.updatedAt);
     
     return date.toLocaleDateString('en-US', { 
@@ -119,13 +122,13 @@ const WeeklyReviewStatus: React.FC<WeeklyReviewStatusProps> = ({ compact = false
         <div className="p-3 bg-gray-50 rounded-lg">
           <div className="text-sm text-gray-500 mb-1">Last Review</div>
           <div className="font-medium">
-            {latestReview 
+            {latestReview && latestReview.weekNumber && latestReview.weekYear
               ? `Week ${latestReview.weekNumber}, ${latestReview.weekYear}`
               : 'No reviews yet'
             }
           </div>
           <div className="text-xs text-gray-500 mt-1">
-            {latestReview 
+            {latestReview && latestReview.entries
               ? `Completed: ${formatDate(latestReview.entries)}`
               : 'Time to start your first review!'
             }
@@ -137,7 +140,7 @@ const WeeklyReviewStatus: React.FC<WeeklyReviewStatusProps> = ({ compact = false
         <div className="mt-3 p-3 bg-orange-50 border border-orange-100 rounded-lg flex items-center">
           <AlertTriangle size={16} className="text-orange-600 mr-2 flex-shrink-0" />
           <div className="text-sm text-orange-700">
-            {latestReview
+            {latestReview && latestReview.entries && latestReview.entries.length > 0
               ? "It's time for your weekly review. Keeping this habit consistent helps prevent things from slipping through the cracks."
               : "You haven't completed a weekly review yet. Start this powerful habit to keep your tasks organized and your mind clear."
             }
