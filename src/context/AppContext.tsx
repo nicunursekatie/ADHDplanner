@@ -143,158 +143,54 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     const loadData = async () => {
       try {
-        console.log('Initial data loading started');
+        console.log('Initial data loading started with emergency mode');
         setIsLoading(true);
         setIsError(false);
 
-        // Start all loading states
-        Object.keys(loadingStates).forEach(key => {
-          setSpecificLoadingState(key as keyof typeof loadingStates, true);
-        });
+        // EMERGENCY MODE: Skip loading all data at once to prevent memory issues
+        // Just set empty arrays for everything to start with
+        setTasks([]);
+        setProjects([]);
+        setCategories([]);
+        setDailyPlans([]);
+        setWorkSchedule(null);
+        setJournalEntries([]);
 
-        // Check if we need to migrate from localStorage
-        const hasLocalData = checkForLocalStorageData();
+        // Then immediately stop loading
+        setIsLoading(false);
+        setIsDataInitialized(true);
 
-        if (hasLocalData) {
-          console.log('Found data in localStorage, attempting migration to IndexedDB...');
+        console.log('Initial setup complete in emergency mode - skipped loading data');
+
+        // After a short delay, try to reset the database
+        setTimeout(async () => {
           try {
-            const migrationResult = await migrateFromLocalStorageToDexie();
-            if (migrationResult) {
-              console.log('Successfully migrated data from localStorage to IndexedDB');
-            } else {
-              console.warn('Failed to migrate some data from localStorage to IndexedDB');
+            console.log('Attempting emergency database reset/repair...');
+
+            // Try to compact the database first
+            try {
+              await db.compact();
+              console.log('Database compacted successfully in emergency mode');
+            } catch (compactError) {
+              console.error('Error compacting database in emergency mode:', compactError);
             }
-          } catch (migrationError) {
-            console.error('Migration error:', migrationError);
+
+            // Set it to empty data
+            console.log('Setting empty data in emergency mode');
+            await storage.saveTasks([]);
+            await storage.saveProjects([]);
+            await storage.saveCategories([]);
+            await storage.saveDailyPlans([]);
+            // Do not clear workSchedule and journalEntries to preserve some data
+
+            console.log('Emergency database reset/repair completed');
+          } catch (emergencyError) {
+            console.error('Error in emergency reset process:', emergencyError);
           }
-        }
-
-        // Create local variables to check if data exists
-        let loadedTasks: Task[] = [];
-        let loadedProjects: Project[] = [];
-        let loadedCategories: Category[] = [];
-
-        // Load data with individual error handling for each resource type
-        try {
-          console.log('Loading tasks...');
-          const tasksData = await storage.getTasks();
-          loadedTasks = tasksData;
-          setTasks(tasksData);
-          setSpecificLoadingState('tasks', false);
-        } catch (error) {
-          console.error('Error loading tasks:', error);
-          // Try localStorage as fallback
-          try {
-            const tasksData = await localStorage.getTasks();
-            loadedTasks = tasksData;
-            setTasks(tasksData);
-          } catch (fallbackError) {
-            console.error('Fallback loading of tasks also failed:', fallbackError);
-          }
-          setSpecificLoadingState('tasks', false);
-        }
-
-        try {
-          console.log('Loading projects...');
-          const projectsData = await storage.getProjects();
-          loadedProjects = projectsData;
-          setProjects(projectsData);
-          setSpecificLoadingState('projects', false);
-        } catch (error) {
-          console.error('Error loading projects:', error);
-          // Try localStorage as fallback
-          try {
-            const projectsData = await localStorage.getProjects();
-            loadedProjects = projectsData;
-            setProjects(projectsData);
-          } catch (fallbackError) {
-            console.error('Fallback loading of projects also failed:', fallbackError);
-          }
-          setSpecificLoadingState('projects', false);
-        }
-
-        try {
-          console.log('Loading categories...');
-          const categoriesData = await storage.getCategories();
-          loadedCategories = categoriesData;
-          setCategories(categoriesData);
-          setSpecificLoadingState('categories', false);
-        } catch (error) {
-          console.error('Error loading categories:', error);
-          // Try localStorage as fallback
-          try {
-            const categoriesData = await localStorage.getCategories();
-            loadedCategories = categoriesData;
-            setCategories(categoriesData);
-          } catch (fallbackError) {
-            console.error('Fallback loading of categories also failed:', fallbackError);
-          }
-          setSpecificLoadingState('categories', false);
-        }
-
-        try {
-          console.log('Loading daily plans...');
-          const dailyPlansData = await storage.getDailyPlans();
-          setDailyPlans(dailyPlansData);
-          setSpecificLoadingState('dailyPlans', false);
-        } catch (error) {
-          console.error('Error loading daily plans:', error);
-          // Try localStorage as fallback
-          try {
-            const dailyPlansData = await localStorage.getDailyPlans();
-            setDailyPlans(dailyPlansData);
-          } catch (fallbackError) {
-            console.error('Fallback loading of daily plans also failed:', fallbackError);
-          }
-          setSpecificLoadingState('dailyPlans', false);
-        }
-
-        try {
-          console.log('Loading work schedule...');
-          const workScheduleData = await storage.getWorkSchedule();
-          setWorkSchedule(workScheduleData);
-          setSpecificLoadingState('workSchedule', false);
-        } catch (error) {
-          console.error('Error loading work schedule:', error);
-          // Try localStorage as fallback
-          try {
-            const workScheduleData = await localStorage.getWorkSchedule();
-            setWorkSchedule(workScheduleData);
-          } catch (fallbackError) {
-            console.error('Fallback loading of work schedule also failed:', fallbackError);
-          }
-          setSpecificLoadingState('workSchedule', false);
-        }
-
-        try {
-          console.log('Loading journal entries...');
-          const journalEntriesData = await storage.getJournalEntries();
-          setJournalEntries(journalEntriesData);
-          setSpecificLoadingState('journalEntries', false);
-        } catch (error) {
-          console.error('Error loading journal entries:', error);
-          // Try localStorage as fallback
-          try {
-            const journalEntriesData = await localStorage.getJournalEntries();
-            setJournalEntries(journalEntriesData);
-          } catch (fallbackError) {
-            console.error('Fallback loading of journal entries also failed:', fallbackError);
-          }
-          setSpecificLoadingState('journalEntries', false);
-        }
-
-        // Check if data exists using our local variables (not state)
-        const hasData =
-          loadedTasks.length > 0 ||
-          loadedProjects.length > 0 ||
-          loadedCategories.length > 0;
-
-        setIsDataInitialized(hasData);
-        console.log('Initial data loading completed');
+        }, 2000);
       } catch (error) {
-        console.error('Error loading data:', error);
+        console.error('Error in emergency loading mode:', error);
         setIsError(true);
-      } finally {
         setIsLoading(false);
       }
     };

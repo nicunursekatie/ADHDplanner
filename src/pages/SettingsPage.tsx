@@ -17,6 +17,9 @@ const SettingsPage: React.FC = () => {
   const [isImporting, setIsImporting] = useState(false);
   const [isPerformingMaintenance, setIsPerformingMaintenance] = useState(false);
   const [maintenanceSuccess, setMaintenanceSuccess] = useState(false);
+  const [isEmergencyResetting, setIsEmergencyResetting] = useState(false);
+  const [emergencyResetModalOpen, setEmergencyResetModalOpen] = useState(false);
+  const [emergencyResetSuccess, setEmergencyResetSuccess] = useState(false);
 
   // State for database test
   const [testResults, setTestResults] = useState<{success: boolean; message: string; details?: {test: string; success: boolean; message: string}[]}>(null);
@@ -229,6 +232,45 @@ const SettingsPage: React.FC = () => {
       setIsPerformingMaintenance(false);
     }
   };
+
+  const handleEmergencyResetClick = () => {
+    setEmergencyResetModalOpen(true);
+  };
+
+  const handleEmergencyResetConfirm = async () => {
+    try {
+      setIsEmergencyResetting(true);
+
+      // Completely reset the database directly
+      console.log('Starting emergency database reset...');
+
+      // First try to delete the database entirely
+      try {
+        await window.indexedDB.deleteDatabase('ADHDPlannerDB');
+        console.log('Database deleted successfully');
+      } catch (deleteError) {
+        console.error('Error deleting database:', deleteError);
+      }
+
+      // Then reset all data in context
+      await resetData();
+
+      console.log('Emergency reset completed');
+      setEmergencyResetSuccess(true);
+
+      // Close the modal after a success delay
+      setTimeout(() => {
+        setEmergencyResetModalOpen(false);
+        // Reload the page to reinitialize everything
+        window.location.reload();
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error during emergency reset:', error);
+    } finally {
+      setIsEmergencyResetting(false);
+    }
+  };
   
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
@@ -293,7 +335,7 @@ const SettingsPage: React.FC = () => {
             </Button>
           </div>
           
-          <div className="flex flex-col md:flex-row md:items-center justify-between py-2">
+          <div className="flex flex-col md:flex-row md:items-center justify-between py-2 border-b border-gray-200">
             <div>
               <h3 className="text-lg font-medium text-gray-900">Reset Data</h3>
               <p className="text-sm text-gray-500">
@@ -307,6 +349,33 @@ const SettingsPage: React.FC = () => {
               onClick={handleResetClick}
             >
               Reset
+            </Button>
+          </div>
+
+          <div className="flex flex-col md:flex-row md:items-center justify-between py-2">
+            <div>
+              <h3 className="text-lg font-medium text-gray-900">Emergency Reset</h3>
+              <p className="text-sm text-gray-500">
+                Fix database crashes by completely deleting and recreating the database (cannot be undone)
+              </p>
+              <p className="text-xs text-red-500 mt-1">
+                Only use this if the app is repeatedly crashing or showing memory errors
+              </p>
+            </div>
+            <Button
+              variant="danger"
+              className="mt-2 md:mt-0"
+              onClick={handleEmergencyResetClick}
+              disabled={isEmergencyResetting}
+            >
+              {isEmergencyResetting ? (
+                <>
+                  <Loader size={16} className="mr-2 animate-spin" />
+                  Resetting...
+                </>
+              ) : (
+                'Emergency Reset'
+              )}
             </Button>
           </div>
         </div>
@@ -541,11 +610,11 @@ const SettingsPage: React.FC = () => {
               <p className="text-sm">All your tasks, projects, and categories will be permanently deleted.</p>
             </div>
           </div>
-          
+
           <p className="text-gray-600">
             Consider exporting your data before resetting if you might want to restore it later.
           </p>
-          
+
           <div className="flex justify-end space-x-3 pt-4">
             <Button
               variant="secondary"
@@ -560,6 +629,72 @@ const SettingsPage: React.FC = () => {
               Reset All Data
             </Button>
           </div>
+        </div>
+      </Modal>
+
+      {/* Emergency Reset Modal */}
+      <Modal
+        isOpen={emergencyResetModalOpen}
+        onClose={() => !isEmergencyResetting && setEmergencyResetModalOpen(false)}
+        title="Emergency Database Reset"
+      >
+        <div className="space-y-4">
+          {!emergencyResetSuccess ? (
+            <>
+              <div className="p-3 bg-red-50 text-red-700 rounded-md flex items-start">
+                <AlertCircle size={16} className="mr-2 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">WARNING: Last resort action</p>
+                  <p className="text-sm">This will completely delete the database and recreate it from scratch.</p>
+                  <p className="text-sm mt-2">All your data will be permanently lost. This action is only recommended if the app is constantly crashing or showing memory errors.</p>
+                </div>
+              </div>
+
+              <p className="text-gray-600 font-medium">
+                What this does:
+              </p>
+              <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
+                <li>Completely deletes the IndexedDB database</li>
+                <li>Recreates a fresh database structure</li>
+                <li>Removes all stored data</li>
+                <li>Reloads the application</li>
+              </ul>
+
+              <div className="flex justify-end space-x-3 pt-4">
+                <Button
+                  variant="secondary"
+                  onClick={() => setEmergencyResetModalOpen(false)}
+                  disabled={isEmergencyResetting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={handleEmergencyResetConfirm}
+                  disabled={isEmergencyResetting}
+                >
+                  {isEmergencyResetting ? (
+                    <>
+                      <Loader size={16} className="mr-2 animate-spin" />
+                      Resetting...
+                    </>
+                  ) : (
+                    'Perform Emergency Reset'
+                  )}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-4">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+                <Check size={24} className="text-green-600" />
+              </div>
+              <h3 className="mt-2 text-lg font-medium text-gray-900">Database Reset Complete</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Reloading application...
+              </p>
+            </div>
+          )}
         </div>
       </Modal>
     </div>
