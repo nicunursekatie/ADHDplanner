@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAppContext } from '../context/AppContext';
 import DailyPlannerGrid from '../components/planner/DailyPlannerGrid';
-import { ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ExternalLink, Calendar } from 'lucide-react';
 import Button from '../components/common/Button';
 
 const PlannerPage: React.FC = () => {

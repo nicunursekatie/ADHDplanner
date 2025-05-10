@@ -169,7 +169,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
             // Try to compact the database first
             try {
-              await db.compact();
+              await storage.compact();
               console.log('Database compacted successfully in emergency mode');
             } catch (compactError) {
               console.error('Error compacting database in emergency mode:', compactError);
