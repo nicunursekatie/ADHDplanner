@@ -1,5 +1,6 @@
 import React from 'react';
 import WeeklyReviewSystem from '../components/planning/WeeklyReviewSystem';
+import WeeklyReviewStatus from '../components/planning/WeeklyReviewStatus';
 
 const WeeklyReviewPage: React.FC = () => {
   return (
@@ -11,7 +12,9 @@ const WeeklyReviewPage: React.FC = () => {
           <p className="text-gray-600">Review your progress and plan for the week ahead</p>
         </div>
       </div>
-      
+
+      <WeeklyReviewStatus />
+
       <WeeklyReviewSystem />
       
       <div className="bg-white rounded-lg shadow-sm p-4">

@@ -228,6 +228,29 @@ export const recommendTasks = (
   return filteredTasks.slice(0, 5);
 };
 
+/**
+ * Returns the ISO week number for the given date (1-53)
+ * Also returns the year that the week belongs to (can be different from the date's year at year boundaries)
+ */
+export const getISOWeekAndYear = (date: Date): { weekNumber: number; weekYear: number } => {
+  // Create a copy of the date
+  const d = new Date(date);
+
+  // Find Thursday of this week
+  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+
+  // Get first day of the year
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+
+  // Calculate week number: 1 + number of weeks between target date and first day of year
+  const weekNumber = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+
+  // The year the week belongs to (may be different at year boundaries)
+  const weekYear = d.getFullYear();
+
+  return { weekNumber, weekYear };
+};
+
 // Create sample data for new users
 export const createSampleData = (): void => {
   const now = new Date().toISOString();

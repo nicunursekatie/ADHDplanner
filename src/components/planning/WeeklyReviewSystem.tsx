@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { Task, JournalEntry } from '../../types';
+import { getISOWeekAndYear } from '../../utils/helpers';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import { ImprovedTaskCard } from '../tasks/ImprovedTaskCard';
@@ -40,7 +41,7 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
     updateTask,
     addJournalEntry,
     updateJournalEntry,
-    getJournalEntriesForDate
+    getJournalEntriesForWeek
   } = useAppContext();
   const [taskInput, setTaskInput] = useState('');
   const [journalInput, setJournalInput] = useState('');
@@ -49,9 +50,13 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
   const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
   const [reviewComplete, setReviewComplete] = useState(false);
   const [showJournal, setShowJournal] = useState(false);
-  
+
   // Get dates for this week and next week using useMemo to avoid re-creating on every render
   const today = useMemo(() => new Date(), []);
+
+  // Get current week information
+  const { weekNumber, weekYear } = useMemo(() => getISOWeekAndYear(today), [today]);
+  const [currentWeekEntries, setCurrentWeekEntries] = useState<JournalEntry[]>([]);
   const nextWeek = useMemo(() => {
     const date = new Date();
     date.setDate(date.getDate() + 7);
@@ -168,14 +173,31 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
         if (currentPromptIndex < section.prompts.length - 1) {
           setCurrentPromptIndex(currentPromptIndex + 1);
         } else {
-          // Mark section as complete if we've gone through all prompts
-          const updatedSections = reviewSections.map(s => 
+          // If there's journal content, save it before completing the section
+          if (journalInput.trim()) {
+            handleSaveJournal();
+          } else if (!isSectionCompleted(activeSectionId)) {
+            // Create a placeholder entry to mark this section as complete
+            const todayStr = today.toISOString().split('T')[0];
+            const newEntry = addJournalEntry({
+              date: todayStr,
+              content: "Section completed",
+              reviewSectionId: activeSectionId,
+              weekNumber,
+              weekYear,
+              isCompleted: true
+            });
+            setCurrentWeekEntries(prev => [...prev, newEntry]);
+          }
+
+          // Mark section as complete in UI
+          const updatedSections = reviewSections.map(s =>
             s.id === activeSectionId ? { ...s, complete: true } : s
           );
           setReviewSections(updatedSections);
           setActiveSectionId(null);
           setCurrentPromptIndex(0);
-          
+
           // Check if all sections are complete
           if (updatedSections.every(s => s.complete)) {
             setReviewComplete(true);
@@ -197,17 +219,35 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
     }
   };
 
+  // Get journal entries for the current week when component loads
   useEffect(() => {
-    // Check for existing journal entries for today
-    const todayStr = today.toISOString().split('T')[0];
-    const existingEntries = getJournalEntriesForDate(todayStr);
+    const entries = getJournalEntriesForWeek(weekNumber, weekYear);
+    setCurrentWeekEntries(entries);
 
-    if (existingEntries.length > 0) {
-      // Use the most recent entry
-      setCurrentJournalEntry(existingEntries[existingEntries.length - 1]);
-      setJournalInput(existingEntries[existingEntries.length - 1].content);
+    // Check if the review is already complete for this week
+    const allSectionsCompleted = reviewSections.every(section => {
+      const sectionEntries = entries.filter(entry => entry.reviewSectionId === section.id);
+      return sectionEntries.some(entry => entry.isCompleted);
+    });
+
+    setReviewComplete(allSectionsCompleted);
+  }, [weekNumber, weekYear, getJournalEntriesForWeek, reviewSections]);
+
+  // Load current journal entry when section changes
+  useEffect(() => {
+    if (activeSectionId) {
+      // Find an entry for this section in the current week
+      const sectionEntry = currentWeekEntries.find(entry => entry.reviewSectionId === activeSectionId);
+
+      if (sectionEntry) {
+        setCurrentJournalEntry(sectionEntry);
+        setJournalInput(sectionEntry.content);
+      } else {
+        setCurrentJournalEntry(null);
+        setJournalInput('');
+      }
     }
-  }, [today, getJournalEntriesForDate]);
+  }, [activeSectionId, currentWeekEntries]);
 
   const handleSaveJournal = () => {
     if (journalInput.trim()) {
@@ -218,23 +258,42 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
         const updatedEntry: JournalEntry = {
           ...currentJournalEntry,
           content: journalInput,
+          isCompleted: true, // Mark as completed when saved
           updatedAt: new Date().toISOString()
         };
         updateJournalEntry(updatedEntry);
+
+        // Update the current week entries
+        setCurrentWeekEntries(prev =>
+          prev.map(entry => entry.id === updatedEntry.id ? updatedEntry : entry)
+        );
       } else {
         // Create new entry
         const newEntry = addJournalEntry({
           date: todayStr,
           content: journalInput,
-          reviewSectionId: activeSectionId || undefined
+          reviewSectionId: activeSectionId || undefined,
+          weekNumber,
+          weekYear,
+          isCompleted: true
         });
         setCurrentJournalEntry(newEntry);
+
+        // Add to current week entries
+        setCurrentWeekEntries(prev => [...prev, newEntry]);
       }
     }
   };
 
   const toggleJournal = () => {
     setShowJournal(!showJournal);
+  };
+
+  // Helper to check if a section is completed based on journal entries
+  const isSectionCompleted = (sectionId: string): boolean => {
+    return currentWeekEntries.some(entry =>
+      entry.reviewSectionId === sectionId && entry.isCompleted
+    );
   };
   
   return (
@@ -261,8 +320,8 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
                 <div 
                   key={section.id}
                   className={`p-3 rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
-                    section.complete 
-                      ? 'bg-green-50 border border-green-100' 
+                    section.complete || isSectionCompleted(section.id)
+                      ? 'bg-green-50 border border-green-100'
                       : 'bg-gray-50 hover:bg-gray-100 border border-gray-100'
                   }`}
                   onClick={() => {
@@ -271,8 +330,15 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
                   }}
                 >
                   <div className="flex items-center">
-                    <div className={`p-2 rounded-full mr-3 ${section.complete ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}>
-                      {section.complete ? <CheckCircle size={18} /> : section.icon}
+                    <div className={`p-2 rounded-full mr-3 ${
+                      section.complete || isSectionCompleted(section.id)
+                        ? 'bg-green-100 text-green-600'
+                        : 'bg-blue-100 text-blue-600'
+                    }`}>
+                      {section.complete || isSectionCompleted(section.id)
+                        ? <CheckCircle size={18} />
+                        : section.icon
+                      }
                     </div>
                     <div>
                       <h4 className="font-medium text-gray-900">{section.title}</h4>

@@ -2,7 +2,7 @@ import React, { createContext, useState, useEffect, useCallback, ReactNode } fro
 import { Task, Project, Category, DailyPlan, WhatNowCriteria, JournalEntry } from '../types';
 import { WorkSchedule, WorkShift, ShiftType, DEFAULT_SHIFTS, DEFAULT_SHIFT } from '../types/WorkSchedule';
 import * as localStorage from '../utils/localStorage';
-import { generateId, createSampleData } from '../utils/helpers';
+import { generateId, createSampleData, getISOWeekAndYear } from '../utils/helpers';
 
 interface DeletedTask {
   task: Task;
@@ -55,6 +55,8 @@ interface AppContextType {
   updateJournalEntry: (entry: JournalEntry) => void;
   deleteJournalEntry: (entryId: string) => void;
   getJournalEntriesForDate: (date: string) => JournalEntry[];
+  getJournalEntriesForWeek: (weekNumber: number, weekYear: number) => JournalEntry[];
+  getLatestWeeklyReview: () => { weekNumber: number; weekYear: number; entries: JournalEntry[] } | null;
 
   // What Now Wizard
   recommendTasks: (criteria: WhatNowCriteria) => Task[];
@@ -596,10 +598,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Journal Entries
   const addJournalEntry = useCallback((entryData: Partial<JournalEntry>): JournalEntry => {
     const timestamp = new Date().toISOString();
+    const today = new Date();
+    const { weekNumber, weekYear } = getISOWeekAndYear(today);
+
     const newEntry: JournalEntry = {
       id: generateId(),
-      date: new Date().toISOString().split('T')[0], // Today's date by default
+      date: today.toISOString().split('T')[0], // Today's date by default
       content: '',
+      weekNumber,
+      weekYear,
+      isCompleted: false,
       createdAt: timestamp,
       updatedAt: timestamp,
       ...entryData
@@ -634,6 +642,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const getJournalEntriesForDate = useCallback((date: string) => {
     return journalEntries.filter(entry => entry.date === date);
+  }, [journalEntries]);
+
+  const getJournalEntriesForWeek = useCallback((weekNumber: number, weekYear: number) => {
+    return journalEntries.filter(entry =>
+      entry.weekNumber === weekNumber && entry.weekYear === weekYear
+    );
+  }, [journalEntries]);
+
+  const getLatestWeeklyReview = useCallback(() => {
+    // Group entries by week
+    const weekEntries = journalEntries.reduce((acc, entry) => {
+      const key = `${entry.weekYear}-${entry.weekNumber}`;
+      if (!acc[key]) {
+        acc[key] = [];
+      }
+      acc[key].push(entry);
+      return acc;
+    }, {} as Record<string, JournalEntry[]>);
+
+    // Find the latest week that has entries
+    const weeks = Object.keys(weekEntries).sort().reverse();
+    if (weeks.length === 0) return null;
+
+    const latestWeek = weeks[0];
+    const [yearStr, weekStr] = latestWeek.split('-');
+    return {
+      weekNumber: parseInt(weekStr, 10),
+      weekYear: parseInt(yearStr, 10),
+      entries: weekEntries[latestWeek]
+    };
   }, [journalEntries]);
   
   // Create a subtask directly linked to a parent task
@@ -743,6 +781,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     updateJournalEntry,
     deleteJournalEntry,
     getJournalEntriesForDate,
+    getJournalEntriesForWeek,
+    getLatestWeeklyReview,
 
     recommendTasks,
 

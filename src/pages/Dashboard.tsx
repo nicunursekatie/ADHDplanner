@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  Clock, 
-  Calendar, 
-  CheckCircle2, 
-  Folder, 
-  Tag, 
+import {
+  Clock,
+  Calendar,
+  CheckCircle2,
+  Folder,
+  Tag,
   Plus,
   ArrowRight,
   HelpCircle,
@@ -13,6 +13,7 @@ import {
   RefreshCw,
   ListChecks
 } from 'lucide-react';
+import WeeklyReviewStatus from '../components/planning/WeeklyReviewStatus';
 import { useAppContext } from '../context/AppContext';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
@@ -163,15 +164,8 @@ const Dashboard: React.FC = () => {
                   </div>
                 </Link>
 
-                <Link to="/weekly-review">
-                  <div className="p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer flex items-center justify-between">
-                    <div className="flex items-center">
-                      <RefreshCw className="w-5 h-5 text-blue-600 mr-2" />
-                      <span className="font-medium">Weekly Review</span>
-                    </div>
-                    <ArrowRight size={16} className="text-blue-500" />
-                  </div>
-                </Link>
+                {/* Weekly Review Status replaces the simple link */}
+                <WeeklyReviewStatus compact={true} />
 
                 <Link to="/accountability">
                   <div className="p-3 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors cursor-pointer flex items-center justify-between">

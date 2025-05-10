@@ -81,6 +81,9 @@ export interface JournalEntry {
   date: string; // ISO date string
   content: string;
   reviewSectionId?: string; // To associate with specific review section
+  weekNumber: number; // ISO week number (1-53)
+  weekYear: number; // Year the week belongs to (may differ from date year at year boundaries)
+  isCompleted: boolean; // Whether this section of the review is marked as complete
   createdAt: string;
   updatedAt: string;
 }
