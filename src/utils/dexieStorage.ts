@@ -286,7 +286,7 @@ export const exportData = async (): Promise<string> => {
       projects,
       categories,
       dailyPlans,
-      workSchedules: workSchedules.length > 0 ? workSchedules[0] : null,
+      workSchedule: workSchedules.length > 0 ? workSchedules[0] : null,
       journalEntries
     };
 
@@ -327,8 +327,11 @@ export const importData = async (jsonData: string): Promise<boolean> => {
         if (data.dailyPlans && data.dailyPlans.length > 0) {
           await db.dailyPlans.bulkAdd(data.dailyPlans);
         }
+        // Check both workSchedule and workSchedules fields for compatibility with different export formats
         if (data.workSchedule) {
           await db.workSchedules.add(data.workSchedule);
+        } else if (data.workSchedules) {
+          await db.workSchedules.add(data.workSchedules);
         }
         if (data.journalEntries && data.journalEntries.length > 0) {
           await db.journalEntries.bulkAdd(data.journalEntries);
