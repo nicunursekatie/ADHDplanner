@@ -198,8 +198,12 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
           setActiveSectionId(null);
           setCurrentPromptIndex(0);
 
-          // Check if all sections are complete
-          if (updatedSections.every(s => s.complete)) {
+          // Check if all sections are complete (either marked in UI or in database)
+          const allSectionsComplete = updatedSections.every(s =>
+            s.complete || isSectionCompleted(s.id)
+          );
+
+          if (allSectionsComplete) {
             setReviewComplete(true);
           }
         }
@@ -242,9 +246,13 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
       if (sectionEntry) {
         setCurrentJournalEntry(sectionEntry);
         setJournalInput(sectionEntry.content);
+        // Show journal if it exists
+        setShowJournal(true);
       } else {
         setCurrentJournalEntry(null);
         setJournalInput('');
+        // Hide journal if no entry exists yet
+        setShowJournal(false);
       }
     }
   }, [activeSectionId, currentWeekEntries]);
