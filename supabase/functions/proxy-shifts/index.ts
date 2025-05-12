@@ -32,7 +32,6 @@ serve(async (req) => {
     const { data, error } = await supabase
       .from('work_schedules')  // ← Use your actual table name
       .select('*')
-      .order('date', { ascending: true });
 
     if (error) {
       return new Response(
