@@ -18,18 +18,27 @@ export const WorkScheduleSelector: React.FC<WorkScheduleSelectorProps> = ({
   // Get work schedule data from context
   const { addWorkShift, updateWorkShift, deleteWorkShift, getShiftsForMonth } = useAppContext();
 
-  // Get shifts for the current month
-  const monthShifts = getShiftsForMonth(currentYear, currentMonth);
-  
+  // Get shifts for the current month (safely handle empty results)
+  const monthShifts = getShiftsForMonth(currentYear, currentMonth) || [];
+
   // Memoize dates with shifts for faster lookup
   const [shiftsLookup, setShiftsLookup] = useState<Record<string, WorkShift>>({});
-  
+
   useEffect(() => {
-    const lookup: Record<string, WorkShift> = {};
-    monthShifts.forEach(shift => {
-      lookup[shift.date] = shift;
-    });
-    setShiftsLookup(lookup);
+    try {
+      const lookup: Record<string, WorkShift> = {};
+      if (Array.isArray(monthShifts)) {
+        monthShifts.forEach(shift => {
+          if (shift && shift.date) {
+            lookup[shift.date] = shift;
+          }
+        });
+      }
+      setShiftsLookup(lookup);
+    } catch (error) {
+      console.error('Error setting shifts lookup:', error);
+      setShiftsLookup({});
+    }
   }, [monthShifts]);
   
   // Get calendar days for the current month
@@ -182,13 +191,19 @@ export const WorkScheduleSelector: React.FC<WorkScheduleSelectorProps> = ({
               ${isToday(date) && !hasShift ? 'bg-indigo-100' : ''}
               ${(() => {
                 if (!hasShift) return 'hover:bg-gray-100';
-                const shift = shiftsLookup[dateStr];
-                if (shift.shiftType === 'morning') {
-                  return 'bg-blue-500 text-white hover:bg-blue-600';
-                } else if (shift.shiftType === 'afternoon') {
-                  return 'bg-purple-500 text-white hover:bg-purple-600';
-                } else {
-                  return 'bg-indigo-500 text-white hover:bg-indigo-600';
+                try {
+                  const shift = shiftsLookup[dateStr];
+                  if (!shift) return 'hover:bg-gray-100';
+                  if (shift.shiftType === 'morning') {
+                    return 'bg-blue-500 text-white hover:bg-blue-600';
+                  } else if (shift.shiftType === 'afternoon') {
+                    return 'bg-purple-500 text-white hover:bg-purple-600';
+                  } else {
+                    return 'bg-indigo-500 text-white hover:bg-indigo-600';
+                  }
+                } catch (error) {
+                  console.error('Error rendering shift:', error);
+                  return 'hover:bg-gray-100';
                 }
               })()}
             `}
@@ -201,12 +216,19 @@ export const WorkScheduleSelector: React.FC<WorkScheduleSelectorProps> = ({
             {hasShift && (
               <div className="absolute bottom-1 right-1 text-[9px] font-medium">
                 {(() => {
-                  const shift = shiftsLookup[dateStr];
-                  if (shift.shiftType === 'morning') {
-                    return '7a-1p';
-                  } else if (shift.shiftType === 'afternoon') {
-                    return '1p-7p';
-                  } else {
+                  try {
+                    const shift = shiftsLookup[dateStr];
+                    if (!shift || !shift.shiftType) return '7a-7p';
+
+                    if (shift.shiftType === 'morning') {
+                      return '7a-1p';
+                    } else if (shift.shiftType === 'afternoon') {
+                      return '1p-7p';
+                    } else {
+                      return '7a-7p';
+                    }
+                  } catch (error) {
+                    console.error('Error rendering shift time:', error);
                     return '7a-7p';
                   }
                 })()}

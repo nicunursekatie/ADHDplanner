@@ -783,19 +783,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, []);
   
   const getShiftsForMonth = useCallback((year: number, month: number): WorkShift[] => {
-    if (!workSchedule) return [];
-    
-    // Create date range for the given month
-    const startDate = new Date(year, month, 1).toISOString().split('T')[0];
-    const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0];
-    
-    return workSchedule.shifts.filter(shift => 
-      shift.date >= startDate && shift.date <= endDate
-    );
+    try {
+      if (!workSchedule) return [];
+      if (!workSchedule.shifts || !Array.isArray(workSchedule.shifts)) return [];
+
+      // Create date range for the given month
+      const startDate = new Date(year, month, 1).toISOString().split('T')[0];
+      const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0];
+
+      return workSchedule.shifts.filter(shift =>
+        shift && shift.date && shift.date >= startDate && shift.date <= endDate
+      );
+    } catch (error) {
+      console.error('Error in getShiftsForMonth:', error);
+      return [];
+    }
   }, [workSchedule]);
   
   const getShiftForDate = useCallback((date: string): WorkShift | undefined => {
-    return workSchedule?.shifts.find(shift => shift.date === date);
+    if (!workSchedule || !workSchedule.shifts) return undefined;
+    return workSchedule.shifts.find(shift => shift.date === date);
   }, [workSchedule]);
   
   // What Now Wizard

@@ -182,15 +182,21 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onEditTask }) => {
   
   // Check if a date has a work shift using the appContext (passed as argument)
   const getDateShift = (date: Date): { timeRange: string, shiftType: string } | null => {
-    const dateStr = date.toISOString().split('T')[0];
-    const shift = getShiftForDate(dateStr);
-    
-    if (!shift) return null;
-    
-    const timeRange = `${shift.startTime.substring(0, 5)} - ${shift.endTime.substring(0, 5)}`;
-    const shiftType = shift.shiftType || 'full';
-    
-    return { timeRange, shiftType };
+    try {
+      const dateStr = date.toISOString().split('T')[0];
+      const shift = getShiftForDate(dateStr);
+
+      if (!shift) return null;
+      if (!shift.startTime || !shift.endTime) return null;
+
+      const timeRange = `${shift.startTime.substring(0, 5)} - ${shift.endTime.substring(0, 5)}`;
+      const shiftType = shift.shiftType || 'full';
+
+      return { timeRange, shiftType };
+    } catch (error) {
+      console.error('Error in getDateShift:', error);
+      return null;
+    }
   };
   
   // Render day view
