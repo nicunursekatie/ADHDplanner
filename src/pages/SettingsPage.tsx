@@ -5,7 +5,7 @@ import Button from '../components/common/Button';
 import Modal from '../components/common/Modal';
 import { testDexieDatabase } from '../utils/testDexie';
 import { analyzeImportFile, convertImportFormat } from '../utils/importAnalyzer';
-import { Download, Upload, Trash2, AlertCircle, Loader, Database, Check, XCircle, FileText, Cloud, RefreshCw } from 'lucide-react';
+import { Download, Upload, Trash2, AlertCircle, Loader, Database, Check, FileText } from 'lucide-react';
 
 const SettingsPage: React.FC = () => {
   const {
@@ -18,12 +18,7 @@ const SettingsPage: React.FC = () => {
     projects,
     categories,
     // Storage management
-    getCurrentStorage,
-    switchStorage,
-    syncToCloud,
-    syncFromCloud,
-    isCloudConnected,
-    checkCloudConnection
+    getCurrentStorage
   } = useAppContext();
 
   const [importModalOpen, setImportModalOpen] = useState(false);
@@ -55,12 +50,7 @@ const SettingsPage: React.FC = () => {
   const [isTesting, setIsTesting] = useState(false);
 
   // Storage management states
-  const [currentStorage, setCurrentStorage] = useState<'dexie' | 'supabase'>(getCurrentStorage());
-  const [isConnected, setIsConnected] = useState<boolean>(isCloudConnected);
-  const [isCheckingConnection, setIsCheckingConnection] = useState<boolean>(false);
-  const [isSwitchingStorage, setIsSwitchingStorage] = useState<boolean>(false);
-  const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [syncSuccess, setSyncSuccess] = useState<boolean | null>(null);
+  const [currentStorage, setCurrentStorage] = useState<'dexie'>(getCurrentStorage());
 
   // Moved to useEffect
 
@@ -70,250 +60,6 @@ const SettingsPage: React.FC = () => {
     setCurrentStorage(storage);
     console.log('SettingsPage: currentStorage changed to:', storage);
   }, [getCurrentStorage]);
-
-  // Effect to log when connection state changes
-  useEffect(() => {
-    setIsConnected(isCloudConnected);
-    console.log('SettingsPage: isConnected changed to:', isCloudConnected);
-  }, [isCloudConnected]);
-
-  // Function to check cloud connection
-  const handleCheckConnection = async () => {
-    console.log('SettingsPage: handleCheckConnection called');
-    setIsCheckingConnection(true);
-    try {
-      console.log('SettingsPage: Calling checkCloudConnection...');
-      const connected = await checkCloudConnection();
-      console.log('SettingsPage: checkCloudConnection result:', connected);
-
-      setIsConnected(connected);
-
-      // Show success or error toast here if needed
-      if (connected) {
-        console.log('SettingsPage: Successfully connected to Supabase cloud');
-      } else {
-        console.error('SettingsPage: Failed to connect to Supabase cloud');
-      }
-    } catch (error) {
-      console.error('SettingsPage: Error checking connection:', error);
-      if (error instanceof Error) {
-        console.error('SettingsPage: Error name:', error.name);
-        console.error('SettingsPage: Error message:', error.message);
-        console.error('SettingsPage: Error stack:', error.stack);
-      }
-      setIsConnected(false);
-    } finally {
-      console.log('SettingsPage: Connection check completed');
-      setIsCheckingConnection(false);
-    }
-  };
-
-  // Function to switch storage
-  const handleSwitchStorage = async (storage: 'dexie' | 'supabase') => {
-    console.log('SettingsPage: ---------- STORAGE SWITCH STARTED ----------');
-    console.log(`SettingsPage: handleSwitchStorage called with storage: ${storage}`);
-
-    setIsSwitchingStorage(true);
-
-    try {
-      // Check if we're already using this storage
-      if (storage === currentStorage) {
-        console.log(`SettingsPage: Already using ${storage} storage, no switch needed`);
-        return;
-      }
-
-      // If switching to Supabase, pre-check the connection
-      if (storage === 'supabase') {
-        console.log('SettingsPage: Pre-checking Supabase connection...');
-        setIsCheckingConnection(true);
-
-        try {
-          const connected = await checkCloudConnection();
-          console.log('SettingsPage: Pre-check connection result:', connected);
-
-          // If not connected, we might want to alert the user
-          if (!connected) {
-            console.warn('SettingsPage: WARNING - Supabase connection pre-check failed, but proceeding with switch anyway');
-            // You could add UI alerts here if needed
-          }
-        } catch (preCheckError) {
-          console.error('SettingsPage: Error during connection pre-check:', preCheckError);
-          // Continue anyway, as the switchStorage function will do its own checks
-        } finally {
-          setIsCheckingConnection(false);
-        }
-      }
-
-      // Perform the actual storage switch
-      console.log('SettingsPage: Calling switchStorage...');
-      const success = await switchStorage(storage);
-      console.log('SettingsPage: switchStorage result:', success);
-
-      if (success) {
-        console.log(`SettingsPage: Successfully switched to ${storage} storage`);
-        setCurrentStorage(storage);
-
-        // If switched to Supabase, update connection status
-        if (storage === 'supabase') {
-          console.log('SettingsPage: Updating isConnected state after switch to Supabase');
-          setIsConnected(true); // We assume it's connected since the switch succeeded
-        } else {
-          console.log('SettingsPage: Setting isConnected to false after switch to Dexie');
-          setIsConnected(false);
-        }
-      } else {
-        console.error(`SettingsPage: Failed to switch to ${storage} storage`);
-        // You could add UI alerts here if needed
-      }
-    } catch (error) {
-      console.error('SettingsPage: ERROR switching storage:', error);
-      if (error instanceof Error) {
-        console.error('SettingsPage: Error name:', error.name);
-        console.error('SettingsPage: Error message:', error.message);
-        console.error('SettingsPage: Error stack:', error.stack);
-      }
-    } finally {
-      setIsSwitchingStorage(false);
-      console.log('SettingsPage: ---------- STORAGE SWITCH COMPLETED ----------');
-    }
-  };
-
-  // Function to sync with cloud
-  const handleSyncToCloud = async () => {
-    console.log('SettingsPage: ---------- SYNC TO CLOUD STARTED ----------');
-    console.log('SettingsPage: handleSyncToCloud called');
-
-    setIsSyncing(true);
-    setSyncSuccess(null);
-
-    try {
-      // Check if we're using Supabase
-      if (currentStorage !== 'supabase') {
-        // Pre-check Supabase connection before sync
-        console.log('SettingsPage: Pre-checking Supabase connection before sync...');
-        setIsCheckingConnection(true);
-
-        try {
-          const connected = await checkCloudConnection();
-          console.log('SettingsPage: Pre-sync connection check result:', connected);
-
-          if (!connected) {
-            console.error('SettingsPage: Supabase connection pre-check failed, cannot sync to cloud');
-            setSyncSuccess(false);
-            setIsSyncing(false);
-            setIsCheckingConnection(false);
-            return;
-          }
-        } catch (preCheckError) {
-          console.error('SettingsPage: Error during pre-sync connection check:', preCheckError);
-          setSyncSuccess(false);
-          setIsSyncing(false);
-          setIsCheckingConnection(false);
-          return;
-        } finally {
-          setIsCheckingConnection(false);
-        }
-      }
-
-      // Perform the actual sync
-      console.log('SettingsPage: Calling syncToCloud...');
-      const success = await syncToCloud();
-      console.log('SettingsPage: syncToCloud result:', success);
-
-      // Update UI based on result
-      setSyncSuccess(success);
-
-      if (success) {
-        console.log('SettingsPage: Successfully synced data to cloud');
-      } else {
-        console.error('SettingsPage: Failed to sync data to cloud');
-      }
-    } catch (error) {
-      console.error('SettingsPage: ERROR syncing to cloud:', error);
-      if (error instanceof Error) {
-        console.error('SettingsPage: Error name:', error.name);
-        console.error('SettingsPage: Error message:', error.message);
-        console.error('SettingsPage: Error stack:', error.stack);
-      }
-      setSyncSuccess(false);
-    } finally {
-      setIsSyncing(false);
-
-      // Reset success status after a delay
-      setTimeout(() => {
-        setSyncSuccess(null);
-      }, 3000);
-
-      console.log('SettingsPage: ---------- SYNC TO CLOUD COMPLETED ----------');
-    }
-  };
-
-  // Function to sync from cloud
-  const handleSyncFromCloud = async () => {
-    console.log('SettingsPage: ---------- SYNC FROM CLOUD STARTED ----------');
-    console.log('SettingsPage: handleSyncFromCloud called');
-
-    setIsSyncing(true);
-    setSyncSuccess(null);
-
-    try {
-      // Pre-check Supabase connection before sync
-      console.log('SettingsPage: Pre-checking Supabase connection before sync...');
-      setIsCheckingConnection(true);
-
-      try {
-        const connected = await checkCloudConnection();
-        console.log('SettingsPage: Pre-sync connection check result:', connected);
-
-        if (!connected) {
-          console.error('SettingsPage: Supabase connection pre-check failed, cannot sync from cloud');
-          setSyncSuccess(false);
-          setIsSyncing(false);
-          setIsCheckingConnection(false);
-          return;
-        }
-      } catch (preCheckError) {
-        console.error('SettingsPage: Error during pre-sync connection check:', preCheckError);
-        setSyncSuccess(false);
-        setIsSyncing(false);
-        setIsCheckingConnection(false);
-        return;
-      } finally {
-        setIsCheckingConnection(false);
-      }
-
-      // Perform the actual sync
-      console.log('SettingsPage: Calling syncFromCloud...');
-      const success = await syncFromCloud();
-      console.log('SettingsPage: syncFromCloud result:', success);
-
-      // Update UI based on result
-      setSyncSuccess(success);
-
-      if (success) {
-        console.log('SettingsPage: Successfully synced data from cloud');
-      } else {
-        console.error('SettingsPage: Failed to sync data from cloud');
-      }
-    } catch (error) {
-      console.error('SettingsPage: ERROR syncing from cloud:', error);
-      if (error instanceof Error) {
-        console.error('SettingsPage: Error name:', error.name);
-        console.error('SettingsPage: Error message:', error.message);
-        console.error('SettingsPage: Error stack:', error.stack);
-      }
-      setSyncSuccess(false);
-    } finally {
-      setIsSyncing(false);
-
-      // Reset success status after a delay
-      setTimeout(() => {
-        setSyncSuccess(null);
-      }, 3000);
-
-      console.log('SettingsPage: ---------- SYNC FROM CLOUD COMPLETED ----------');
-    }
-  };
   
   const handleExportData = () => {
     const data = exportData();
@@ -781,372 +527,123 @@ const SettingsPage: React.FC = () => {
         </div>
       </Card>
       
-      {/* Storage Management */}
-      <Card title="Storage Management">
-        <div className="space-y-6">
-          <div className="flex items-start mb-4">
-            <div className="w-1/2 pr-4">
-              <div className={`p-4 rounded-lg border-2 transition-all ${currentStorage === 'dexie'
-                ? 'border-indigo-500 bg-indigo-50'
-                : 'border-gray-200 hover:border-indigo-200'}`}
-              >
-                <div className="flex items-start mb-3">
-                  <Database size={20} className={`mr-2 mt-1 ${currentStorage === 'dexie' ? 'text-indigo-600' : 'text-gray-500'}`} />
-                  <div>
-                    <h3 className={`font-medium ${currentStorage === 'dexie' ? 'text-indigo-800' : 'text-gray-700'}`}>
-                      Local Storage (Browser)
-                    </h3>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Store data locally in your browser's IndexedDB storage
-                    </p>
-                  </div>
-                </div>
-                {currentStorage === 'dexie' ? (
-                  <div className="bg-indigo-100 px-3 py-1.5 rounded text-xs flex items-center text-indigo-700">
-                    <Check size={12} className="mr-1" />
-                    Currently using local storage
-                  </div>
-                ) : (
-                  <Button
-                    variant="secondary"
-                    size="small"
-                    className="w-full mt-1"
-                    onClick={() => handleSwitchStorage('dexie')}
-                    disabled={isSwitchingStorage}
-                  >
-                    {isSwitchingStorage ? 'Switching...' : 'Switch to Local Storage'}
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            <div className="w-1/2 pl-4">
-              <div className={`p-4 rounded-lg border-2 transition-all ${currentStorage === 'supabase'
-                ? 'border-indigo-500 bg-indigo-50'
-                : 'border-gray-200 hover:border-indigo-200'}`}
-              >
-                <div className="flex items-start mb-3">
-                  <Cloud size={20} className={`mr-2 mt-1 ${currentStorage === 'supabase' ? 'text-indigo-600' : 'text-gray-500'}`} />
-                  <div>
-                    <h3 className={`font-medium ${currentStorage === 'supabase' ? 'text-indigo-800' : 'text-gray-700'}`}>
-                      Cloud Storage (Supabase)
-                    </h3>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Store data in the cloud and access from multiple devices
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center mb-2">
-                  <span className={`w-2 h-2 rounded-full mr-1.5 ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                  <span className="text-xs text-gray-600">
-                    {isConnected ? 'Connected' : 'Not connected'}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="xsmall"
-                    className="ml-auto"
-                    onClick={handleCheckConnection}
-                    disabled={isCheckingConnection}
-                  >
-                    {isCheckingConnection ? (
-                      <Loader size={12} className="animate-spin" />
-                    ) : (
-                      <RefreshCw size={12} />
-                    )}
-                  </Button>
-                </div>
-
-                {/* Supabase connectivity warning */}
-                {!isConnected && (
-                  <div className="bg-amber-100 px-3 py-2 rounded text-xs mb-2">
-                    <div className="flex items-start">
-                      <AlertCircle size={12} className="text-amber-700 mr-1 mt-0.5 flex-shrink-0" />
-                      <div className="text-amber-700">
-                        <p className="font-medium">Connectivity Issue</p>
-                        <p className="mt-0.5">Cannot establish connection to Supabase. This could be due to:</p>
-                        <ul className="list-disc list-inside mt-1 ml-1 space-y-0.5">
-                          <li>Network connectivity issues</li>
-                          <li>DNS resolution problems</li>
-                          <li>The Supabase project may not exist or has been deleted</li>
-                        </ul>
-                        <p className="mt-1">Using local storage as a fallback. Your data will be stored on this device only.</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {currentStorage === 'supabase' ? (
-                  <div className="bg-indigo-100 px-3 py-1.5 rounded text-xs flex items-center text-indigo-700">
-                    <Check size={12} className="mr-1" />
-                    Currently using cloud storage
-                  </div>
-                ) : (
-                  <Button
-                    variant="secondary"
-                    size="small"
-                    className="w-full mt-1"
-                    onClick={() => handleSwitchStorage('supabase')}
-                    disabled={isSwitchingStorage || !isConnected}
-                    title={!isConnected ? "Cannot switch to cloud storage while offline" : ""}
-                  >
-                    {isSwitchingStorage ? 'Switching...' : 'Switch to Cloud Storage'}
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="border-t border-gray-200 pt-4">
-            <h4 className="font-medium text-gray-800 mb-2">Sync Options</h4>
-            <p className="text-xs text-gray-600 mb-3">
-              Synchronize data between local storage and cloud storage
-            </p>
-
-            {!isConnected ? (
-              <div className="p-3 bg-gray-100 rounded-md mb-3">
-                <div className="flex items-start">
-                  <XCircle size={16} className="text-gray-500 mr-2 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Cloud Sync Unavailable</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Cloud sync features are currently unavailable because there is no connection to Supabase.
-                      Your data will continue to be stored locally on this device.
-                    </p>
-                    <Button
-                      variant="ghost"
-                      size="xsmall"
-                      className="mt-2"
-                      onClick={handleCheckConnection}
-                      disabled={isCheckingConnection}
-                    >
-                      {isCheckingConnection ? (
-                        <>
-                          <Loader size={12} className="mr-1 animate-spin" />
-                          Checking connection...
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCw size={12} className="mr-1" />
-                          Check connection again
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="secondary"
-                  size="small"
-                  onClick={() => handleSyncToCloud()}
-                  disabled={isSyncing || !isConnected}
-                >
-                  {isSyncing ? (
-                    <>
-                      <Loader size={14} className="mr-2 animate-spin" />
-                      Syncing...
-                    </>
-                  ) : (
-                    <>
-                      <Cloud size={14} className="mr-1" />
-                      Sync to Cloud
-                    </>
-                  )}
-                </Button>
-
-                <Button
-                  variant="secondary"
-                  size="small"
-                  onClick={() => handleSyncFromCloud()}
-                  disabled={isSyncing || !isConnected}
-                >
-                  {isSyncing ? (
-                    <>
-                      <Loader size={14} className="mr-2 animate-spin" />
-                      Syncing...
-                    </>
-                  ) : (
-                    <>
-                      <Download size={14} className="mr-1" />
-                      Sync from Cloud
-                    </>
-                  )}
-                </Button>
-
-                {syncSuccess !== null && (
-                  <span className={`inline-flex items-center text-xs ${syncSuccess ? 'text-green-700' : 'text-red-700'}`}>
-                    {syncSuccess ? (
-                      <>
-                        <Check size={12} className="mr-1" />
-                        Sync completed
-                      </>
-                    ) : (
-                      <>
-                        <XCircle size={12} className="mr-1" />
-                        Sync failed
-                      </>
-                    )}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </Card>
 
       {/* Storage Information */}
       <Card title="Storage Information">
         <div className="space-y-4">
-          {currentStorage === 'dexie' ? (
-            <div className="flex items-start space-x-3">
-              <div className="mt-1">
-                <Database size={24} className="text-indigo-500" />
-              </div>
-              <div>
-                <h3 className="text-lg font-medium text-gray-900">Local IndexedDB Storage</h3>
-                <p className="text-sm text-gray-500 mb-3">
-                  All your data is stored locally in your browser using IndexedDB,
-                  which means it's available even when you're offline. Regular backups
-                  are recommended using the Export feature above.
-                </p>
-                <p className="text-sm text-gray-600">
-                  Your data is stored only on this device and never sent to any server.
-                </p>
+          <div className="flex items-start space-x-3">
+            <div className="mt-1">
+              <Database size={24} className="text-indigo-500" />
+            </div>
+            <div>
+              <h3 className="text-lg font-medium text-gray-900">Local IndexedDB Storage</h3>
+              <p className="text-sm text-gray-500 mb-3">
+                All your data is stored locally in your browser using IndexedDB,
+                which means it's available even when you're offline. Regular backups
+                are recommended using the Export feature above.
+              </p>
+              <p className="text-sm text-gray-600">
+                Your data is stored only on this device and never sent to any server.
+              </p>
 
-                <div className="mt-4 space-y-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      variant="secondary"
-                      size="small"
-                      onClick={async () => {
-                        setIsTesting(true);
-                        try {
-                          const results = await testDexieDatabase();
-                          setTestResults(results);
-                        } catch (error) {
-                          console.error('Error running database tests:', error);
-                          setTestResults({
-                            success: false,
-                            message: `Error running tests: ${error instanceof Error ? error.message : 'Unknown error'}`,
-                            details: []
-                          });
-                        } finally {
-                          setIsTesting(false);
-                        }
-                      }}
-                      disabled={isTesting || isPerformingMaintenance}
-                    >
-                      {isTesting ? 'Testing...' : 'Test Database Connection'}
-                    </Button>
+              <div className="mt-4 space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="secondary"
+                    size="small"
+                    onClick={async () => {
+                      setIsTesting(true);
+                      try {
+                        const results = await testDexieDatabase();
+                        setTestResults(results);
+                      } catch (error) {
+                        console.error('Error running database tests:', error);
+                        setTestResults({
+                          success: false,
+                          message: `Error running tests: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                          details: []
+                        });
+                      } finally {
+                        setIsTesting(false);
+                      }
+                    }}
+                    disabled={isTesting || isPerformingMaintenance}
+                  >
+                    {isTesting ? 'Testing...' : 'Test Database Connection'}
+                  </Button>
 
-                    <Button
-                      variant="secondary"
-                      size="small"
-                      onClick={handleDatabaseMaintenance}
-                      disabled={isTesting || isPerformingMaintenance}
-                    >
-                      {isPerformingMaintenance ? (
-                        <>
-                          <Loader size={14} className="mr-2 animate-spin" />
-                          Optimizing...
-                        </>
-                      ) : (
-                        'Optimize Database'
-                      )}
-                    </Button>
-
-                    {maintenanceSuccess && (
-                      <span className="inline-flex items-center text-sm text-green-700">
-                        <Check size={14} className="mr-1" />
-                        Database optimized
-                      </span>
+                  <Button
+                    variant="secondary"
+                    size="small"
+                    onClick={handleDatabaseMaintenance}
+                    disabled={isTesting || isPerformingMaintenance}
+                  >
+                    {isPerformingMaintenance ? (
+                      <>
+                        <Loader size={14} className="mr-2 animate-spin" />
+                        Optimizing...
+                      </>
+                    ) : (
+                      'Optimize Database'
                     )}
-                  </div>
+                  </Button>
 
-                  {testResults && (
-                    <div className={`mt-3 p-3 rounded-md ${
-                      testResults.success ? 'bg-green-50' : 'bg-red-50'
-                    }`}>
-                      <div className="flex items-center mb-2">
-                        {testResults.success ? (
-                          <Check size={16} className="text-green-600 mr-2" />
-                        ) : (
-                          <XCircle size={16} className="text-red-600 mr-2" />
-                        )}
-                        <span className={`font-medium ${
-                          testResults.success ? 'text-green-700' : 'text-red-700'
-                        }`}>
-                          {testResults.message}
-                        </span>
-                      </div>
-
-                      {testResults.details && testResults.details.length > 0 && (
-                        <div className="mt-2 space-y-1 text-sm">
-                          {testResults.details.map((detail, idx) => (
-                            <div key={idx} className="flex items-start">
-                              {detail.success ? (
-                                <Check size={12} className="text-green-600 mr-1 mt-1 flex-shrink-0" />
-                              ) : (
-                                <XCircle size={12} className="text-red-600 mr-1 mt-1 flex-shrink-0" />
-                              )}
-                              <div>
-                                <span className="font-medium">{detail.test}:</span> {detail.message}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                  {maintenanceSuccess && (
+                    <span className="inline-flex items-center text-sm text-green-700">
+                      <Check size={14} className="mr-1" />
+                      Database optimized
+                    </span>
                   )}
                 </div>
 
-                <div className="mt-4 p-3 bg-blue-50 rounded-md text-sm text-blue-700">
-                  <h4 className="font-medium mb-1">Memory Usage Tips</h4>
-                  <ul className="list-disc list-inside space-y-1 text-sm">
-                    <li>Regularly use the "Optimize Database" feature if the app becomes slow</li>
-                    <li>Archive completed tasks frequently to improve performance</li>
-                    <li>Export your data regularly as a backup</li>
-                    <li>If experiencing memory issues, try refreshing the page</li>
-                  </ul>
-                </div>
+                {testResults && (
+                  <div className={`mt-3 p-3 rounded-md ${
+                    testResults.success ? 'bg-green-50' : 'bg-red-50'
+                  }`}>
+                    <div className="flex items-center mb-2">
+                      {testResults.success ? (
+                        <Check size={16} className="text-green-600 mr-2" />
+                      ) : (
+                        <XCircle size={16} className="text-red-600 mr-2" />
+                      )}
+                      <span className={`font-medium ${
+                        testResults.success ? 'text-green-700' : 'text-red-700'
+                      }`}>
+                        {testResults.message}
+                      </span>
+                    </div>
+
+                    {testResults.details && testResults.details.length > 0 && (
+                      <div className="mt-2 space-y-1 text-sm">
+                        {testResults.details.map((detail, idx) => (
+                          <div key={idx} className="flex items-start">
+                            {detail.success ? (
+                              <Check size={12} className="text-green-600 mr-1 mt-1 flex-shrink-0" />
+                            ) : (
+                              <XCircle size={12} className="text-red-600 mr-1 mt-1 flex-shrink-0" />
+                            )}
+                            <div>
+                              <span className="font-medium">{detail.test}:</span> {detail.message}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-4 p-3 bg-blue-50 rounded-md text-sm text-blue-700">
+                <h4 className="font-medium mb-1">Memory Usage Tips</h4>
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  <li>Regularly use the "Optimize Database" feature if the app becomes slow</li>
+                  <li>Archive completed tasks frequently to improve performance</li>
+                  <li>Export your data regularly as a backup</li>
+                  <li>If experiencing memory issues, try refreshing the page</li>
+                </ul>
               </div>
             </div>
-          ) : (
-            <div className="flex items-start space-x-3">
-              <div className="mt-1">
-                <Cloud size={24} className="text-indigo-500" />
-              </div>
-              <div>
-                <h3 className="text-lg font-medium text-gray-900">Supabase Cloud Storage</h3>
-                <p className="text-sm text-gray-500 mb-3">
-                  Your data is stored in the cloud using Supabase, a powerful and secure backend service.
-                  This allows you to access your data from multiple devices and ensures it's backed up.
-                </p>
-                <p className="text-sm text-gray-600">
-                  Data is synchronized automatically when you make changes.
-                </p>
-
-                <div className="mt-4 p-3 bg-blue-50 rounded-md text-sm text-blue-700">
-                  <h4 className="font-medium mb-1">Cloud Storage Benefits</h4>
-                  <ul className="list-disc list-inside space-y-1 text-sm">
-                    <li>Access your data from any device with an internet connection</li>
-                    <li>Automatic backups and data redundancy</li>
-                    <li>Synchronization across multiple devices</li>
-                    <li>Enhanced security and encryption</li>
-                  </ul>
-                </div>
-
-                <div className="mt-4 p-3 bg-yellow-50 rounded-md text-sm text-yellow-700">
-                  <h4 className="font-medium mb-1">Important Note</h4>
-                  <p>
-                    If you're experiencing connection issues, you can always switch back
-                    to local storage and your data will remain intact on this device.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
       </Card>
 
