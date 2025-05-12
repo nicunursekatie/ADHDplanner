@@ -37,27 +37,35 @@ export const StreamlinedTaskForm: React.FC<StreamlinedTaskFormProps> = ({
   // Advanced mode toggle
   const [showAdvanced, setShowAdvanced] = useState(false);
   
-  // Initial form state
-  const initialState: Partial<Task> = {
-    title: '',
-    description: '',
-    dueDate: null,
-    projectId: parentTask?.projectId || null,
-    categoryIds: [],
-    parentTaskId: parentTask?.id || null,
-    priority: 'medium',
-    energyLevel: 'medium',
-    size: 'medium',
-    estimatedMinutes: 30,
-    subtasks: [],
-    ...task,
-  };
-  
+  // Use useMemo for initialState to avoid recreation on every render
+  const initialState = React.useMemo(() => {
+    const state: Partial<Task> = {
+      title: '',
+      description: '',
+      dueDate: null,
+      projectId: parentTask?.projectId || null,
+      categoryIds: [],
+      parentTaskId: parentTask?.id || null,
+      priority: 'medium',
+      energyLevel: 'medium',
+      size: 'medium',
+      estimatedMinutes: 30,
+      subtasks: [],
+    };
+
+    // Initialize with task data if available
+    if (task) {
+      return { ...state, ...task };
+    }
+
+    return state;
+  }, [task, parentTask]);
+
   const [formData, setFormData] = useState<Partial<Task>>(initialState);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  
+
   useEffect(() => {
-    // Reset form data when the task prop changes
+    // Reset form data when the initialState changes
     if (task) {
       setFormData({ ...task });
       // Show advanced options if they have values
@@ -67,7 +75,7 @@ export const StreamlinedTaskForm: React.FC<StreamlinedTaskFormProps> = ({
     } else {
       setFormData(initialState);
     }
-  }, [task, parentTask, initialState]);
+  }, [task, initialState]);
 
   const handleChange = useCallback((
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -236,7 +244,17 @@ export const StreamlinedTaskForm: React.FC<StreamlinedTaskFormProps> = ({
               onClick={() => {
                 const today = new Date();
                 const formattedDate = today.toISOString().split('T')[0];
-                setFormData(prev => ({ ...prev, dueDate: formattedDate }));
+                // Create a new object to trigger state update properly
+                setFormData({
+                  ...formData,
+                  dueDate: formattedDate
+                });
+
+                // Also update the input field directly for better UI feedback
+                const dateInput = document.getElementById('dueDate') as HTMLInputElement;
+                if (dateInput) {
+                  dateInput.value = formattedDate;
+                }
               }}
               className={`px-2 py-1 rounded text-xs font-medium ${
                 formData.dueDate && new Date(formData.dueDate).toISOString().split('T')[0] === new Date().toISOString().split('T')[0]
@@ -246,14 +264,25 @@ export const StreamlinedTaskForm: React.FC<StreamlinedTaskFormProps> = ({
             >
               Today
             </button>
-            
+
             <button
               type="button"
               onClick={() => {
                 const tomorrow = new Date();
                 tomorrow.setDate(tomorrow.getDate() + 1);
                 const formattedDate = tomorrow.toISOString().split('T')[0];
-                setFormData(prev => ({ ...prev, dueDate: formattedDate }));
+
+                // Create a new object to trigger state update properly
+                setFormData({
+                  ...formData,
+                  dueDate: formattedDate
+                });
+
+                // Also update the input field directly
+                const dateInput = document.getElementById('dueDate') as HTMLInputElement;
+                if (dateInput) {
+                  dateInput.value = formattedDate;
+                }
               }}
               className={`px-2 py-1 rounded text-xs font-medium ${
                 (() => {
@@ -266,14 +295,25 @@ export const StreamlinedTaskForm: React.FC<StreamlinedTaskFormProps> = ({
             >
               Tomorrow
             </button>
-            
+
             <button
               type="button"
               onClick={() => {
                 const nextWeek = new Date();
                 nextWeek.setDate(nextWeek.getDate() + 7);
                 const formattedDate = nextWeek.toISOString().split('T')[0];
-                setFormData(prev => ({ ...prev, dueDate: formattedDate }));
+
+                // Create a new object to trigger state update properly
+                setFormData({
+                  ...formData,
+                  dueDate: formattedDate
+                });
+
+                // Also update the input field directly
+                const dateInput = document.getElementById('dueDate') as HTMLInputElement;
+                if (dateInput) {
+                  dateInput.value = formattedDate;
+                }
               }}
               className={`px-2 py-1 rounded text-xs font-medium ${
                 (() => {
@@ -286,11 +326,21 @@ export const StreamlinedTaskForm: React.FC<StreamlinedTaskFormProps> = ({
             >
               Next Week
             </button>
-            
+
             <button
               type="button"
               onClick={() => {
-                setFormData(prev => ({ ...prev, dueDate: null }));
+                // Create a new object to trigger state update properly
+                setFormData({
+                  ...formData,
+                  dueDate: null
+                });
+
+                // Also update the input field directly
+                const dateInput = document.getElementById('dueDate') as HTMLInputElement;
+                if (dateInput) {
+                  dateInput.value = '';
+                }
               }}
               className={`px-2 py-1 rounded text-xs font-medium ${
                 formData.dueDate === null
