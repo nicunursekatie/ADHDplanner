@@ -399,32 +399,88 @@ export const importData = async (jsonData: string): Promise<boolean> => {
       // Helper function to extract a section of the JSON
       const extractSection = (sectionName: string, source: string): unknown[] | null => {
         try {
-          // Find the section in the JSON string
-          const sectionStart = source.indexOf(`"${sectionName}":`);
-          if (sectionStart === -1) return null;
+          // Check for different possible property name formats
+          const possibleNames = [
+            `"${sectionName}":`,
+            `"${sectionName.toLowerCase()}":`,
+            `"${sectionName.toUpperCase()}":`,
+            `"${sectionName[0].toUpperCase() + sectionName.slice(1).toLowerCase()}":`,
+          ];
+
+          // Find the first matching section
+          let sectionStart = -1;
+          let matchedName = '';
+
+          for (const propName of possibleNames) {
+            const index = source.indexOf(propName);
+            if (index !== -1) {
+              sectionStart = index;
+              matchedName = propName;
+              break;
+            }
+          }
+
+          if (sectionStart === -1) {
+            console.log(`Section "${sectionName}" not found in JSON`);
+            return null;
+          }
 
           // Extract the array content
           let bracketCount = 0;
           let inArray = false;
-          let startPos = sectionStart + sectionName.length + 2; // Skip past "name":
+          let startPos = sectionStart + matchedName.length; // Skip past "name":
 
-          // Find the start of the array
+          // Find the start of the array, handling whitespace
           while (startPos < source.length) {
+            // Skip whitespace
+            if (/\s/.test(source[startPos])) {
+              startPos++;
+              continue;
+            }
+
             if (source[startPos] === '[') {
               inArray = true;
               startPos++;
               break;
             }
+
+            // If we find something unexpected, log and return null
+            if (source[startPos] !== '[') {
+              console.warn(`Expected [ for array start in ${matchedName}, found '${source[startPos]}'`);
+              return null;
+            }
+
             startPos++;
           }
 
-          if (!inArray) return null;
+          if (!inArray) {
+            console.log(`No array found for ${matchedName}`);
+            return null;
+          }
 
           // Find the end of the array by matching brackets
           let endPos = startPos;
           bracketCount = 1; // We're already inside one bracket
 
+          // Robustly find the end of the array
           while (endPos < source.length && bracketCount > 0) {
+            // Skip string contents to avoid brackets inside strings
+            if (source[endPos] === '"') {
+              endPos++;
+              // Find the end of the string
+              while (endPos < source.length && source[endPos] !== '"') {
+                // Handle escaped quotes
+                if (source[endPos] === '\\' && endPos + 1 < source.length) {
+                  endPos += 2;
+                } else {
+                  endPos++;
+                }
+              }
+              if (endPos < source.length) endPos++; // Skip the closing quote
+              continue;
+            }
+
+            // Count brackets
             if (source[endPos] === '[') bracketCount++;
             if (source[endPos] === ']') bracketCount--;
             endPos++;
@@ -437,7 +493,13 @@ export const importData = async (jsonData: string): Promise<boolean> => {
 
           // Parse just this section
           const sectionJson = source.substring(startPos - 1, endPos);
-          return JSON.parse(sectionJson);
+          try {
+            return JSON.parse(sectionJson);
+          } catch (parseError) {
+            console.error(`Error parsing ${sectionName} section:`, parseError);
+            console.log(`Section JSON snippet: ${sectionJson.substring(0, 100)}...`);
+            return null;
+          }
         } catch (err) {
           console.error(`Error extracting ${sectionName} section:`, err);
           return null;

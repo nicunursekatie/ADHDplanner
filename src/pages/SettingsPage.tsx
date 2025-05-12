@@ -119,34 +119,43 @@ const SettingsPage: React.FC = () => {
           try {
             const content = e.target?.result as string;
 
-            // Quick check for basic JSON structure without parsing the whole thing
+            // Less restrictive validation - just check if it looks like JSON and has basic structure
             try {
-              // Check first 1000 chars and last 10 chars just to validate format
-              // This avoids parsing the entire JSON which could freeze the UI
-              const jsonSample = content.slice(0, 1000) + content.slice(-10);
-              JSON.parse(jsonSample);
-
-              // Validate file structure by checking for required properties
-              const hasProps = ['"tasks":', '"projects":', '"categories":'].some(
-                prop => content.includes(prop)
-              );
-
-              if (!hasProps) {
-                setImportError('The file does not appear to be a TaskManager export. Please select a valid export file.');
+              // Simple check - does it look like JSON?
+              if (!content.trim().startsWith('{') || !content.trim().endsWith('}')) {
+                console.error('File doesn\'t appear to be JSON');
+                setImportError('The file doesn\'t appear to be a valid JSON file. It should start with { and end with }.');
                 setIsImporting(false);
                 clearInterval(progressInterval);
                 document.title = "ADHDplanner";
                 return;
               }
 
-              console.log('Import validation passed, proceeding with import...');
+              // Look for basic data markers without trying to parse the whole file
+              const containsTasksMarker = content.includes('"tasks"') || content.includes('"Tasks"');
+              const containsProjectsMarker = content.includes('"projects"') || content.includes('"Projects"');
+
+              // More lenient check for required properties - any one of these would indicate it's likely our format
+              const possibleProps = [
+                '"tasks":', '"projects":', '"categories":',
+                '"Tasks":', '"Projects":', '"Categories":',
+                '"dailyPlans":', '"DailyPlans":',
+                '"journalEntries":', '"JournalEntries":'
+              ];
+
+              const hasAnyProps = possibleProps.some(prop => content.includes(prop));
+
+              if (!hasAnyProps) {
+                console.warn('File lacks expected properties');
+                setImportError('The file may not be a valid TaskManager export. Continue anyway?');
+                // We'll continue anyway - the user might know what they're doing
+              } else {
+                console.log('Import basic validation passed, proceeding with import...');
+              }
             } catch (jsonError) {
               console.error('JSON validation error:', jsonError);
-              setImportError('Invalid JSON format. Please select a valid export file.');
-              setIsImporting(false);
-              clearInterval(progressInterval);
-              document.title = "ADHDplanner";
-              return;
+              // Continue anyway - we'll let the full import process attempt to parse it
+              console.log('Continuing despite validation error...');
             }
 
             // Start import with processed data chunks
