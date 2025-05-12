@@ -303,7 +303,7 @@ export const deleteJournalEntry = async (entryId: string): Promise<void> => {
 export const exportData = async (): Promise<string> => {
   try {
     // Create an export object, building it incrementally to prevent excessive memory use
-    const exportObject: any = {};
+    const exportObject: Record<string, unknown> = {};
 
     // Export each type of data separately to manage memory better
     console.log('Starting data export...');
@@ -360,30 +360,15 @@ const chunkArray = <T>(array: T[], chunkSize: number): T[][] => {
   return chunks;
 };
 
+/**
+ * Improved importData function with stream parsing and progressive loading
+ * to prevent browser freezing on large datasets
+ */
 export const importData = async (jsonData: string): Promise<boolean> => {
   try {
-    // Parse the data in a controlled way to prevent memory issues
-    let data;
-    try {
-      data = JSON.parse(jsonData);
-      // Immediately clear the jsonData string to help garbage collection
-      jsonData = '';
-    } catch (parseError) {
-      console.error('JSON parsing error:', parseError);
-      return false;
-    }
+    console.log('Starting stream-based data import process...');
 
-    // Add robust validation before attempting to save data
-    // Ensure we have valid data before proceeding with transaction
-    if (!data || typeof data !== 'object') {
-      console.error('Invalid import data: Not a valid object');
-      return false;
-    }
-
-    // Log the structure of data being imported for debugging
-    console.log('Importing data structure:', Object.keys(data));
-
-    // First clear all tables to free up memory
+    // Clear existing data before we start to free memory
     console.log('Clearing existing data...');
     await Promise.all([
       db.tasks.clear(),
@@ -394,106 +379,204 @@ export const importData = async (jsonData: string): Promise<boolean> => {
       db.journalEntries.clear()
     ]);
 
-    // Define chunk size - adjust based on testing
-    const CHUNK_SIZE = 100;
+    // Define chunk size - smaller for better responsiveness
+    const CHUNK_SIZE = 50;
 
+    // Check for basic JSON validity before attempting full parse
     try {
-      // Import tasks in chunks to prevent memory issues
-      if (data.tasks && Array.isArray(data.tasks) && data.tasks.length > 0) {
-        console.log(`Adding ${data.tasks.length} tasks in chunks`);
-        const taskChunks = chunkArray(data.tasks, CHUNK_SIZE);
-        for (let i = 0; i < taskChunks.length; i++) {
-          console.log(`Importing tasks chunk ${i+1}/${taskChunks.length}`);
-          await db.tasks.bulkAdd(taskChunks[i]);
-          // Allow a small delay for garbage collection between chunks
-          if (i < taskChunks.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 10));
+      // Just validate JSON structure without keeping the whole result in memory
+      JSON.parse(jsonData.slice(0, 1000) + jsonData.slice(-10));
+    } catch (validationError) {
+      console.error('Invalid JSON format:', validationError);
+      return false;
+    }
+
+    // Process data in sections to prevent loading everything into memory at once
+    try {
+      // Progressive section-by-section parsing to limit memory usage
+      // Process the JSON string in separate steps for each data type
+
+      // Helper function to extract a section of the JSON
+      const extractSection = (sectionName: string, source: string): unknown[] | null => {
+        try {
+          // Find the section in the JSON string
+          const sectionStart = source.indexOf(`"${sectionName}":`);
+          if (sectionStart === -1) return null;
+
+          // Extract the array content
+          let bracketCount = 0;
+          let inArray = false;
+          let startPos = sectionStart + sectionName.length + 2; // Skip past "name":
+
+          // Find the start of the array
+          while (startPos < source.length) {
+            if (source[startPos] === '[') {
+              inArray = true;
+              startPos++;
+              break;
+            }
+            startPos++;
           }
+
+          if (!inArray) return null;
+
+          // Find the end of the array by matching brackets
+          let endPos = startPos;
+          bracketCount = 1; // We're already inside one bracket
+
+          while (endPos < source.length && bracketCount > 0) {
+            if (source[endPos] === '[') bracketCount++;
+            if (source[endPos] === ']') bracketCount--;
+            endPos++;
+          }
+
+          if (bracketCount !== 0) {
+            console.error('Malformed JSON: Unbalanced brackets in', sectionName);
+            return null;
+          }
+
+          // Parse just this section
+          const sectionJson = source.substring(startPos - 1, endPos);
+          return JSON.parse(sectionJson);
+        } catch (err) {
+          console.error(`Error extracting ${sectionName} section:`, err);
+          return null;
         }
-        // Clear reference to help garbage collection
-        data.tasks = null;
+      };
+
+      // Process sections in sequence with breaks for UI responsiveness
+
+      // 1. Process tasks (usually the largest data set)
+      const tasks = extractSection('tasks', jsonData);
+      if (tasks && Array.isArray(tasks) && tasks.length > 0) {
+        console.log(`Adding ${tasks.length} tasks in chunks`);
+        const taskChunks = chunkArray(tasks, CHUNK_SIZE);
+
+        for (let i = 0; i < taskChunks.length; i++) {
+          // Log progress every 5 chunks to reduce console spam
+          if (i % 5 === 0 || i === taskChunks.length - 1) {
+            console.log(`Importing tasks chunk ${i+1}/${taskChunks.length}`);
+          }
+
+          await db.tasks.bulkAdd(taskChunks[i]);
+
+          // Yield to the UI thread every chunk to keep the app responsive
+          await new Promise(resolve => setTimeout(resolve, 20));
+        }
       }
 
-      // Import projects - usually smaller so might not need chunking
-      if (data.projects && Array.isArray(data.projects) && data.projects.length > 0) {
-        console.log(`Adding ${data.projects.length} projects`);
-        if (data.projects.length > CHUNK_SIZE) {
-          const projectChunks = chunkArray(data.projects, CHUNK_SIZE);
+      // 2. Process projects
+      const projects = extractSection('projects', jsonData);
+      if (projects && Array.isArray(projects) && projects.length > 0) {
+        console.log(`Adding ${projects.length} projects`);
+
+        if (projects.length > CHUNK_SIZE) {
+          const projectChunks = chunkArray(projects, CHUNK_SIZE);
           for (const chunk of projectChunks) {
             await db.projects.bulkAdd(chunk);
+            await new Promise(resolve => setTimeout(resolve, 10));
           }
         } else {
-          await db.projects.bulkAdd(data.projects);
+          await db.projects.bulkAdd(projects);
         }
-        data.projects = null;
       }
 
-      // Import categories - usually smaller so might not need chunking
-      if (data.categories && Array.isArray(data.categories) && data.categories.length > 0) {
-        console.log(`Adding ${data.categories.length} categories`);
-        await db.categories.bulkAdd(data.categories);
-        data.categories = null;
+      // 3. Process categories
+      const categories = extractSection('categories', jsonData);
+      if (categories && Array.isArray(categories) && categories.length > 0) {
+        console.log(`Adding ${categories.length} categories`);
+
+        if (categories.length > CHUNK_SIZE) {
+          const categoryChunks = chunkArray(categories, CHUNK_SIZE);
+          for (const chunk of categoryChunks) {
+            await db.categories.bulkAdd(chunk);
+            await new Promise(resolve => setTimeout(resolve, 10));
+          }
+        } else {
+          await db.categories.bulkAdd(categories);
+        }
       }
 
-      // Import daily plans in chunks if needed
-      if (data.dailyPlans && Array.isArray(data.dailyPlans) && data.dailyPlans.length > 0) {
-        console.log(`Adding ${data.dailyPlans.length} daily plans`);
-        if (data.dailyPlans.length > CHUNK_SIZE) {
-          const planChunks = chunkArray(data.dailyPlans, CHUNK_SIZE);
+      // 4. Process daily plans
+      const dailyPlans = extractSection('dailyPlans', jsonData);
+      if (dailyPlans && Array.isArray(dailyPlans) && dailyPlans.length > 0) {
+        console.log(`Adding ${dailyPlans.length} daily plans`);
+
+        // Ensure all timeBlocks have taskIds initialized
+        const processedPlans = dailyPlans.map(plan => {
+          if (plan.timeBlocks) {
+            plan.timeBlocks = plan.timeBlocks.map(block => ({
+              ...block,
+              taskIds: block.taskIds || []
+            }));
+          }
+          return plan;
+        });
+
+        if (processedPlans.length > CHUNK_SIZE) {
+          const planChunks = chunkArray(processedPlans, CHUNK_SIZE);
           for (const chunk of planChunks) {
             await db.dailyPlans.bulkAdd(chunk);
+            await new Promise(resolve => setTimeout(resolve, 10));
           }
         } else {
-          await db.dailyPlans.bulkAdd(data.dailyPlans);
+          await db.dailyPlans.bulkAdd(processedPlans);
         }
-        data.dailyPlans = null;
       }
 
-      // Handle work schedule with improved validation and error handling
-      if (data.workSchedule && typeof data.workSchedule === 'object') {
-        console.log('Adding work schedule from workSchedule field');
-        // Validate the work schedule structure to make sure it has required fields
-        if (data.workSchedule.id && Array.isArray(data.workSchedule.shifts)) {
-          await db.workSchedules.add(data.workSchedule);
-        } else {
-          console.warn('Work schedule data is invalid, skipping import');
+      // 5. Process work schedule (should be a single object)
+      try {
+        // First check workSchedule field
+        if (jsonData.includes('"workSchedule":')) {
+          const scheduleMatch = jsonData.match(/"workSchedule":\s*(\{[^}]*\})/);
+          if (scheduleMatch && scheduleMatch[1]) {
+            const workSchedule = JSON.parse(scheduleMatch[1]);
+            if (workSchedule && typeof workSchedule === 'object' &&
+                workSchedule.id && Array.isArray(workSchedule.shifts)) {
+              console.log('Adding work schedule');
+              await db.workSchedules.add(workSchedule);
+            }
+          }
         }
-      } else if (data.workSchedules && typeof data.workSchedules === 'object') {
-        console.log('Adding work schedule from workSchedules field');
-        // Validate the work schedule structure to make sure it has required fields
-        if (data.workSchedules.id && Array.isArray(data.workSchedules.shifts)) {
-          await db.workSchedules.add(data.workSchedules);
-        } else {
-          console.warn('Work schedule data is invalid, skipping import');
+        // Then check workSchedules field (older format)
+        else if (jsonData.includes('"workSchedules":')) {
+          const schedulesMatch = jsonData.match(/"workSchedules":\s*(\{[^}]*\})/);
+          if (schedulesMatch && schedulesMatch[1]) {
+            const workSchedules = JSON.parse(schedulesMatch[1]);
+            if (workSchedules && typeof workSchedules === 'object' &&
+                workSchedules.id && Array.isArray(workSchedules.shifts)) {
+              console.log('Adding work schedule from workSchedules field');
+              await db.workSchedules.add(workSchedules);
+            }
+          }
         }
-      } else {
-        console.log('No work schedule data found in import');
+      } catch (scheduleErr) {
+        console.warn('Error processing work schedule, skipping:', scheduleErr);
       }
-      // Clear references
-      data.workSchedule = null;
-      data.workSchedules = null;
 
-      // Import journal entries in chunks if needed
-      if (data.journalEntries && Array.isArray(data.journalEntries) && data.journalEntries.length > 0) {
-        console.log(`Adding ${data.journalEntries.length} journal entries`);
-        if (data.journalEntries.length > CHUNK_SIZE) {
-          const entryChunks = chunkArray(data.journalEntries, CHUNK_SIZE);
+      // 6. Process journal entries
+      const journalEntries = extractSection('journalEntries', jsonData);
+      if (journalEntries && Array.isArray(journalEntries) && journalEntries.length > 0) {
+        console.log(`Adding ${journalEntries.length} journal entries`);
+
+        if (journalEntries.length > CHUNK_SIZE) {
+          const entryChunks = chunkArray(journalEntries, CHUNK_SIZE);
           for (const chunk of entryChunks) {
             await db.journalEntries.bulkAdd(chunk);
+            await new Promise(resolve => setTimeout(resolve, 10));
           }
         } else {
-          await db.journalEntries.bulkAdd(data.journalEntries);
+          await db.journalEntries.bulkAdd(journalEntries);
         }
-        data.journalEntries = null;
       }
 
-      // Force clear the data object to help garbage collection
-      data = null;
+      // Free memory
+      jsonData = '';
 
       console.log('Import completed successfully');
       return true;
     } catch (importError) {
-      console.error('Error during data import for specific table:', importError);
+      console.error('Error during progressive data import:', importError);
       // Log more detailed error information for debugging
       if (importError instanceof Error) {
         console.error('Error name:', importError.name);

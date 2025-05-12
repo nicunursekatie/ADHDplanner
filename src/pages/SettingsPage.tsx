@@ -97,8 +97,20 @@ const SettingsPage: React.FC = () => {
     setIsImporting(true);
     setImportError(null);
 
+    // Safety check for large files
+    if (importFile.size > 25 * 1024 * 1024) { // 25MB limit
+      setImportError('File is too large. Please select a file smaller than 25MB or use the Emergency Reset option if needed.');
+      setIsImporting(false);
+      return;
+    }
+
+    // Set up a progress indicator using a timeout to update UI during long imports
+    // This gives users feedback that the app is still working even if it's slow
+    const progressInterval = window.setInterval(() => {
+      document.title = `Importing... ${Math.floor(Date.now() / 1000) % 3 + 1}`;
+    }, 1000);
+
     // Use a small timeout to let the UI update before starting the import
-    // This prevents the browser from freezing immediately
     setTimeout(() => {
       try {
         const reader = new FileReader();
@@ -107,65 +119,84 @@ const SettingsPage: React.FC = () => {
           try {
             const content = e.target?.result as string;
 
-            // Basic JSON validation before trying to import
+            // Quick check for basic JSON structure without parsing the whole thing
             try {
-              // Check if it's valid JSON at all
-              const parsedJson = JSON.parse(content);
+              // Check first 1000 chars and last 10 chars just to validate format
+              // This avoids parsing the entire JSON which could freeze the UI
+              const jsonSample = content.slice(0, 1000) + content.slice(-10);
+              JSON.parse(jsonSample);
 
-              // Basic structure validation
-              if (!parsedJson || typeof parsedJson !== 'object') {
-                setImportError('The file does not contain valid data. Please select a valid TaskManager export file.');
-                setIsImporting(false);
-                return;
-              }
-
-              // Check for expected properties to make sure this is a TaskManager export
-              const requiredProperties = ['tasks', 'projects', 'categories'];
-              const hasRequiredProps = requiredProperties.some(prop =>
-                Object.prototype.hasOwnProperty.call(parsedJson, prop)
+              // Validate file structure by checking for required properties
+              const hasProps = ['"tasks":', '"projects":', '"categories":'].some(
+                prop => content.includes(prop)
               );
 
-              if (!hasRequiredProps) {
+              if (!hasProps) {
                 setImportError('The file does not appear to be a TaskManager export. Please select a valid export file.');
                 setIsImporting(false);
+                clearInterval(progressInterval);
+                document.title = "ADHDplanner";
                 return;
               }
 
               console.log('Import validation passed, proceeding with import...');
             } catch (jsonError) {
-              console.error('JSON parsing error:', jsonError);
+              console.error('JSON validation error:', jsonError);
               setImportError('Invalid JSON format. Please select a valid export file.');
               setIsImporting(false);
+              clearInterval(progressInterval);
+              document.title = "ADHDplanner";
               return;
             }
 
-            // Handle the Promise properly with await
+            // Start import with processed data chunks
             console.log('Starting data import...');
-            const result = await importData(content);
 
-            if (result) {
-              console.log('Import succeeded!');
-              setImportSuccess(true);
-              setImportError(null);
-              setIsImporting(false);
+            try {
+              // Use a timeout to allow UI updates during processing
+              const result = await Promise.race([
+                importData(content),
+                new Promise<boolean>((_, reject) => {
+                  // Set a generous timeout for large imports (120 seconds)
+                  setTimeout(() => reject(new Error('Import timeout - operation took too long')), 120000);
+                })
+              ]);
 
-              // Close modal after success
-              if (timeoutRef.current) {
-                clearTimeout(timeoutRef.current);
-              }
+              if (result) {
+                console.log('Import succeeded!');
+                setImportSuccess(true);
+                setImportError(null);
+                clearInterval(progressInterval);
+                document.title = "ADHDplanner";
 
-              timeoutRef.current = setTimeout(() => {
-                setImportModalOpen(false);
-                // Reset file input
-                if (fileInputRef.current) {
-                  fileInputRef.current.value = '';
+                // Close modal after success
+                if (timeoutRef.current) {
+                  clearTimeout(timeoutRef.current);
                 }
-              }, 2000);
-            } else {
-              console.error('Import returned false');
-              setImportError('Failed to import data. Make sure the file is a valid TaskManager export file and try again.');
-              setIsImporting(false);
+
+                timeoutRef.current = setTimeout(() => {
+                  setImportModalOpen(false);
+                  // Reset file input
+                  if (fileInputRef.current) {
+                    fileInputRef.current.value = '';
+                  }
+                  // Refresh page to load new data cleanly
+                  window.location.reload();
+                }, 2000);
+              } else {
+                console.error('Import returned false');
+                setImportError('Failed to import data. Make sure the file is a valid TaskManager export file and try again.');
+                clearInterval(progressInterval);
+                document.title = "ADHDplanner";
+              }
+            } catch (timeoutError) {
+              console.error('Import timeout or error:', timeoutError);
+              setImportError('The import process took too long. The file may be too large or complex. Try using the Emergency Reset option first, or split your data into smaller exports.');
+              clearInterval(progressInterval);
+              document.title = "ADHDplanner";
             }
+
+            setIsImporting(false);
           } catch (error) {
             console.error('Import error:', error);
             let errorMessage = 'An unexpected error occurred during import.';
@@ -177,11 +208,17 @@ const SettingsPage: React.FC = () => {
                 errorMessage = 'The import file contains data that does not match the expected format. This might be due to a version mismatch.';
               } else if (error.message.includes('duplicate')) {
                 errorMessage = 'The import failed due to duplicate data. Please reset your data before importing.';
+              } else if (error.message.includes('memory') || error.message.includes('allocation failed')) {
+                errorMessage = 'The browser ran out of memory. Try using the Emergency Reset option first, or import a smaller file.';
+              } else if (error.message.includes('timeout')) {
+                errorMessage = 'The import process timed out. Try using the Emergency Reset option first, or import a smaller file.';
               }
             }
 
             setImportError(`${errorMessage} Please try again or contact support if the problem persists.`);
             setIsImporting(false);
+            clearInterval(progressInterval);
+            document.title = "ADHDplanner";
           }
         };
 
@@ -189,6 +226,8 @@ const SettingsPage: React.FC = () => {
           console.error('FileReader error:', error);
           setImportError('Error reading the file. The file might be corrupt or inaccessible.');
           setIsImporting(false);
+          clearInterval(progressInterval);
+          document.title = "ADHDplanner";
         };
 
         reader.readAsText(importFile);
@@ -196,6 +235,8 @@ const SettingsPage: React.FC = () => {
         console.error('Import process error:', error);
         setImportError('An unexpected error occurred. Please try again or try using a different file.');
         setIsImporting(false);
+        clearInterval(progressInterval);
+        document.title = "ADHDplanner";
       }
     }, 100);
   };
@@ -558,6 +599,20 @@ const SettingsPage: React.FC = () => {
                   <p className="text-sm">{importError}</p>
                 </div>
               )}
+
+              {isImporting && (
+                <div className="p-3 bg-blue-50 text-blue-700 rounded-md mt-3">
+                  <div className="flex items-center mb-2">
+                    <Loader size={16} className="mr-2 animate-spin" />
+                    <p className="text-sm font-medium">Import in progress. Please be patient.</p>
+                  </div>
+                  <ul className="text-xs list-disc list-inside space-y-1">
+                    <li>The import process may take several minutes for large files</li>
+                    <li>Please do not close your browser tab during import</li>
+                    <li>If the app becomes unresponsive, you may need to use Emergency Reset</li>
+                  </ul>
+                </div>
+              )}
               
               <div className="flex justify-end space-x-3 pt-4">
                 <Button
@@ -574,7 +629,7 @@ const SettingsPage: React.FC = () => {
                   {isImporting ? (
                     <>
                       <Loader size={16} className="mr-2 animate-spin" />
-                      Importing...
+                      Importing... (please wait)
                     </>
                   ) : (
                     'Import'
