@@ -29,16 +29,37 @@ export const formatDateForDisplay = (dateString: string): string => {
 
 // Format time for display (e.g., "2:30 PM")
 export const formatTimeForDisplay = (timeString: string): string => {
-  const [hours, minutes] = timeString.split(':');
-  const date = new Date();
-  date.setHours(parseInt(hours, 10));
-  date.setMinutes(parseInt(minutes, 10));
-  
-  return date.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
+  try {
+    // Parse the hours and minutes from the timeString (HH:MM)
+    const [hoursStr, minutesStr] = timeString.split(':');
+    const hours = parseInt(hoursStr, 10);
+    const minutes = parseInt(minutesStr, 10);
+
+    // Validate the parsed values
+    if (isNaN(hours) || isNaN(minutes)) {
+      console.error('Invalid time format:', timeString);
+      return timeString; // Return original if parsing fails
+    }
+
+    // Create a date object and set the hours and minutes
+    const date = new Date();
+    date.setHours(hours);
+    date.setMinutes(minutes);
+    date.setSeconds(0);
+
+    // Format the time using 12-hour format with AM/PM
+    // Make sure hour12 is set to true to ensure 12-hour format with AM/PM
+    const formattedTime = date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+
+    return formattedTime;
+  } catch (error) {
+    console.error('Error formatting time:', error);
+    return timeString; // Return original if any error occurs
+  }
 };
 
 /**

@@ -6,7 +6,7 @@ import { Plus, Clock, GripVertical, Edit, Info } from 'lucide-react';
 import Button from '../common/Button';
 import TaskCard from '../tasks/TaskCard';
 import Empty from '../common/Empty';
-import { generateId, calculateDuration } from '../../utils/helpers';
+import { generateId, calculateDuration, formatTimeForDisplay } from '../../utils/helpers';
 import TimeBlockModal from './TimeBlockModal';
 import Card from '../common/Card';
 
@@ -63,18 +63,37 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
     fetchTimeBlocks();
   }, [getDailyPlan, date]);
 
+  // Store the most recently added time block in state
+  const [manuallyAddedBlocks, setManuallyAddedBlocks] = useState<TimeBlock[]>([]);
+
   // Sort time blocks by start time for better organization
   const sortedTimeBlocks = React.useMemo(() => {
-    return [...timeBlocks].sort((a, b) => {
+    // Create a combined array that includes both fetched blocks and manually added blocks
+    const allBlocks = [...timeBlocks];
+
+    // Add any manually added blocks that aren't already in timeBlocks
+    manuallyAddedBlocks.forEach(manualBlock => {
+      if (!timeBlocks.some(block => block.id === manualBlock.id)) {
+        allBlocks.push(manualBlock);
+        console.log('Added manually created block to display:', manualBlock);
+      }
+    });
+
+    return allBlocks.sort((a, b) => {
       return a.startTime.localeCompare(b.startTime);
     });
-  }, [timeBlocks]);
+  }, [timeBlocks, manuallyAddedBlocks]);
 
   // Get unscheduled tasks (tasks without time blocks)
   const unscheduledTasks = React.useMemo(() => {
+    // Make sure we consider both timeBlocks and manually added blocks in the filter
+    const allBlocks = [...timeBlocks, ...manuallyAddedBlocks].filter((block, index, self) =>
+      index === self.findIndex(b => b.id === block.id)
+    );
+
     return tasks.filter(task => {
       // Check if the task is in any block's taskIds array or the legacy taskId field
-      const hasTimeBlock = timeBlocks.some(block =>
+      const hasTimeBlock = allBlocks.some(block =>
         block.taskId === task.id || (block.taskIds && block.taskIds.includes(task.id))
       );
       const isIncomplete = !task.completed;
@@ -85,7 +104,7 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
 
       return isIncomplete && !hasTimeBlock && isDueOnOrBefore && isTopLevelTask;
     });
-  }, [tasks, timeBlocks, date]);
+  }, [tasks, timeBlocks, manuallyAddedBlocks, date]);
 
   // Configure DnD sensors
   const sensors = useSensors(
@@ -214,27 +233,38 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
     setSelectedBlock(null);
   }, [date, timeBlocks, saveDailyPlan]);
 
-  const handleSaveBlock = useCallback((updatedBlock: TimeBlock) => {
+  const handleSaveBlock = useCallback(async (updatedBlock: TimeBlock) => {
     if (!mountedRef.current) return;
+
+    console.log('Saving time block:', updatedBlock);
+
+    // Ensure taskIds is always initialized
+    const normalizedBlock = {
+      ...updatedBlock,
+      taskIds: updatedBlock.taskIds || []
+    };
+
+    // Add to manually added blocks for immediate display
+    setManuallyAddedBlocks(prev => {
+      // Remove any existing blocks with the same ID
+      const filtered = prev.filter(block => block.id !== normalizedBlock.id);
+      // Add the new block
+      return [...filtered, normalizedBlock];
+    });
+    console.log('Adding to manually added blocks for immediate display:', normalizedBlock);
 
     let updatedBlocks;
 
     // Check if this is a new block or an existing one
-    if (timeBlocks.some(block => block.id === updatedBlock.id)) {
+    if (timeBlocks.some(block => block.id === normalizedBlock.id)) {
       // Update existing block
       updatedBlocks = timeBlocks.map(block =>
-        block.id === updatedBlock.id ? updatedBlock : block
+        block.id === normalizedBlock.id ? normalizedBlock : block
       );
     } else {
       // Add new block
-      updatedBlocks = [...timeBlocks, updatedBlock];
+      updatedBlocks = [...timeBlocks, normalizedBlock];
     }
-
-    // Ensure taskIds is always initialized
-    updatedBlocks = updatedBlocks.map(block => ({
-      ...block,
-      taskIds: block.taskIds || []
-    }));
 
     // Create or update the daily plan
     const dailyPlan = {
@@ -244,10 +274,25 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
     };
 
     console.log('Saving daily plan with time blocks:', dailyPlan);
-    saveDailyPlan(dailyPlan);
 
-    // Update local state to ensure time blocks display immediately
-    setSelectedBlock(updatedBlock);
+    try {
+      // Save to storage - use await to ensure this completes before updating UI
+      await saveDailyPlan(dailyPlan);
+      console.log('Daily plan saved');
+
+      // Update local timeBlocks state directly to ensure immediate display
+      setTimeBlocks(updatedBlocks);
+
+      // Make sure manuallyAddedBlocks is in sync with timeBlocks to avoid duplicates
+      setManuallyAddedBlocks(prev =>
+        prev.filter(block => !updatedBlocks.some(tb => tb.id === block.id))
+      );
+    } catch (error) {
+      console.error('Error saving daily plan:', error);
+    }
+
+    // Update selected block for UI
+    setSelectedBlock(normalizedBlock);
   }, [date, timeBlocks, saveDailyPlan]);
 
   const handleRemoveTaskFromBlock = useCallback((taskId: string) => {
@@ -418,7 +463,7 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
           </div>
           
           <div className="flex-1 overflow-y-auto p-6 max-h-[calc(100vh-18rem)]">
-            {timeBlocks.length === 0 ? (
+            {sortedTimeBlocks.length === 0 ? (
               <Empty
                 title="No time blocks yet"
                 description="Create custom time blocks to plan your day - add as many as you need with any start and end times"
@@ -453,7 +498,7 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
                             <div className="flex flex-col items-end">
                               <div className="flex items-center">
                                 <span className="text-sm text-gray-500 mr-2">
-                                  {block.startTime} - {block.endTime}
+                                  {formatTimeForDisplay(block.startTime)} - {formatTimeForDisplay(block.endTime)}
                                 </span>
                                 <button 
                                   className="p-1 rounded-full hover:bg-gray-100"

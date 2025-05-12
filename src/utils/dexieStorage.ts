@@ -183,17 +183,48 @@ export const getDailyPlan = async (date: string): Promise<DailyPlan | null> => {
 
 export const saveDailyPlan = async (plan: DailyPlan): Promise<void> => {
   try {
+    console.log('dexieStorage: Saving daily plan:', JSON.stringify(plan));
+
+    // Validate the plan data
+    if (!plan || !plan.date) {
+      console.error('Invalid daily plan data:', plan);
+      throw new Error('Invalid daily plan data');
+    }
+
+    // Create a deep copy of the plan to avoid mutation issues
+    const planToSave = JSON.parse(JSON.stringify(plan));
+
+    // Ensure all time blocks have taskIds initialized
+    if (planToSave.timeBlocks) {
+      planToSave.timeBlocks = planToSave.timeBlocks.map(block => ({
+        ...block,
+        taskIds: block.taskIds || []
+      }));
+    }
+
     // Check if plan with this date already exists
-    const existingPlan = await db.dailyPlans.where('date').equals(plan.date).first();
-    
+    const existingPlan = await db.dailyPlans.where('date').equals(planToSave.date).first();
+
     if (existingPlan) {
       // Update existing plan
-      await db.dailyPlans.update(existingPlan.id, plan);
+      console.log('Updating existing plan with ID:', existingPlan.id);
+      await db.dailyPlans.update(existingPlan.id, planToSave);
     } else {
       // Add new plan
-      await db.dailyPlans.add(plan);
+      console.log('Adding new plan with date:', planToSave.date);
+      // Ensure plan has an ID
+      if (!planToSave.id) {
+        planToSave.id = planToSave.date;
+      }
+      await db.dailyPlans.add(planToSave);
     }
+
+    // Verify the plan was saved
+    const savedPlan = await db.dailyPlans.where('date').equals(planToSave.date).first();
+    console.log('Plan after save:', savedPlan);
+
   } catch (error) {
+    console.error('Error in saveDailyPlan:', error);
     handleStorageError('save daily plan', error);
   }
 };

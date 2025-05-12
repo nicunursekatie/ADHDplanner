@@ -88,7 +88,18 @@ const TimeBlockModal: React.FC<TimeBlockModalProps> = ({
     if (!validateForm()) {
       return;
     }
-    onSave(formData);
+
+    // Ensure taskIds is properly initialized before saving
+    const blockToSave = {
+      ...formData,
+      taskIds: formData.taskIds || []
+    };
+
+    // Display the save operation to the user with clear logging
+    console.log("Saving time block:", blockToSave);
+
+    // Call the save function and then close the modal
+    onSave(blockToSave);
     onClose();
   }, [validateForm, formData, onSave, onClose]);
 
@@ -149,7 +160,7 @@ const TimeBlockModal: React.FC<TimeBlockModalProps> = ({
                 validationError ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-indigo-500'
               }`}
             />
-            <p className="mt-1 text-xs text-gray-500">Enter any time in 24-hour format (e.g., 14:30 for 2:30 PM)</p>
+            <p className="mt-1 text-xs text-gray-500">Enter time in 24-hour format (HH:MM) - it will display as AM/PM format</p>
           </div>
           <div>
             <label htmlFor="endTime" className="block text-sm font-medium text-gray-700 mb-1">
@@ -165,7 +176,7 @@ const TimeBlockModal: React.FC<TimeBlockModalProps> = ({
                 validationError ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-indigo-500'
               }`}
             />
-            <p className="mt-1 text-xs text-gray-500">Enter any time in 24-hour format (e.g., 16:00 for 4:00 PM)</p>
+            <p className="mt-1 text-xs text-gray-500">Enter time in 24-hour format (HH:MM) - it will display as AM/PM format</p>
           </div>
         </div>
         
