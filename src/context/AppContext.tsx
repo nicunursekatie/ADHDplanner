@@ -39,7 +39,7 @@ const quickCheckSupabaseConnectivity = async (): Promise<boolean> => {
 
     // Try to reach the Supabase domain with a HEAD request
     try {
-      const url = 'https://ifmqsmpigazhvzcfgodr.supabase.co';
+      const url = 'https://qhucdunadrbnfcjdnkxr.supabase.co';
       const response = await fetch(url, {
         method: 'HEAD',
         signal: controller.signal,

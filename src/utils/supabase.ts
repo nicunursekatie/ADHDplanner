@@ -4,8 +4,8 @@ import { WorkSchedule } from '../types/WorkSchedule';
 
 // Initialize Supabase client
 // Check for environment variables first, then fallback to hardcoded values
-const supabaseUrl = process.env.SUPABASE_URL || 'https://ifmqsmpigazhvzcfgodr.supabase.co';
-const supabaseKey = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmbXFzbXBpZ2F6aHZ6Y2Znb2RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5NjU3NDgsImV4cCI6MjA2MTU0MTc0OH0.1AaoIAZYBkPgBi07VWcX9UZeXUKJU33K515DdtEt1rM';
+const supabaseUrl = process.env.SUPABASE_URL || 'https://qhucdunadrbnfcjdnkxr.supabase.co';
+const supabaseKey = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFodWNkdW5hZHJibmZjamRua3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY5MDk1NzksImV4cCI6MjA2MjQ4NTU3OX0.iEYMfvZ_wpz1GnoReZEqEsA-asoRwn3THxc4HyJClDc';
 
 // Create client with additional error handling
 let supabaseClient;
