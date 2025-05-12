@@ -852,6 +852,26 @@ const SettingsPage: React.FC = () => {
                     )}
                   </Button>
                 </div>
+
+                {/* Supabase connectivity warning */}
+                {!isConnected && (
+                  <div className="bg-amber-100 px-3 py-2 rounded text-xs mb-2">
+                    <div className="flex items-start">
+                      <AlertCircle size={12} className="text-amber-700 mr-1 mt-0.5 flex-shrink-0" />
+                      <div className="text-amber-700">
+                        <p className="font-medium">Connectivity Issue</p>
+                        <p className="mt-0.5">Cannot establish connection to Supabase. This could be due to:</p>
+                        <ul className="list-disc list-inside mt-1 ml-1 space-y-0.5">
+                          <li>Network connectivity issues</li>
+                          <li>DNS resolution problems</li>
+                          <li>The Supabase project may not exist or has been deleted</li>
+                        </ul>
+                        <p className="mt-1">Using local storage as a fallback. Your data will be stored on this device only.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {currentStorage === 'supabase' ? (
                   <div className="bg-indigo-100 px-3 py-1.5 rounded text-xs flex items-center text-indigo-700">
                     <Check size={12} className="mr-1" />
@@ -866,7 +886,8 @@ const SettingsPage: React.FC = () => {
                       console.log('Switch to Cloud Storage button clicked');
                       handleSwitchStorage('supabase');
                     }}
-                    disabled={isSwitchingStorage}
+                    disabled={isSwitchingStorage || !isConnected}
+                    title={!isConnected ? "Cannot switch to cloud storage while offline" : ""}
                   >
                     {isSwitchingStorage ? 'Switching...' : 'Switch to Cloud Storage'}
                   </Button>
@@ -881,67 +902,101 @@ const SettingsPage: React.FC = () => {
               Synchronize data between local storage and cloud storage
             </p>
 
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="secondary"
-                size="small"
-                onClick={() => {
-                  console.log('Sync to Cloud button clicked');
-                  handleSyncToCloud();
-                }}
-                disabled={isSyncing || !isConnected}
-              >
-                {isSyncing ? (
-                  <>
-                    <Loader size={14} className="mr-2 animate-spin" />
-                    Syncing...
-                  </>
-                ) : (
-                  <>
-                    <Cloud size={14} className="mr-1" />
-                    Sync to Cloud
-                  </>
-                )}
-              </Button>
-
-              <Button
-                variant="secondary"
-                size="small"
-                onClick={() => {
-                  console.log('Sync from Cloud button clicked');
-                  handleSyncFromCloud();
-                }}
-                disabled={isSyncing || !isConnected}
-              >
-                {isSyncing ? (
-                  <>
-                    <Loader size={14} className="mr-2 animate-spin" />
-                    Syncing...
-                  </>
-                ) : (
-                  <>
-                    <Download size={14} className="mr-1" />
-                    Sync from Cloud
-                  </>
-                )}
-              </Button>
-
-              {syncSuccess !== null && (
-                <span className={`inline-flex items-center text-xs ${syncSuccess ? 'text-green-700' : 'text-red-700'}`}>
-                  {syncSuccess ? (
+            {!isConnected ? (
+              <div className="p-3 bg-gray-100 rounded-md mb-3">
+                <div className="flex items-start">
+                  <XCircle size={16} className="text-gray-500 mr-2 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Cloud Sync Unavailable</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Cloud sync features are currently unavailable because there is no connection to Supabase.
+                      Your data will continue to be stored locally on this device.
+                    </p>
+                    <Button
+                      variant="ghost"
+                      size="xsmall"
+                      className="mt-2"
+                      onClick={handleCheckConnection}
+                      disabled={isCheckingConnection}
+                    >
+                      {isCheckingConnection ? (
+                        <>
+                          <Loader size={12} className="mr-1 animate-spin" />
+                          Checking connection...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw size={12} className="mr-1" />
+                          Check connection again
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="secondary"
+                  size="small"
+                  onClick={() => {
+                    console.log('Sync to Cloud button clicked');
+                    handleSyncToCloud();
+                  }}
+                  disabled={isSyncing || !isConnected}
+                >
+                  {isSyncing ? (
                     <>
-                      <Check size={12} className="mr-1" />
-                      Sync completed
+                      <Loader size={14} className="mr-2 animate-spin" />
+                      Syncing...
                     </>
                   ) : (
                     <>
-                      <XCircle size={12} className="mr-1" />
-                      Sync failed
+                      <Cloud size={14} className="mr-1" />
+                      Sync to Cloud
                     </>
                   )}
-                </span>
-              )}
-            </div>
+                </Button>
+
+                <Button
+                  variant="secondary"
+                  size="small"
+                  onClick={() => {
+                    console.log('Sync from Cloud button clicked');
+                    handleSyncFromCloud();
+                  }}
+                  disabled={isSyncing || !isConnected}
+                >
+                  {isSyncing ? (
+                    <>
+                      <Loader size={14} className="mr-2 animate-spin" />
+                      Syncing...
+                    </>
+                  ) : (
+                    <>
+                      <Download size={14} className="mr-1" />
+                      Sync from Cloud
+                    </>
+                  )}
+                </Button>
+
+                {syncSuccess !== null && (
+                  <span className={`inline-flex items-center text-xs ${syncSuccess ? 'text-green-700' : 'text-red-700'}`}>
+                    {syncSuccess ? (
+                      <>
+                        <Check size={12} className="mr-1" />
+                        Sync completed
+                      </>
+                    ) : (
+                      <>
+                        <XCircle size={12} className="mr-1" />
+                        Sync failed
+                      </>
+                    )}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </Card>

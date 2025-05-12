@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase Connection Test</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Supabase Connection Test</h1>
+    <div id="results"></div>
+    <button id="testConnection">Test Connection</button>
+
+    <script>
+        document.getElementById('testConnection').addEventListener('click', async () => {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p>Testing connection...</p>';
+
+            try {
+                // First, try to resolve DNS
+                resultsDiv.innerHTML += '<p>Checking DNS resolution...</p>';
+                try {
+                    const dnsCheck = await fetch('https://qhucduandrbnfcjdnkxr.supabase.co', { 
+                        method: 'HEAD',
+                        mode: 'no-cors'
+                    });
+                    resultsDiv.innerHTML += '<p style="color:green">✓ DNS resolution successful</p>';
+                } catch (dnsError) {
+                    resultsDiv.innerHTML += `<p style="color:red">✗ DNS resolution failed: ${dnsError.message}</p>`;
+                    throw dnsError;
+                }
+
+                // Initialize Supabase client
+                resultsDiv.innerHTML += '<p>Initializing Supabase client...</p>';
+                
+                const supabaseUrl = 'https://qhucduandrbnfcjdnkxr.supabase.co';
+                const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFodWNkdW5hZHJibmZjamRua3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY5MDk1NzksImV4cCI6MjA2MjQ4NTU3OX0.iEYMfvZ_wpz1GnoReZEqEsA-asoRwn3THxc4HyJClDc';
+                
+                resultsDiv.innerHTML += `<p>URL: ${supabaseUrl}</p>`;
+                resultsDiv.innerHTML += `<p>Key: ${supabaseKey.substring(0, 10)}...${supabaseKey.substring(supabaseKey.length - 5)}</p>`;
+
+                const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+                
+                resultsDiv.innerHTML += '<p style="color:green">✓ Supabase client created</p>';
+
+                // Test auth availability
+                resultsDiv.innerHTML += '<p>Testing auth service...</p>';
+                const { data: authData, error: authError } = await supabase.auth.getSession();
+                
+                if (authError) {
+                    resultsDiv.innerHTML += `<p style="color:red">✗ Auth test failed: ${authError.message}</p>`;
+                } else {
+                    resultsDiv.innerHTML += '<p style="color:green">✓ Auth service is available</p>';
+                }
+
+                // Try a simple database query
+                resultsDiv.innerHTML += '<p>Testing database connection...</p>';
+                const { data: dbData, error: dbError } = await supabase
+                    .from('tasks')
+                    .select('count')
+                    .limit(1);
+                
+                if (dbError) {
+                    if (dbError.code === 'PGRST301' || dbError.message.includes('relation "tasks" does not exist')) {
+                        resultsDiv.innerHTML += `<p style="color:orange">⚠ Table 'tasks' not found, but connection worked</p>`;
+                    } else {
+                        resultsDiv.innerHTML += `<p style="color:red">✗ Database query failed: ${dbError.message}</p>`;
+                    }
+                } else {
+                    resultsDiv.innerHTML += '<p style="color:green">✓ Database query successful</p>';
+                }
+
+                resultsDiv.innerHTML += '<h3 style="color:green">Connection test completed</h3>';
+            } catch (error) {
+                resultsDiv.innerHTML += `<h3 style="color:red">Connection test failed: ${error.message}</h3>`;
+                console.error('Error testing connection:', error);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -3,10 +3,34 @@ import { Task, Project, Category, DailyPlan, JournalEntry } from '../types';
 import { WorkSchedule } from '../types/WorkSchedule';
 
 // Initialize Supabase client
-const supabaseUrl = 'https://qhucduandrbnfcjdnkxr.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFodWNkdW5hZHJibmZjamRua3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY5MDk1NzksImV4cCI6MjA2MjQ4NTU3OX0.iEYMfvZ_wpz1GnoReZEqEsA-asoRwn3THxc4HyJClDc';
+// Check for environment variables first, then fallback to hardcoded values
+const supabaseUrl = process.env.SUPABASE_URL || 'https://ifmqsmpigazhvzcfgodr.supabase.co';
+const supabaseKey = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmbXFzbXBpZ2F6aHZ6Y2Znb2RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5NjU3NDgsImV4cCI6MjA2MTU0MTc0OH0.1AaoIAZYBkPgBi07VWcX9UZeXUKJU33K515DdtEt1rM';
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+// Create client with additional error handling
+let supabaseClient;
+try {
+  supabaseClient = createClient(supabaseUrl, supabaseKey);
+  console.log('supabase.ts: Supabase client created successfully');
+} catch (error) {
+  console.error('supabase.ts: ERROR creating Supabase client:', error);
+  if (error instanceof Error) {
+    console.error('supabase.ts: Error name:', error.name);
+    console.error('supabase.ts: Error message:', error.message);
+  }
+  // Create a minimal mock client to prevent app crashes
+  supabaseClient = {
+    auth: { getSession: async () => ({ data: null, error: new Error('Supabase unavailable') }) },
+    from: () => ({
+      select: () => ({ data: null, error: new Error('Supabase unavailable') }),
+      delete: () => ({ data: null, error: new Error('Supabase unavailable') }),
+      insert: () => ({ data: null, error: new Error('Supabase unavailable') }),
+      upsert: () => ({ data: null, error: new Error('Supabase unavailable') }),
+    })
+  };
+}
+
+export const supabase = supabaseClient;
 
 /**
  * Initialize the Supabase tables needed for the app
@@ -588,6 +612,49 @@ export const checkSupabaseConnection = async (): Promise<boolean> => {
 
     console.log('supabase.ts: Supabase client initialized:', !!supabase);
 
+    // First, try a simple DNS resolution test
+    try {
+      // Create a simple timeout for fetch to prevent long waits on DNS failure
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      // Try to fetch just the domain with a HEAD request
+      const dnsCheck = await fetch(`${supabaseUrl}`, {
+        method: 'HEAD',
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!dnsCheck.ok) {
+        console.error(`supabase.ts: DNS resolution succeeded but received status ${dnsCheck.status}`);
+        // We'll still continue with the connection check since some endpoints might work
+      } else {
+        console.log('supabase.ts: DNS resolution successful');
+      }
+    } catch (dnsError) {
+      console.error('supabase.ts: DNS resolution failed:', dnsError);
+      if (dnsError instanceof Error) {
+        console.error('supabase.ts: DNS error name:', dnsError.name);
+        console.error('supabase.ts: DNS error message:', dnsError.message);
+      }
+
+      // For DNS issues, we can immediately return false as Supabase is definitely unreachable
+      if (dnsError.name === 'TypeError' &&
+          (dnsError.message.includes('Failed to fetch') ||
+           dnsError.message.includes('NetworkError') ||
+           dnsError.message.includes('Network request failed'))) {
+        console.error('supabase.ts: Network connectivity issue detected - Supabase is unreachable');
+        return false;
+      }
+
+      // For AbortError (timeout), also return false
+      if (dnsError.name === 'AbortError') {
+        console.error('supabase.ts: Connection timeout - Supabase is unreachable');
+        return false;
+      }
+    }
+
     // Check if the client has valid auth properties
     console.log('supabase.ts: Supabase auth object exists:', !!supabase.auth);
 
@@ -611,12 +678,28 @@ export const checkSupabaseConnection = async (): Promise<boolean> => {
         console.error('supabase.ts: Session check error message:', sessionCatchError.message);
         console.error('supabase.ts: Session check error stack:', sessionCatchError.stack);
       }
+
+      // For network-related errors during session check, return false
+      if (sessionCatchError instanceof Error &&
+          (sessionCatchError.message.includes('Failed to fetch') ||
+           sessionCatchError.message.includes('NetworkError') ||
+           sessionCatchError.message.includes('Network request failed'))) {
+        console.error('supabase.ts: Network connectivity issue during session check - Supabase is unreachable');
+        return false;
+      }
     }
 
     // Simple ping-like test to verify database access
     console.log('supabase.ts: Performing ping test with tasks table...');
     try {
-      const { data, error } = await supabase.from('tasks').select('count').limit(1);
+      // Add timeout for the database query
+      const pingPromise = supabase.from('tasks').select('count').limit(1);
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Database ping timeout')), 5000);
+      });
+
+      // Race the ping request against a timeout
+      const { data, error } = await Promise.race([pingPromise, timeoutPromise]);
 
       if (error) {
         console.error('supabase.ts: Ping test FAILED with error:', error);
@@ -627,10 +710,16 @@ export const checkSupabaseConnection = async (): Promise<boolean> => {
         // Check for specific error conditions
         if (error.code === 'PGRST301' || error.message.includes('relation "tasks" does not exist')) {
           console.error('supabase.ts: The "tasks" table does not exist. Database may not be set up correctly.');
+          // Despite this error, we consider Supabase itself to be connected since we can reach the API
+          return true;
         } else if (error.code === '42501' || error.message.includes('permission denied')) {
           console.error('supabase.ts: Permission denied. Check RLS policies in Supabase dashboard.');
+          // Despite this error, we consider Supabase itself to be connected since we can reach the API
+          return true;
         } else if (error.code === 'PGRST301' || error.message.includes('JWT')) {
           console.error('supabase.ts: Authentication error. JWT token may be invalid or expired.');
+          // Despite this error, we consider Supabase itself to be connected since we can reach the API
+          return true;
         }
 
         return false;
@@ -645,6 +734,15 @@ export const checkSupabaseConnection = async (): Promise<boolean> => {
         console.error('supabase.ts: Ping test error name:', pingError.name);
         console.error('supabase.ts: Ping test error message:', pingError.message);
         console.error('supabase.ts: Ping test error stack:', pingError.stack);
+
+        // For network-related errors during ping, return false
+        if (pingError.message.includes('Failed to fetch') ||
+            pingError.message.includes('NetworkError') ||
+            pingError.message.includes('Network request failed') ||
+            pingError.message.includes('timeout')) {
+          console.error('supabase.ts: Network connectivity issue during ping test - Supabase is unreachable');
+          return false;
+        }
       }
       return false;
     }

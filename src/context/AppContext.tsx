@@ -24,9 +24,60 @@ const getStorageMechanism = (): StorageType => {
   return (storedPreference === 'supabase') ? 'supabase' : 'dexie';
 };
 
-// Initialize storage based on preference
+// Flag to track Supabase connectivity state
+let isSupabaseReachable = false;
+
+// Function to check Supabase connectivity - returns quickly
+const quickCheckSupabaseConnectivity = async (): Promise<boolean> => {
+  try {
+    // Only try if we have a browser environment
+    if (typeof window === 'undefined') return false;
+
+    // Use a quick timeout to avoid long waits
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+    // Try to reach the Supabase domain with a HEAD request
+    try {
+      const url = 'https://ifmqsmpigazhvzcfgodr.supabase.co';
+      const response = await fetch(url, {
+        method: 'HEAD',
+        signal: controller.signal,
+        mode: 'no-cors' // Just trying to see if domain resolves
+      });
+      clearTimeout(timeoutId);
+
+      console.log('AppContext: Quick Supabase connectivity check successful');
+      return true;
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      console.error('AppContext: Quick Supabase connectivity check failed:', fetchError);
+      return false;
+    }
+  } catch (error) {
+    console.error('AppContext: Error in quick Supabase connectivity check:', error);
+    return false;
+  }
+};
+
+// Initialize the connectivity check
+(async () => {
+  isSupabaseReachable = await quickCheckSupabaseConnectivity();
+  console.log('AppContext: Initial Supabase reachability check:', isSupabaseReachable);
+})();
+
+// Initialize storage based on preference and connectivity
 const getStorage = () => {
   const storageType = getStorageMechanism();
+
+  // Override to use Dexie if Supabase is unreachable, regardless of preference
+  if (storageType === 'supabase' && !isSupabaseReachable) {
+    console.warn('AppContext: Supabase appears to be unreachable. Falling back to Dexie storage despite user preference.');
+    // Store the "unreachable" state to show a notification later
+    window.localStorage.setItem('supabaseUnreachable', 'true');
+    return dexieStorage;
+  }
+
   return storageType === 'supabase' ? supabaseStorage : dexieStorage;
 };
 
@@ -1368,11 +1419,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Effect to check cloud connection on mount and when storage type changes
   useEffect(() => {
-    if (currentStorageType === 'supabase') {
-      checkCloudConnection();
-    } else {
-      setIsCloudConnected(false);
-    }
+    const runConnectionCheck = async () => {
+      if (currentStorageType === 'supabase') {
+        console.log('AppContext: Storage type is supabase, checking connection...');
+
+        // First, do a quick check to see if Supabase is reachable at all
+        const quickCheck = await quickCheckSupabaseConnectivity();
+        if (!quickCheck) {
+          console.warn('AppContext: Quick check failed - Supabase domain is unreachable');
+          setIsCloudConnected(false);
+          return;
+        }
+
+        // Then do the full connection check
+        const isConnected = await checkCloudConnection();
+        console.log(`AppContext: Full connection check result: ${isConnected}`);
+        setIsCloudConnected(isConnected);
+      } else {
+        console.log('AppContext: Storage type is not supabase, setting isCloudConnected to false');
+        setIsCloudConnected(false);
+      }
+    };
+
+    runConnectionCheck();
   }, [currentStorageType, checkCloudConnection]);
 
   // Switch between storage mechanisms
