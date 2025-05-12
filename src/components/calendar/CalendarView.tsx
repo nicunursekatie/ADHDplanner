@@ -16,7 +16,7 @@ interface CalendarViewProps {
 }
 
 const CalendarView: React.FC<CalendarViewProps> = ({ onEditTask }) => {
-  const { tasks, projects, categories, deleteTask } = useAppContext();
+  const { tasks, projects, categories, deleteTask, getShiftForDate } = useAppContext();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('week');
   
