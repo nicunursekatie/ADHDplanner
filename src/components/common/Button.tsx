@@ -33,10 +33,18 @@ const Button: React.FC<ButtonProps> = ({
   
   const widthClass = fullWidth ? 'w-full' : '';
   
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    console.log('Button clicked:', children);
+    if (props.onClick) {
+      props.onClick(e);
+    }
+  };
+
   return (
     <button
       className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${widthClass} ${className}`}
       {...props}
+      onClick={handleClick}
     >
       {icon && <span className="mr-2">{icon}</span>}
       {children}

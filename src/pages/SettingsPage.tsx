@@ -62,6 +62,9 @@ const SettingsPage: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [syncSuccess, setSyncSuccess] = useState<boolean | null>(null);
 
+  console.log('SettingsPage render - currentStorage:', currentStorage);
+  console.log('SettingsPage render - isConnected:', isConnected);
+
   // Effect to update storage state when the context values change
   useEffect(() => {
     setCurrentStorage(getCurrentStorage());
@@ -70,68 +73,239 @@ const SettingsPage: React.FC = () => {
 
   // Function to check cloud connection
   const handleCheckConnection = async () => {
+    console.log('SettingsPage: handleCheckConnection called');
     setIsCheckingConnection(true);
     try {
+      console.log('SettingsPage: Calling checkCloudConnection...');
       const connected = await checkCloudConnection();
+      console.log('SettingsPage: checkCloudConnection result:', connected);
+
       setIsConnected(connected);
+
+      // Show success or error toast here if needed
+      if (connected) {
+        console.log('SettingsPage: Successfully connected to Supabase cloud');
+      } else {
+        console.error('SettingsPage: Failed to connect to Supabase cloud');
+      }
     } catch (error) {
-      console.error('Error checking connection:', error);
+      console.error('SettingsPage: Error checking connection:', error);
+      if (error instanceof Error) {
+        console.error('SettingsPage: Error name:', error.name);
+        console.error('SettingsPage: Error message:', error.message);
+        console.error('SettingsPage: Error stack:', error.stack);
+      }
       setIsConnected(false);
     } finally {
+      console.log('SettingsPage: Connection check completed');
       setIsCheckingConnection(false);
     }
   };
 
   // Function to switch storage
   const handleSwitchStorage = async (storage: 'dexie' | 'supabase') => {
+    console.log('SettingsPage: ---------- STORAGE SWITCH STARTED ----------');
+    console.log(`SettingsPage: handleSwitchStorage called with storage: ${storage}`);
+
     setIsSwitchingStorage(true);
+
     try {
+      // Check if we're already using this storage
+      if (storage === currentStorage) {
+        console.log(`SettingsPage: Already using ${storage} storage, no switch needed`);
+        return;
+      }
+
+      // If switching to Supabase, pre-check the connection
+      if (storage === 'supabase') {
+        console.log('SettingsPage: Pre-checking Supabase connection...');
+        setIsCheckingConnection(true);
+
+        try {
+          const connected = await checkCloudConnection();
+          console.log('SettingsPage: Pre-check connection result:', connected);
+
+          // If not connected, we might want to alert the user
+          if (!connected) {
+            console.warn('SettingsPage: WARNING - Supabase connection pre-check failed, but proceeding with switch anyway');
+            // You could add UI alerts here if needed
+          }
+        } catch (preCheckError) {
+          console.error('SettingsPage: Error during connection pre-check:', preCheckError);
+          // Continue anyway, as the switchStorage function will do its own checks
+        } finally {
+          setIsCheckingConnection(false);
+        }
+      }
+
+      // Perform the actual storage switch
+      console.log('SettingsPage: Calling switchStorage...');
       const success = await switchStorage(storage);
+      console.log('SettingsPage: switchStorage result:', success);
+
       if (success) {
+        console.log(`SettingsPage: Successfully switched to ${storage} storage`);
         setCurrentStorage(storage);
+
+        // If switched to Supabase, update connection status
+        if (storage === 'supabase') {
+          console.log('SettingsPage: Updating isConnected state after switch to Supabase');
+          setIsConnected(true); // We assume it's connected since the switch succeeded
+        } else {
+          console.log('SettingsPage: Setting isConnected to false after switch to Dexie');
+          setIsConnected(false);
+        }
+      } else {
+        console.error(`SettingsPage: Failed to switch to ${storage} storage`);
+        // You could add UI alerts here if needed
       }
     } catch (error) {
-      console.error('Error switching storage:', error);
+      console.error('SettingsPage: ERROR switching storage:', error);
+      if (error instanceof Error) {
+        console.error('SettingsPage: Error name:', error.name);
+        console.error('SettingsPage: Error message:', error.message);
+        console.error('SettingsPage: Error stack:', error.stack);
+      }
     } finally {
       setIsSwitchingStorage(false);
+      console.log('SettingsPage: ---------- STORAGE SWITCH COMPLETED ----------');
     }
   };
 
   // Function to sync with cloud
   const handleSyncToCloud = async () => {
+    console.log('SettingsPage: ---------- SYNC TO CLOUD STARTED ----------');
+    console.log('SettingsPage: handleSyncToCloud called');
+
     setIsSyncing(true);
     setSyncSuccess(null);
+
     try {
+      // Check if we're using Supabase
+      if (currentStorage !== 'supabase') {
+        // Pre-check Supabase connection before sync
+        console.log('SettingsPage: Pre-checking Supabase connection before sync...');
+        setIsCheckingConnection(true);
+
+        try {
+          const connected = await checkCloudConnection();
+          console.log('SettingsPage: Pre-sync connection check result:', connected);
+
+          if (!connected) {
+            console.error('SettingsPage: Supabase connection pre-check failed, cannot sync to cloud');
+            setSyncSuccess(false);
+            setIsSyncing(false);
+            setIsCheckingConnection(false);
+            return;
+          }
+        } catch (preCheckError) {
+          console.error('SettingsPage: Error during pre-sync connection check:', preCheckError);
+          setSyncSuccess(false);
+          setIsSyncing(false);
+          setIsCheckingConnection(false);
+          return;
+        } finally {
+          setIsCheckingConnection(false);
+        }
+      }
+
+      // Perform the actual sync
+      console.log('SettingsPage: Calling syncToCloud...');
       const success = await syncToCloud();
+      console.log('SettingsPage: syncToCloud result:', success);
+
+      // Update UI based on result
       setSyncSuccess(success);
+
+      if (success) {
+        console.log('SettingsPage: Successfully synced data to cloud');
+      } else {
+        console.error('SettingsPage: Failed to sync data to cloud');
+      }
     } catch (error) {
-      console.error('Error syncing to cloud:', error);
+      console.error('SettingsPage: ERROR syncing to cloud:', error);
+      if (error instanceof Error) {
+        console.error('SettingsPage: Error name:', error.name);
+        console.error('SettingsPage: Error message:', error.message);
+        console.error('SettingsPage: Error stack:', error.stack);
+      }
       setSyncSuccess(false);
     } finally {
       setIsSyncing(false);
+
       // Reset success status after a delay
       setTimeout(() => {
         setSyncSuccess(null);
       }, 3000);
+
+      console.log('SettingsPage: ---------- SYNC TO CLOUD COMPLETED ----------');
     }
   };
 
   // Function to sync from cloud
   const handleSyncFromCloud = async () => {
+    console.log('SettingsPage: ---------- SYNC FROM CLOUD STARTED ----------');
+    console.log('SettingsPage: handleSyncFromCloud called');
+
     setIsSyncing(true);
     setSyncSuccess(null);
+
     try {
+      // Pre-check Supabase connection before sync
+      console.log('SettingsPage: Pre-checking Supabase connection before sync...');
+      setIsCheckingConnection(true);
+
+      try {
+        const connected = await checkCloudConnection();
+        console.log('SettingsPage: Pre-sync connection check result:', connected);
+
+        if (!connected) {
+          console.error('SettingsPage: Supabase connection pre-check failed, cannot sync from cloud');
+          setSyncSuccess(false);
+          setIsSyncing(false);
+          setIsCheckingConnection(false);
+          return;
+        }
+      } catch (preCheckError) {
+        console.error('SettingsPage: Error during pre-sync connection check:', preCheckError);
+        setSyncSuccess(false);
+        setIsSyncing(false);
+        setIsCheckingConnection(false);
+        return;
+      } finally {
+        setIsCheckingConnection(false);
+      }
+
+      // Perform the actual sync
+      console.log('SettingsPage: Calling syncFromCloud...');
       const success = await syncFromCloud();
+      console.log('SettingsPage: syncFromCloud result:', success);
+
+      // Update UI based on result
       setSyncSuccess(success);
+
+      if (success) {
+        console.log('SettingsPage: Successfully synced data from cloud');
+      } else {
+        console.error('SettingsPage: Failed to sync data from cloud');
+      }
     } catch (error) {
-      console.error('Error syncing from cloud:', error);
+      console.error('SettingsPage: ERROR syncing from cloud:', error);
+      if (error instanceof Error) {
+        console.error('SettingsPage: Error name:', error.name);
+        console.error('SettingsPage: Error message:', error.message);
+        console.error('SettingsPage: Error stack:', error.stack);
+      }
       setSyncSuccess(false);
     } finally {
       setIsSyncing(false);
+
       // Reset success status after a delay
       setTimeout(() => {
         setSyncSuccess(null);
       }, 3000);
+
+      console.log('SettingsPage: ---------- SYNC FROM CLOUD COMPLETED ----------');
     }
   };
   
@@ -631,7 +805,10 @@ const SettingsPage: React.FC = () => {
                     variant="secondary"
                     size="small"
                     className="w-full mt-1"
-                    onClick={() => handleSwitchStorage('dexie')}
+                    onClick={() => {
+                      console.log('Switch to Local Storage button clicked');
+                      handleSwitchStorage('dexie');
+                    }}
                     disabled={isSwitchingStorage}
                   >
                     {isSwitchingStorage ? 'Switching...' : 'Switch to Local Storage'}
@@ -685,7 +862,10 @@ const SettingsPage: React.FC = () => {
                     variant="secondary"
                     size="small"
                     className="w-full mt-1"
-                    onClick={() => handleSwitchStorage('supabase')}
+                    onClick={() => {
+                      console.log('Switch to Cloud Storage button clicked');
+                      handleSwitchStorage('supabase');
+                    }}
                     disabled={isSwitchingStorage}
                   >
                     {isSwitchingStorage ? 'Switching...' : 'Switch to Cloud Storage'}
@@ -705,7 +885,10 @@ const SettingsPage: React.FC = () => {
               <Button
                 variant="secondary"
                 size="small"
-                onClick={handleSyncToCloud}
+                onClick={() => {
+                  console.log('Sync to Cloud button clicked');
+                  handleSyncToCloud();
+                }}
                 disabled={isSyncing || !isConnected}
               >
                 {isSyncing ? (
@@ -724,7 +907,10 @@ const SettingsPage: React.FC = () => {
               <Button
                 variant="secondary"
                 size="small"
-                onClick={handleSyncFromCloud}
+                onClick={() => {
+                  console.log('Sync from Cloud button clicked');
+                  handleSyncFromCloud();
+                }}
                 disabled={isSyncing || !isConnected}
               >
                 {isSyncing ? (

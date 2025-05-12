@@ -13,37 +13,181 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
  * This should be called once at app startup
  */
 export const initializeSupabase = async (): Promise<void> => {
-  console.log('Initializing Supabase...');
-  
+  console.log('supabase.ts: ---------- INITIALIZING SUPABASE ----------');
+  console.log('supabase.ts: Initializing Supabase with URL:', supabaseUrl);
+
   try {
-    // Check if tables exist and create them if they don't
-    const { error: tasksError } = await supabase
-      .from('tasks')
-      .select('id')
-      .limit(1);
-      
-    if (tasksError) {
-      console.log('Creating tasks table...');
-      // Create the tasks table with the necessary structure
-      // This is done through Supabase SQL interface or API
-      console.log('You may need to create the table manually in Supabase');
+    // Validate client
+    if (!supabase) {
+      console.error('supabase.ts: ERROR - Supabase client is null or undefined');
+      throw new Error('Supabase client is not initialized');
     }
-    
-    // Check other tables
-    const { error: projectsError } = await supabase
-      .from('projects')
-      .select('id')
-      .limit(1);
-      
-    if (projectsError) {
-      console.log('Creating projects table...');
-      console.log('You may need to create the table manually in Supabase');
+
+    console.log('supabase.ts: Checking if required tables exist...');
+
+    // Array of table names to check
+    const requiredTables = ['tasks', 'projects', 'categories', 'daily_plans', 'work_schedules', 'journal_entries'];
+    const tableStatus: Record<string, boolean> = {};
+
+    // Check each table
+    for (const tableName of requiredTables) {
+      console.log(`supabase.ts: Checking if '${tableName}' table exists...`);
+      try {
+        const { error } = await supabase
+          .from(tableName)
+          .select('count')
+          .limit(1);
+
+        if (error) {
+          console.error(`supabase.ts: Error checking '${tableName}' table:`, error);
+          console.error(`supabase.ts: Error code:`, error.code);
+          console.error(`supabase.ts: Error message:`, error.message);
+
+          if (error.code === 'PGRST301' || error.message.includes('relation') || error.message.includes('does not exist')) {
+            console.error(`supabase.ts: Table '${tableName}' does not exist. It needs to be created manually in Supabase SQL editor.`);
+            tableStatus[tableName] = false;
+          } else if (error.code === '42501' || error.message.includes('permission denied')) {
+            console.error(`supabase.ts: Permission denied for '${tableName}' table. Check RLS policies.`);
+            tableStatus[tableName] = false;
+          } else {
+            console.error(`supabase.ts: Unknown error checking '${tableName}' table:`, error);
+            tableStatus[tableName] = false;
+          }
+        } else {
+          console.log(`supabase.ts: Table '${tableName}' exists and is accessible.`);
+          tableStatus[tableName] = true;
+        }
+      } catch (tableError) {
+        console.error(`supabase.ts: Exception checking '${tableName}' table:`, tableError);
+        if (tableError instanceof Error) {
+          console.error(`supabase.ts: Error name:`, tableError.name);
+          console.error(`supabase.ts: Error message:`, tableError.message);
+          console.error(`supabase.ts: Error stack:`, tableError.stack);
+        }
+        tableStatus[tableName] = false;
+      }
     }
-    
-    // Repeat for other tables
-    console.log('Supabase initialization completed');
+
+    // Print summary of table status
+    console.log('supabase.ts: Table status summary:');
+    for (const [table, exists] of Object.entries(tableStatus)) {
+      console.log(`supabase.ts: - ${table}: ${exists ? 'EXISTS' : 'MISSING'}`);
+    }
+
+    // If any tables are missing, provide SQL to create them
+    const missingTables = Object.entries(tableStatus)
+      .filter(([_, exists]) => !exists)
+      .map(([table]) => table);
+
+    if (missingTables.length > 0) {
+      console.log('supabase.ts: Some tables are missing. Here\'s sample SQL to create them:');
+
+      // For each missing table, log the CREATE TABLE SQL
+      // This is just sample SQL - we can't actually execute it here
+      // The user would need to run this in the Supabase SQL editor
+      missingTables.forEach(table => {
+        let createTableSQL = '';
+
+        switch (table) {
+          case 'tasks':
+            createTableSQL = `
+CREATE TABLE tasks (
+  id TEXT PRIMARY KEY,
+  title TEXT,
+  description TEXT,
+  completed BOOLEAN,
+  archived BOOLEAN,
+  due_date TEXT,
+  project_id TEXT,
+  category_ids TEXT[],
+  parent_task_id TEXT,
+  subtasks TEXT[],
+  created_at TEXT,
+  updated_at TEXT
+);
+`;
+            break;
+          case 'projects':
+            createTableSQL = `
+CREATE TABLE projects (
+  id TEXT PRIMARY KEY,
+  name TEXT,
+  description TEXT,
+  color TEXT,
+  created_at TEXT,
+  updated_at TEXT
+);
+`;
+            break;
+          case 'categories':
+            createTableSQL = `
+CREATE TABLE categories (
+  id TEXT PRIMARY KEY,
+  name TEXT,
+  color TEXT,
+  created_at TEXT,
+  updated_at TEXT
+);
+`;
+            break;
+          case 'daily_plans':
+            createTableSQL = `
+CREATE TABLE daily_plans (
+  id TEXT PRIMARY KEY,
+  date TEXT,
+  time_blocks JSONB,
+  created_at TEXT,
+  updated_at TEXT
+);
+`;
+            break;
+          case 'work_schedules':
+            createTableSQL = `
+CREATE TABLE work_schedules (
+  id TEXT PRIMARY KEY,
+  name TEXT,
+  shifts JSONB,
+  created_at TEXT,
+  updated_at TEXT
+);
+`;
+            break;
+          case 'journal_entries':
+            createTableSQL = `
+CREATE TABLE journal_entries (
+  id TEXT PRIMARY KEY,
+  date TEXT,
+  content TEXT,
+  week_number INTEGER,
+  week_year INTEGER,
+  is_completed BOOLEAN,
+  review_section_id TEXT,
+  created_at TEXT,
+  updated_at TEXT
+);
+`;
+            break;
+          default:
+            createTableSQL = `-- No SQL template for ${table}`;
+        }
+
+        console.log(createTableSQL);
+      });
+
+      console.warn('supabase.ts: You need to create these tables in the Supabase dashboard');
+    }
+
+    console.log('supabase.ts: Supabase initialization completed');
   } catch (error) {
-    console.error('Error initializing Supabase:', error);
+    console.error('supabase.ts: ERROR initializing Supabase:', error);
+    if (error instanceof Error) {
+      console.error('supabase.ts: Error name:', error.name);
+      console.error('supabase.ts: Error message:', error.message);
+      console.error('supabase.ts: Error stack:', error.stack);
+    }
+    throw error; // Re-throw to signal initialization failure
+  } finally {
+    console.log('supabase.ts: ---------- INITIALIZATION COMPLETED ----------');
   }
 };
 
@@ -432,44 +576,597 @@ export const resetData = async (): Promise<void> => {
 // Utility: Check the connection to Supabase
 export const checkSupabaseConnection = async (): Promise<boolean> => {
   try {
-    // Simple ping-like test
-    const { error } = await supabase.from('tasks').select('count').limit(1);
-    return !error;
+    console.log('supabase.ts: ---------- CHECKING SUPABASE CONNECTION ----------');
+    console.log('supabase.ts: Supabase URL:', supabaseUrl);
+    console.log('supabase.ts: Supabase API key exists:', !!supabaseKey);
+
+    // First check if we have a valid client
+    if (!supabase) {
+      console.error('supabase.ts: ERROR - Supabase client is not initialized');
+      return false;
+    }
+
+    console.log('supabase.ts: Supabase client initialized:', !!supabase);
+
+    // Check if the client has valid auth properties
+    console.log('supabase.ts: Supabase auth object exists:', !!supabase.auth);
+
+    // Try to get the current session
+    console.log('supabase.ts: Attempting to get session...');
+    try {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        console.error('supabase.ts: ERROR getting session:', sessionError);
+        console.error('supabase.ts: Session error code:', sessionError.code);
+        console.error('supabase.ts: Session error message:', sessionError.message);
+      } else {
+        const sessionExists = !!sessionData && !!sessionData.session;
+        console.log('supabase.ts: Session check result:', sessionExists ? 'Session exists' : 'No session');
+        console.log('supabase.ts: Session data:', JSON.stringify(sessionData, null, 2));
+      }
+    } catch (sessionCatchError) {
+      console.error('supabase.ts: EXCEPTION during session check:', sessionCatchError);
+      if (sessionCatchError instanceof Error) {
+        console.error('supabase.ts: Session check error name:', sessionCatchError.name);
+        console.error('supabase.ts: Session check error message:', sessionCatchError.message);
+        console.error('supabase.ts: Session check error stack:', sessionCatchError.stack);
+      }
+    }
+
+    // Simple ping-like test to verify database access
+    console.log('supabase.ts: Performing ping test with tasks table...');
+    try {
+      const { data, error } = await supabase.from('tasks').select('count').limit(1);
+
+      if (error) {
+        console.error('supabase.ts: Ping test FAILED with error:', error);
+        console.error('supabase.ts: Error code:', error.code);
+        console.error('supabase.ts: Error message:', error.message);
+        console.error('supabase.ts: Error details:', error.details);
+
+        // Check for specific error conditions
+        if (error.code === 'PGRST301' || error.message.includes('relation "tasks" does not exist')) {
+          console.error('supabase.ts: The "tasks" table does not exist. Database may not be set up correctly.');
+        } else if (error.code === '42501' || error.message.includes('permission denied')) {
+          console.error('supabase.ts: Permission denied. Check RLS policies in Supabase dashboard.');
+        } else if (error.code === 'PGRST301' || error.message.includes('JWT')) {
+          console.error('supabase.ts: Authentication error. JWT token may be invalid or expired.');
+        }
+
+        return false;
+      }
+
+      console.log('supabase.ts: Ping test SUCCESSFUL, response:', data);
+      console.log('supabase.ts: Connection check PASSED');
+      return true;
+    } catch (pingError) {
+      console.error('supabase.ts: EXCEPTION during ping test:', pingError);
+      if (pingError instanceof Error) {
+        console.error('supabase.ts: Ping test error name:', pingError.name);
+        console.error('supabase.ts: Ping test error message:', pingError.message);
+        console.error('supabase.ts: Ping test error stack:', pingError.stack);
+      }
+      return false;
+    }
   } catch (error) {
-    console.error('Error checking Supabase connection:', error);
+    console.error('supabase.ts: CRITICAL ERROR checking Supabase connection:', error);
+    if (error instanceof Error) {
+      console.error('supabase.ts: Error name:', error.name);
+      console.error('supabase.ts: Error message:', error.message);
+      console.error('supabase.ts: Error stack:', error.stack);
+    }
     return false;
+  } finally {
+    console.log('supabase.ts: ---------- CONNECTION CHECK COMPLETED ----------');
   }
 };
 
 // Sync functions
 export const syncToSupabase = async (): Promise<boolean> => {
+  console.log('supabase.ts: ---------- STARTING SYNC TO SUPABASE ----------');
   try {
-    // The idea is to take the local data and push it to Supabase
-    // This function would be called periodically or when the app state changes
-    console.log('Syncing data to Supabase...');
+    // First, check if we can connect to Supabase
+    console.log('supabase.ts: Checking Supabase connection before sync...');
+    const isConnected = await checkSupabaseConnection();
+    if (!isConnected) {
+      console.error('supabase.ts: ERROR - Failed to connect to Supabase for syncing. Aborting sync.');
+      return false;
+    }
+    console.log('supabase.ts: Connection check passed, proceeding with sync...');
 
-    // You would get all local data and save it to Supabase
-    // For this to work, you need to expose the local data from the db.ts module
-    
-    console.log('Data sync to Supabase completed');
-    return true;
+    // We need access to the local data, so we'll import dexieStorage
+    console.log('supabase.ts: Importing dexieStorage module...');
+    try {
+      const dexieStorage = await import('./dexieStorage');
+      console.log('supabase.ts: Successfully imported dexieStorage module');
+
+      // Get all local data
+      console.log('supabase.ts: Fetching local data from Dexie...');
+      try {
+        console.log('supabase.ts: Fetching tasks...');
+        const tasks = await dexieStorage.getTasks();
+        console.log('supabase.ts: Fetching projects...');
+        const projects = await dexieStorage.getProjects();
+        console.log('supabase.ts: Fetching categories...');
+        const categories = await dexieStorage.getCategories();
+        console.log('supabase.ts: Fetching daily plans...');
+        const dailyPlans = await dexieStorage.getDailyPlans();
+        console.log('supabase.ts: Fetching work schedule...');
+        const workSchedule = await dexieStorage.getWorkSchedule();
+        console.log('supabase.ts: Fetching journal entries...');
+        const journalEntries = await dexieStorage.getJournalEntries();
+
+        console.log('supabase.ts: Data fetch summary:');
+        console.log(`supabase.ts: - Tasks: ${tasks.length}`);
+        console.log(`supabase.ts: - Projects: ${projects.length}`);
+        console.log(`supabase.ts: - Categories: ${categories.length}`);
+        console.log(`supabase.ts: - Daily Plans: ${dailyPlans.length}`);
+        console.log(`supabase.ts: - Work Schedule: ${workSchedule ? 'Present' : 'None'}`);
+        console.log(`supabase.ts: - Journal Entries: ${journalEntries.length}`);
+
+        // Upload to Supabase
+        console.log('supabase.ts: Uploading data to Supabase...');
+
+        // We upload one table at a time with detailed error handling
+        const syncResults: Record<string, boolean> = {};
+
+        // Sync tasks
+        try {
+          console.log(`supabase.ts: Syncing ${tasks.length} tasks...`);
+          if (tasks.length > 0) {
+            await saveTasks(tasks);
+            syncResults.tasks = true;
+            console.log('supabase.ts: Tasks synced successfully');
+          } else {
+            console.log('supabase.ts: No tasks to sync');
+            syncResults.tasks = true;
+          }
+        } catch (tasksError) {
+          console.error('supabase.ts: ERROR syncing tasks:', tasksError);
+          if (tasksError instanceof Error) {
+            console.error('supabase.ts: Tasks error name:', tasksError.name);
+            console.error('supabase.ts: Tasks error message:', tasksError.message);
+          }
+          syncResults.tasks = false;
+        }
+
+        // Sync projects
+        try {
+          console.log(`supabase.ts: Syncing ${projects.length} projects...`);
+          if (projects.length > 0) {
+            await saveProjects(projects);
+            syncResults.projects = true;
+            console.log('supabase.ts: Projects synced successfully');
+          } else {
+            console.log('supabase.ts: No projects to sync');
+            syncResults.projects = true;
+          }
+        } catch (projectsError) {
+          console.error('supabase.ts: ERROR syncing projects:', projectsError);
+          if (projectsError instanceof Error) {
+            console.error('supabase.ts: Projects error name:', projectsError.name);
+            console.error('supabase.ts: Projects error message:', projectsError.message);
+          }
+          syncResults.projects = false;
+        }
+
+        // Sync categories
+        try {
+          console.log(`supabase.ts: Syncing ${categories.length} categories...`);
+          if (categories.length > 0) {
+            await saveCategories(categories);
+            syncResults.categories = true;
+            console.log('supabase.ts: Categories synced successfully');
+          } else {
+            console.log('supabase.ts: No categories to sync');
+            syncResults.categories = true;
+          }
+        } catch (categoriesError) {
+          console.error('supabase.ts: ERROR syncing categories:', categoriesError);
+          if (categoriesError instanceof Error) {
+            console.error('supabase.ts: Categories error name:', categoriesError.name);
+            console.error('supabase.ts: Categories error message:', categoriesError.message);
+          }
+          syncResults.categories = false;
+        }
+
+        // Sync daily plans
+        try {
+          console.log(`supabase.ts: Syncing ${dailyPlans.length} daily plans...`);
+          if (dailyPlans.length > 0) {
+            await saveDailyPlans(dailyPlans);
+            syncResults.dailyPlans = true;
+            console.log('supabase.ts: Daily plans synced successfully');
+          } else {
+            console.log('supabase.ts: No daily plans to sync');
+            syncResults.dailyPlans = true;
+          }
+        } catch (dailyPlansError) {
+          console.error('supabase.ts: ERROR syncing daily plans:', dailyPlansError);
+          if (dailyPlansError instanceof Error) {
+            console.error('supabase.ts: Daily plans error name:', dailyPlansError.name);
+            console.error('supabase.ts: Daily plans error message:', dailyPlansError.message);
+          }
+          syncResults.dailyPlans = false;
+        }
+
+        // Sync work schedule
+        try {
+          console.log(`supabase.ts: Syncing work schedule...`);
+          if (workSchedule) {
+            await saveWorkSchedule(workSchedule);
+            syncResults.workSchedule = true;
+            console.log('supabase.ts: Work schedule synced successfully');
+          } else {
+            console.log('supabase.ts: No work schedule to sync');
+            syncResults.workSchedule = true;
+          }
+        } catch (workScheduleError) {
+          console.error('supabase.ts: ERROR syncing work schedule:', workScheduleError);
+          if (workScheduleError instanceof Error) {
+            console.error('supabase.ts: Work schedule error name:', workScheduleError.name);
+            console.error('supabase.ts: Work schedule error message:', workScheduleError.message);
+          }
+          syncResults.workSchedule = false;
+        }
+
+        // Sync journal entries
+        try {
+          console.log(`supabase.ts: Syncing ${journalEntries.length} journal entries...`);
+          if (journalEntries.length > 0) {
+            await saveJournalEntries(journalEntries);
+            syncResults.journalEntries = true;
+            console.log('supabase.ts: Journal entries synced successfully');
+          } else {
+            console.log('supabase.ts: No journal entries to sync');
+            syncResults.journalEntries = true;
+          }
+        } catch (journalEntriesError) {
+          console.error('supabase.ts: ERROR syncing journal entries:', journalEntriesError);
+          if (journalEntriesError instanceof Error) {
+            console.error('supabase.ts: Journal entries error name:', journalEntriesError.name);
+            console.error('supabase.ts: Journal entries error message:', journalEntriesError.message);
+          }
+          syncResults.journalEntries = false;
+        }
+
+        // Evaluate overall sync success
+        const allSuccess = Object.values(syncResults).every(result => result);
+        console.log('supabase.ts: Sync results summary:');
+        for (const [entity, success] of Object.entries(syncResults)) {
+          console.log(`supabase.ts: - ${entity}: ${success ? 'SUCCESS' : 'FAILED'}`);
+        }
+
+        if (allSuccess) {
+          console.log('supabase.ts: All data synced to Supabase successfully');
+          return true;
+        } else {
+          console.error('supabase.ts: Some data failed to sync to Supabase');
+          return false;
+        }
+      } catch (dataError) {
+        console.error('supabase.ts: ERROR fetching data from Dexie:', dataError);
+        if (dataError instanceof Error) {
+          console.error('supabase.ts: Data error name:', dataError.name);
+          console.error('supabase.ts: Data error message:', dataError.message);
+          console.error('supabase.ts: Data error stack:', dataError.stack);
+        }
+        return false;
+      }
+    } catch (importError) {
+      console.error('supabase.ts: ERROR importing dexieStorage module:', importError);
+      if (importError instanceof Error) {
+        console.error('supabase.ts: Import error name:', importError.name);
+        console.error('supabase.ts: Import error message:', importError.message);
+        console.error('supabase.ts: Import error stack:', importError.stack);
+      }
+      return false;
+    }
   } catch (error) {
-    console.error('Error syncing data to Supabase:', error);
+    console.error('supabase.ts: CRITICAL ERROR syncing data to Supabase:', error);
+    if (error instanceof Error) {
+      console.error('supabase.ts: Error name:', error.name);
+      console.error('supabase.ts: Error message:', error.message);
+      console.error('supabase.ts: Error stack:', error.stack);
+    }
     return false;
+  } finally {
+    console.log('supabase.ts: ---------- SYNC TO SUPABASE COMPLETED ----------');
   }
 };
 
 export const syncFromSupabase = async (): Promise<boolean> => {
+  console.log('supabase.ts: ---------- STARTING SYNC FROM SUPABASE ----------');
   try {
-    // Pull data from Supabase and update local storage
-    console.log('Syncing data from Supabase...');
-    
-    // You would get all data from Supabase and save it locally
-    
-    console.log('Data sync from Supabase completed');
-    return true;
+    // First, check if we can connect to Supabase
+    console.log('supabase.ts: Checking Supabase connection before sync...');
+    const isConnected = await checkSupabaseConnection();
+    if (!isConnected) {
+      console.error('supabase.ts: ERROR - Failed to connect to Supabase for syncing. Aborting sync.');
+      return false;
+    }
+    console.log('supabase.ts: Connection check passed, proceeding with sync...');
+
+    // We need access to the local data storage mechanisms
+    console.log('supabase.ts: Importing dexieStorage module...');
+    try {
+      const dexieStorage = await import('./dexieStorage');
+      console.log('supabase.ts: Successfully imported dexieStorage module');
+
+      // Get all data from Supabase
+      console.log('supabase.ts: Fetching data from Supabase...');
+
+      // Fetch data from Supabase with detailed logging
+      const fetchResults: Record<string, any> = {};
+      let hasDataToSync = false;
+
+      // Fetch tasks
+      try {
+        console.log('supabase.ts: Fetching tasks from Supabase...');
+        const tasks = await getTasks();
+        fetchResults.tasks = tasks;
+        console.log(`supabase.ts: Successfully fetched ${tasks.length} tasks`);
+        if (tasks.length > 0) hasDataToSync = true;
+      } catch (tasksError) {
+        console.error('supabase.ts: ERROR fetching tasks from Supabase:', tasksError);
+        if (tasksError instanceof Error) {
+          console.error('supabase.ts: Tasks error name:', tasksError.name);
+          console.error('supabase.ts: Tasks error message:', tasksError.message);
+        }
+        fetchResults.tasks = [];
+      }
+
+      // Fetch projects
+      try {
+        console.log('supabase.ts: Fetching projects from Supabase...');
+        const projects = await getProjects();
+        fetchResults.projects = projects;
+        console.log(`supabase.ts: Successfully fetched ${projects.length} projects`);
+        if (projects.length > 0) hasDataToSync = true;
+      } catch (projectsError) {
+        console.error('supabase.ts: ERROR fetching projects from Supabase:', projectsError);
+        if (projectsError instanceof Error) {
+          console.error('supabase.ts: Projects error name:', projectsError.name);
+          console.error('supabase.ts: Projects error message:', projectsError.message);
+        }
+        fetchResults.projects = [];
+      }
+
+      // Fetch categories
+      try {
+        console.log('supabase.ts: Fetching categories from Supabase...');
+        const categories = await getCategories();
+        fetchResults.categories = categories;
+        console.log(`supabase.ts: Successfully fetched ${categories.length} categories`);
+        if (categories.length > 0) hasDataToSync = true;
+      } catch (categoriesError) {
+        console.error('supabase.ts: ERROR fetching categories from Supabase:', categoriesError);
+        if (categoriesError instanceof Error) {
+          console.error('supabase.ts: Categories error name:', categoriesError.name);
+          console.error('supabase.ts: Categories error message:', categoriesError.message);
+        }
+        fetchResults.categories = [];
+      }
+
+      // Fetch daily plans
+      try {
+        console.log('supabase.ts: Fetching daily plans from Supabase...');
+        const dailyPlans = await getDailyPlans();
+        fetchResults.dailyPlans = dailyPlans;
+        console.log(`supabase.ts: Successfully fetched ${dailyPlans.length} daily plans`);
+        if (dailyPlans.length > 0) hasDataToSync = true;
+      } catch (dailyPlansError) {
+        console.error('supabase.ts: ERROR fetching daily plans from Supabase:', dailyPlansError);
+        if (dailyPlansError instanceof Error) {
+          console.error('supabase.ts: Daily plans error name:', dailyPlansError.name);
+          console.error('supabase.ts: Daily plans error message:', dailyPlansError.message);
+        }
+        fetchResults.dailyPlans = [];
+      }
+
+      // Fetch work schedule
+      try {
+        console.log('supabase.ts: Fetching work schedule from Supabase...');
+        const workSchedule = await getWorkSchedule();
+        fetchResults.workSchedule = workSchedule;
+        console.log(`supabase.ts: Work schedule: ${workSchedule ? 'Found' : 'Not found'}`);
+        if (workSchedule) hasDataToSync = true;
+      } catch (workScheduleError) {
+        console.error('supabase.ts: ERROR fetching work schedule from Supabase:', workScheduleError);
+        if (workScheduleError instanceof Error) {
+          console.error('supabase.ts: Work schedule error name:', workScheduleError.name);
+          console.error('supabase.ts: Work schedule error message:', workScheduleError.message);
+        }
+        fetchResults.workSchedule = null;
+      }
+
+      // Fetch journal entries
+      try {
+        console.log('supabase.ts: Fetching journal entries from Supabase...');
+        const journalEntries = await getJournalEntries();
+        fetchResults.journalEntries = journalEntries;
+        console.log(`supabase.ts: Successfully fetched ${journalEntries.length} journal entries`);
+        if (journalEntries.length > 0) hasDataToSync = true;
+      } catch (journalEntriesError) {
+        console.error('supabase.ts: ERROR fetching journal entries from Supabase:', journalEntriesError);
+        if (journalEntriesError instanceof Error) {
+          console.error('supabase.ts: Journal entries error name:', journalEntriesError.name);
+          console.error('supabase.ts: Journal entries error message:', journalEntriesError.message);
+        }
+        fetchResults.journalEntries = [];
+      }
+
+      // Verify we have data to sync
+      if (!hasDataToSync) {
+        console.warn('supabase.ts: WARNING - No data found in Supabase to sync to local storage');
+        console.warn('supabase.ts: This might indicate that your Supabase tables are empty or not accessible');
+        // Continue anyway, as we still want to update local storage
+      }
+
+      // Save to local storage
+      console.log('supabase.ts: Saving data to local storage...');
+
+      // Save data to Dexie with detailed logging
+      const saveResults: Record<string, boolean> = {};
+
+      // Save tasks
+      try {
+        const tasks = fetchResults.tasks || [];
+        console.log(`supabase.ts: Saving ${tasks.length} tasks to Dexie...`);
+        if (tasks.length > 0) {
+          await dexieStorage.saveTasks(tasks);
+          saveResults.tasks = true;
+          console.log('supabase.ts: Tasks saved successfully');
+        } else {
+          console.log('supabase.ts: No tasks to save');
+          saveResults.tasks = true;
+        }
+      } catch (saveTasksError) {
+        console.error('supabase.ts: ERROR saving tasks to Dexie:', saveTasksError);
+        if (saveTasksError instanceof Error) {
+          console.error('supabase.ts: Save tasks error name:', saveTasksError.name);
+          console.error('supabase.ts: Save tasks error message:', saveTasksError.message);
+        }
+        saveResults.tasks = false;
+      }
+
+      // Save projects
+      try {
+        const projects = fetchResults.projects || [];
+        console.log(`supabase.ts: Saving ${projects.length} projects to Dexie...`);
+        if (projects.length > 0) {
+          await dexieStorage.saveProjects(projects);
+          saveResults.projects = true;
+          console.log('supabase.ts: Projects saved successfully');
+        } else {
+          console.log('supabase.ts: No projects to save');
+          saveResults.projects = true;
+        }
+      } catch (saveProjectsError) {
+        console.error('supabase.ts: ERROR saving projects to Dexie:', saveProjectsError);
+        if (saveProjectsError instanceof Error) {
+          console.error('supabase.ts: Save projects error name:', saveProjectsError.name);
+          console.error('supabase.ts: Save projects error message:', saveProjectsError.message);
+        }
+        saveResults.projects = false;
+      }
+
+      // Save categories
+      try {
+        const categories = fetchResults.categories || [];
+        console.log(`supabase.ts: Saving ${categories.length} categories to Dexie...`);
+        if (categories.length > 0) {
+          await dexieStorage.saveCategories(categories);
+          saveResults.categories = true;
+          console.log('supabase.ts: Categories saved successfully');
+        } else {
+          console.log('supabase.ts: No categories to save');
+          saveResults.categories = true;
+        }
+      } catch (saveCategoriesError) {
+        console.error('supabase.ts: ERROR saving categories to Dexie:', saveCategoriesError);
+        if (saveCategoriesError instanceof Error) {
+          console.error('supabase.ts: Save categories error name:', saveCategoriesError.name);
+          console.error('supabase.ts: Save categories error message:', saveCategoriesError.message);
+        }
+        saveResults.categories = false;
+      }
+
+      // Save daily plans
+      try {
+        const dailyPlans = fetchResults.dailyPlans || [];
+        console.log(`supabase.ts: Saving ${dailyPlans.length} daily plans to Dexie...`);
+        if (dailyPlans.length > 0) {
+          await dexieStorage.saveDailyPlans(dailyPlans);
+          saveResults.dailyPlans = true;
+          console.log('supabase.ts: Daily plans saved successfully');
+        } else {
+          console.log('supabase.ts: No daily plans to save');
+          saveResults.dailyPlans = true;
+        }
+      } catch (saveDailyPlansError) {
+        console.error('supabase.ts: ERROR saving daily plans to Dexie:', saveDailyPlansError);
+        if (saveDailyPlansError instanceof Error) {
+          console.error('supabase.ts: Save daily plans error name:', saveDailyPlansError.name);
+          console.error('supabase.ts: Save daily plans error message:', saveDailyPlansError.message);
+        }
+        saveResults.dailyPlans = false;
+      }
+
+      // Save work schedule
+      try {
+        const workSchedule = fetchResults.workSchedule;
+        console.log(`supabase.ts: Saving work schedule to Dexie...`);
+        if (workSchedule) {
+          await dexieStorage.saveWorkSchedule(workSchedule);
+          saveResults.workSchedule = true;
+          console.log('supabase.ts: Work schedule saved successfully');
+        } else {
+          console.log('supabase.ts: No work schedule to save');
+          saveResults.workSchedule = true;
+        }
+      } catch (saveWorkScheduleError) {
+        console.error('supabase.ts: ERROR saving work schedule to Dexie:', saveWorkScheduleError);
+        if (saveWorkScheduleError instanceof Error) {
+          console.error('supabase.ts: Save work schedule error name:', saveWorkScheduleError.name);
+          console.error('supabase.ts: Save work schedule error message:', saveWorkScheduleError.message);
+        }
+        saveResults.workSchedule = false;
+      }
+
+      // Save journal entries
+      try {
+        const journalEntries = fetchResults.journalEntries || [];
+        console.log(`supabase.ts: Saving ${journalEntries.length} journal entries to Dexie...`);
+        if (journalEntries.length > 0) {
+          await dexieStorage.saveJournalEntries(journalEntries);
+          saveResults.journalEntries = true;
+          console.log('supabase.ts: Journal entries saved successfully');
+        } else {
+          console.log('supabase.ts: No journal entries to save');
+          saveResults.journalEntries = true;
+        }
+      } catch (saveJournalEntriesError) {
+        console.error('supabase.ts: ERROR saving journal entries to Dexie:', saveJournalEntriesError);
+        if (saveJournalEntriesError instanceof Error) {
+          console.error('supabase.ts: Save journal entries error name:', saveJournalEntriesError.name);
+          console.error('supabase.ts: Save journal entries error message:', saveJournalEntriesError.message);
+        }
+        saveResults.journalEntries = false;
+      }
+
+      // Evaluate overall sync success
+      const allSuccess = Object.values(saveResults).every(result => result);
+      console.log('supabase.ts: Sync results summary:');
+      for (const [entity, success] of Object.entries(saveResults)) {
+        console.log(`supabase.ts: - ${entity}: ${success ? 'SUCCESS' : 'FAILED'}`);
+      }
+
+      if (allSuccess) {
+        console.log('supabase.ts: All data synced from Supabase successfully');
+        return true;
+      } else {
+        console.error('supabase.ts: Some data failed to sync from Supabase');
+        return false;
+      }
+    } catch (importError) {
+      console.error('supabase.ts: ERROR importing dexieStorage module:', importError);
+      if (importError instanceof Error) {
+        console.error('supabase.ts: Import error name:', importError.name);
+        console.error('supabase.ts: Import error message:', importError.message);
+        console.error('supabase.ts: Import error stack:', importError.stack);
+      }
+      return false;
+    }
   } catch (error) {
-    console.error('Error syncing data from Supabase:', error);
+    console.error('supabase.ts: CRITICAL ERROR syncing data from Supabase:', error);
+    if (error instanceof Error) {
+      console.error('supabase.ts: Error name:', error.name);
+      console.error('supabase.ts: Error message:', error.message);
+      console.error('supabase.ts: Error stack:', error.stack);
+    }
     return false;
+  } finally {
+    console.log('supabase.ts: ---------- SYNC FROM SUPABASE COMPLETED ----------');
   }
 };

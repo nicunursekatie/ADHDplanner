@@ -1291,17 +1291,78 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Check if Supabase is connected
   const checkCloudConnection = useCallback(async (): Promise<boolean> => {
+    console.log('AppContext: ---------- CLOUD CONNECTION CHECK STARTED ----------');
+    console.log('AppContext: checkCloudConnection called, currentStorageType:', currentStorageType);
+
+    // Record start time for performance metrics
+    const startTime = performance.now();
+
     try {
+      // Only proceed with connection check if using Supabase
       if (currentStorageType === 'supabase') {
-        const isConnected = await supabaseStorage.checkSupabaseConnection();
-        setIsCloudConnected(isConnected);
-        return isConnected;
+        console.log('AppContext: Current storage is Supabase, checking connection...');
+
+        // Check if supabaseStorage module is available
+        if (!supabaseStorage) {
+          console.error('AppContext: ERROR - supabaseStorage module is not available');
+          setIsCloudConnected(false);
+          return false;
+        }
+
+        // Check if the checkSupabaseConnection function exists
+        if (typeof supabaseStorage.checkSupabaseConnection !== 'function') {
+          console.error('AppContext: ERROR - checkSupabaseConnection function is not available in supabaseStorage');
+          setIsCloudConnected(false);
+          return false;
+        }
+
+        console.log('AppContext: Calling supabaseStorage.checkSupabaseConnection()...');
+        try {
+          const isConnected = await supabaseStorage.checkSupabaseConnection();
+          console.log('AppContext: Supabase connection check returned:', isConnected);
+
+          // Update state based on result
+          setIsCloudConnected(isConnected);
+
+          if (isConnected) {
+            console.log('AppContext: Supabase connection is ACTIVE');
+          } else {
+            console.error('AppContext: Supabase connection check FAILED');
+          }
+
+          return isConnected;
+        } catch (connectionCheckError) {
+          console.error('AppContext: EXCEPTION during supabaseStorage.checkSupabaseConnection call:', connectionCheckError);
+          if (connectionCheckError instanceof Error) {
+            console.error('AppContext: Error name:', connectionCheckError.name);
+            console.error('AppContext: Error message:', connectionCheckError.message);
+            console.error('AppContext: Error stack:', connectionCheckError.stack);
+          }
+          setIsCloudConnected(false);
+          return false;
+        }
+      } else {
+        // Not using Supabase, so there's no cloud connection to check
+        console.log('AppContext: Current storage is not Supabase, no connection check needed');
+        console.log('AppContext: Setting isCloudConnected to false');
+        setIsCloudConnected(false);
+        return false;
       }
-      return false;
     } catch (error) {
-      console.error('Error checking cloud connection:', error);
+      console.error('AppContext: CRITICAL ERROR in checkCloudConnection:', error);
+      if (error instanceof Error) {
+        console.error('AppContext: Error name:', error.name);
+        console.error('AppContext: Error message:', error.message);
+        console.error('AppContext: Error stack:', error.stack);
+      }
       setIsCloudConnected(false);
       return false;
+    } finally {
+      // Log performance metrics
+      const endTime = performance.now();
+      const elapsedTime = endTime - startTime;
+      console.log(`AppContext: Cloud connection check completed in ${elapsedTime.toFixed(2)}ms`);
+      console.log('AppContext: ---------- CLOUD CONNECTION CHECK COMPLETED ----------');
     }
   }, [currentStorageType]);
 
@@ -1316,134 +1377,306 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Switch between storage mechanisms
   const switchStorage = useCallback(async (newStorageType: StorageType): Promise<boolean> => {
-    try {
-      if (newStorageType === currentStorageType) return true;
+    console.log('AppContext: ---------- STORAGE SWITCH STARTED ----------');
+    console.log('AppContext: switchStorage called, from:', currentStorageType, 'to:', newStorageType);
 
+    try {
+      // Check if we're already using the requested storage type
+      if (newStorageType === currentStorageType) {
+        console.log('AppContext: Already using this storage type, no change needed');
+        return true;
+      }
+
+      // Start loading state and record start time for performance logging
       setIsLoading(true);
-      console.log(`Switching storage from ${currentStorageType} to ${newStorageType}...`);
+      const startTime = performance.now();
+      console.log(`AppContext: Switching storage from ${currentStorageType} to ${newStorageType}...`);
+      console.log(`AppContext: Start time: ${new Date().toISOString()}`);
 
       // Save the current preference to localStorage
-      window.localStorage.setItem('storagePreference', newStorageType);
+      try {
+        console.log('AppContext: Saving storage preference to localStorage');
+        window.localStorage.setItem('storagePreference', newStorageType);
+        console.log('AppContext: Storage preference saved successfully');
+      } catch (localStorageError) {
+        console.error('AppContext: ERROR saving storage preference to localStorage:', localStorageError);
+        if (localStorageError instanceof Error) {
+          console.error('AppContext: Error name:', localStorageError.name);
+          console.error('AppContext: Error message:', localStorageError.message);
+        }
+        // Continue anyway, as this is not critical
+      }
 
-      // Update the storage mechanism
+      // Update the storage mechanism reference
+      console.log('AppContext: Updating storage mechanism variable');
       storage = newStorageType === 'supabase' ? supabaseStorage : dexieStorage;
+      console.log('AppContext: Storage mechanism updated to', newStorageType);
 
-      // If switching to Supabase, check connection
+      // Special handling for Supabase
       if (newStorageType === 'supabase') {
-        const isConnected = await checkCloudConnection();
-        if (!isConnected) {
-          console.error('Failed to connect to Supabase');
+        console.log('AppContext: ---------- SUPABASE SETUP PHASE ----------');
+
+        // Check connection before proceeding
+        console.log('AppContext: Checking Supabase connection...');
+        try {
+          const isConnected = await checkCloudConnection();
+          console.log('AppContext: Supabase connection check result:', isConnected);
+
+          if (!isConnected) {
+            console.error('AppContext: ERROR - Failed to connect to Supabase');
+            setIsError(true);
+            return false;
+          }
+        } catch (connectionError) {
+          console.error('AppContext: EXCEPTION during Supabase connection check:', connectionError);
+          if (connectionError instanceof Error) {
+            console.error('AppContext: Error name:', connectionError.name);
+            console.error('AppContext: Error message:', connectionError.message);
+            console.error('AppContext: Error stack:', connectionError.stack);
+          }
+          setIsError(true);
           return false;
         }
 
-        // Initialize Supabase if needed
+        // Initialize Supabase tables if needed
         try {
+          console.log('AppContext: Initializing Supabase tables...');
           await supabaseStorage.initializeSupabase();
+          console.log('AppContext: Supabase initialized successfully');
         } catch (initError) {
-          console.error('Error initializing Supabase:', initError);
+          console.error('AppContext: ERROR initializing Supabase:', initError);
+          if (initError instanceof Error) {
+            console.error('AppContext: Error name:', initError.name);
+            console.error('AppContext: Error message:', initError.message);
+            console.error('AppContext: Error stack:', initError.stack);
+          }
+          // We'll continue, as tables might already exist
+          console.warn('AppContext: Continuing despite Supabase initialization error');
         }
       }
 
-      // Update the current storage type
+      // Update the current storage type state
+      console.log('AppContext: Updating current storage type state');
       setCurrentStorageType(newStorageType);
 
       // Reload data from the new storage
-      try {
-        const [
-          tasksData,
-          projectsData,
-          categoriesData,
-          dailyPlansData,
-          workScheduleData,
-          journalEntriesData
-        ] = await Promise.all([
-          storage.getTasks(),
-          storage.getProjects(),
-          storage.getCategories(),
-          storage.getDailyPlans(),
-          storage.getWorkSchedule(),
-          storage.getJournalEntries()
-        ]);
+      console.log('AppContext: ---------- DATA LOADING PHASE ----------');
+      console.log('AppContext: Loading data from new storage...');
 
+      // Use individual try/catch blocks for each data type to ensure maximum resilience
+      let dataLoadSuccess = true;
+      const dataResults: Record<string, boolean> = {};
+
+      // Load tasks
+      try {
+        console.log('AppContext: Loading tasks...');
+        const tasksData = await storage.getTasks();
+        console.log(`AppContext: Successfully loaded ${tasksData.length} tasks`);
         setTasks(tasksData);
-        setProjects(projectsData);
-        setCategories(categoriesData);
-        setDailyPlans(dailyPlansData);
-        setWorkSchedule(workScheduleData);
-        setJournalEntries(journalEntriesData);
-      } catch (loadError) {
-        console.error('Error loading data from new storage:', loadError);
+        dataResults.tasks = true;
+      } catch (tasksError) {
+        console.error('AppContext: ERROR loading tasks:', tasksError);
+        if (tasksError instanceof Error) {
+          console.error('AppContext: Error name:', tasksError.name);
+          console.error('AppContext: Error message:', tasksError.message);
+        }
+        dataResults.tasks = false;
+        dataLoadSuccess = false;
       }
 
-      console.log(`Successfully switched to ${newStorageType} storage`);
+      // Load projects
+      try {
+        console.log('AppContext: Loading projects...');
+        const projectsData = await storage.getProjects();
+        console.log(`AppContext: Successfully loaded ${projectsData.length} projects`);
+        setProjects(projectsData);
+        dataResults.projects = true;
+      } catch (projectsError) {
+        console.error('AppContext: ERROR loading projects:', projectsError);
+        if (projectsError instanceof Error) {
+          console.error('AppContext: Error name:', projectsError.name);
+          console.error('AppContext: Error message:', projectsError.message);
+        }
+        dataResults.projects = false;
+        dataLoadSuccess = false;
+      }
+
+      // Load categories
+      try {
+        console.log('AppContext: Loading categories...');
+        const categoriesData = await storage.getCategories();
+        console.log(`AppContext: Successfully loaded ${categoriesData.length} categories`);
+        setCategories(categoriesData);
+        dataResults.categories = true;
+      } catch (categoriesError) {
+        console.error('AppContext: ERROR loading categories:', categoriesError);
+        if (categoriesError instanceof Error) {
+          console.error('AppContext: Error name:', categoriesError.name);
+          console.error('AppContext: Error message:', categoriesError.message);
+        }
+        dataResults.categories = false;
+        dataLoadSuccess = false;
+      }
+
+      // Load daily plans
+      try {
+        console.log('AppContext: Loading daily plans...');
+        const dailyPlansData = await storage.getDailyPlans();
+        console.log(`AppContext: Successfully loaded ${dailyPlansData.length} daily plans`);
+        setDailyPlans(dailyPlansData);
+        dataResults.dailyPlans = true;
+      } catch (dailyPlansError) {
+        console.error('AppContext: ERROR loading daily plans:', dailyPlansError);
+        if (dailyPlansError instanceof Error) {
+          console.error('AppContext: Error name:', dailyPlansError.name);
+          console.error('AppContext: Error message:', dailyPlansError.message);
+        }
+        dataResults.dailyPlans = false;
+        dataLoadSuccess = false;
+      }
+
+      // Load work schedule
+      try {
+        console.log('AppContext: Loading work schedule...');
+        const workScheduleData = await storage.getWorkSchedule();
+        console.log(`AppContext: Work schedule: ${workScheduleData ? 'Found' : 'Not found'}`);
+        setWorkSchedule(workScheduleData);
+        dataResults.workSchedule = true;
+      } catch (workScheduleError) {
+        console.error('AppContext: ERROR loading work schedule:', workScheduleError);
+        if (workScheduleError instanceof Error) {
+          console.error('AppContext: Error name:', workScheduleError.name);
+          console.error('AppContext: Error message:', workScheduleError.message);
+        }
+        dataResults.workSchedule = false;
+        dataLoadSuccess = false;
+      }
+
+      // Load journal entries
+      try {
+        console.log('AppContext: Loading journal entries...');
+        const journalEntriesData = await storage.getJournalEntries();
+        console.log(`AppContext: Successfully loaded ${journalEntriesData.length} journal entries`);
+        setJournalEntries(journalEntriesData);
+        dataResults.journalEntries = true;
+      } catch (journalEntriesError) {
+        console.error('AppContext: ERROR loading journal entries:', journalEntriesError);
+        if (journalEntriesError instanceof Error) {
+          console.error('AppContext: Error name:', journalEntriesError.name);
+          console.error('AppContext: Error message:', journalEntriesError.message);
+        }
+        dataResults.journalEntries = false;
+        dataLoadSuccess = false;
+      }
+
+      // Log data loading results summary
+      console.log('AppContext: Data loading results summary:');
+      for (const [entity, success] of Object.entries(dataResults)) {
+        console.log(`AppContext: - ${entity}: ${success ? 'SUCCESS' : 'FAILED'}`);
+      }
+
+      if (!dataLoadSuccess) {
+        console.warn('AppContext: WARNING - Some data failed to load from the new storage');
+        setIsError(true);
+        // Continue anyway, as we've already switched the storage mechanism
+      }
+
+      // Calculate and log performance metrics
+      const endTime = performance.now();
+      const elapsedTime = endTime - startTime;
+      console.log(`AppContext: Storage switch completed in ${elapsedTime.toFixed(2)}ms`);
+      console.log(`AppContext: Successfully switched to ${newStorageType} storage`);
+
       return true;
     } catch (error) {
-      console.error('Error switching storage:', error);
+      console.error('AppContext: CRITICAL ERROR switching storage:', error);
+      if (error instanceof Error) {
+        console.error('AppContext: Error name:', error.name);
+        console.error('AppContext: Error message:', error.message);
+        console.error('AppContext: Error stack:', error.stack);
+      }
       setIsError(true);
       return false;
     } finally {
       setIsLoading(false);
+      console.log('AppContext: ---------- STORAGE SWITCH COMPLETED ----------');
     }
   }, [currentStorageType, checkCloudConnection]);
 
   // Sync local data to cloud
   const syncToCloud = useCallback(async (): Promise<boolean> => {
+    console.log('AppContext: syncToCloud called, currentStorageType:', currentStorageType);
     if (currentStorageType !== 'supabase') {
       // First export data from Dexie
       try {
         setIsLoading(true);
         setSpecificLoadingState('importExport', true);
 
-        console.log('Syncing data to Supabase...');
+        console.log('AppContext: Syncing data to Supabase...');
 
         // Get data from Dexie
+        console.log('AppContext: Exporting data from Dexie...');
         const dexieData = await dexieStorage.exportData();
+        console.log('AppContext: Dexie data exported successfully');
 
         // Import to Supabase
+        console.log('AppContext: Importing data to Supabase...');
         const result = await supabaseStorage.importData(dexieData);
+        console.log('AppContext: Supabase import result:', result);
 
         if (result) {
-          console.log('Successfully synced data to Supabase');
+          console.log('AppContext: Successfully synced data to Supabase');
           return true;
         } else {
-          console.error('Failed to sync data to Supabase');
+          console.error('AppContext: Failed to sync data to Supabase');
           return false;
         }
       } catch (error) {
-        console.error('Error syncing to cloud:', error);
+        console.error('AppContext: Error syncing to cloud:', error);
+        if (error instanceof Error) {
+          console.error('Error name:', error.name);
+          console.error('Error message:', error.message);
+          console.error('Error stack:', error.stack);
+        }
         return false;
       } finally {
         setIsLoading(false);
         setSpecificLoadingState('importExport', false);
       }
     } else {
-      // Already using Supabase, no need to sync
+      console.log('AppContext: Already using Supabase, no need to sync');
       return true;
     }
   }, [currentStorageType, setSpecificLoadingState]);
 
   // Sync cloud data to local
   const syncFromCloud = useCallback(async (): Promise<boolean> => {
+    console.log('AppContext: syncFromCloud called, currentStorageType:', currentStorageType);
     if (currentStorageType !== 'dexie') {
       // First export data from Supabase
       try {
         setIsLoading(true);
         setSpecificLoadingState('importExport', true);
 
-        console.log('Syncing data from Supabase...');
+        console.log('AppContext: Syncing data from Supabase...');
 
         // Get data from Supabase
+        console.log('AppContext: Exporting data from Supabase...');
         const supabaseData = await supabaseStorage.exportData();
+        console.log('AppContext: Supabase data exported successfully');
 
         // Import to Dexie
+        console.log('AppContext: Importing data to Dexie...');
         const result = await dexieStorage.importData(supabaseData);
+        console.log('AppContext: Dexie import result:', result);
 
         if (result) {
-          console.log('Successfully synced data from Supabase');
+          console.log('AppContext: Successfully synced data from Supabase');
 
           // Reload data if we're using Dexie
           if (currentStorageType === 'dexie') {
             try {
+              console.log('AppContext: Reloading data from Dexie after sync');
               const [
                 tasksData,
                 projectsData,
@@ -1466,25 +1699,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               setDailyPlans(dailyPlansData);
               setWorkSchedule(workScheduleData);
               setJournalEntries(journalEntriesData);
+              console.log('AppContext: Data reload complete');
             } catch (loadError) {
-              console.error('Error loading data after sync:', loadError);
+              console.error('AppContext: Error loading data after sync:', loadError);
+              if (loadError instanceof Error) {
+                console.error('Error name:', loadError.name);
+                console.error('Error message:', loadError.message);
+                console.error('Error stack:', loadError.stack);
+              }
             }
           }
 
           return true;
         } else {
-          console.error('Failed to sync data from Supabase');
+          console.error('AppContext: Failed to sync data from Supabase');
           return false;
         }
       } catch (error) {
-        console.error('Error syncing from cloud:', error);
+        console.error('AppContext: Error syncing from cloud:', error);
+        if (error instanceof Error) {
+          console.error('Error name:', error.name);
+          console.error('Error message:', error.message);
+          console.error('Error stack:', error.stack);
+        }
         return false;
       } finally {
         setIsLoading(false);
         setSpecificLoadingState('importExport', false);
       }
     } else {
-      // Already using Dexie, no need to sync
+      console.log('AppContext: Already using Dexie, no need to sync');
       return true;
     }
   }, [currentStorageType, setSpecificLoadingState]);
