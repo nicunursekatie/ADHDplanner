@@ -5,6 +5,7 @@ import { WorkSchedule, WorkShift, ShiftType, DEFAULT_SHIFTS } from '../types/Wor
 // Import storage mechanisms
 import * as localStorage from '../utils/localStorage';
 import * as dexieStorage from '../utils/dexieStorage';
+import * as supabaseStorage from '../utils/supabase';
 import { generateId, createSampleData, getISOWeekAndYear } from '../utils/helpers';
 import { migrateFromLocalStorageToDexie, checkForLocalStorageData } from '../utils/migrationUtils';
 
@@ -13,8 +14,24 @@ interface DeletedTask {
   timestamp: number;
 }
 
-// We'll use Dexie storage as our primary storage mechanism
-const storage = dexieStorage;
+// Storage types
+export type StorageType = 'dexie' | 'supabase';
+
+// Function to get the current storage mechanism based on user preference
+const getStorageMechanism = (): StorageType => {
+  // Try to get from localStorage (because this is a simple value we still use native localStorage)
+  const storedPreference = window.localStorage.getItem('storagePreference');
+  return (storedPreference === 'supabase') ? 'supabase' : 'dexie';
+};
+
+// Initialize storage based on preference
+const getStorage = () => {
+  const storageType = getStorageMechanism();
+  return storageType === 'supabase' ? supabaseStorage : dexieStorage;
+};
+
+// We'll use Dexie storage as our default storage mechanism
+let storage = getStorage();
 
 interface AppContextType {
   // Tasks
@@ -75,6 +92,14 @@ interface AppContextType {
   initializeSampleData: () => Promise<void>;
   performDatabaseMaintenance: () => Promise<void>;
 
+  // Storage Management
+  getCurrentStorage: () => StorageType;
+  switchStorage: (storageType: StorageType) => Promise<boolean>;
+  syncToCloud: () => Promise<boolean>;
+  syncFromCloud: () => Promise<boolean>;
+  isCloudConnected: boolean;
+  checkCloudConnection: () => Promise<boolean>;
+
   // App State
   isLoading: boolean;
   loadingStates: {
@@ -105,6 +130,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [isDataInitialized, setIsDataInitialized] = useState(false);
   const [isError, setIsError] = useState(false);
   const [deletedTasks, setDeletedTasks] = useState<DeletedTask[]>([]);
+  const [currentStorageType, setCurrentStorageType] = useState<StorageType>(getStorageMechanism());
+  const [isCloudConnected, setIsCloudConnected] = useState<boolean>(false);
 
   // Clean up old deleted tasks
   useEffect(() => {
@@ -1250,6 +1277,211 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, []);
 
+  // Storage Management Functions
+  const getCurrentStorage = useCallback((): StorageType => {
+    return currentStorageType;
+  }, [currentStorageType]);
+
+  // Check if Supabase is connected
+  const checkCloudConnection = useCallback(async (): Promise<boolean> => {
+    try {
+      if (currentStorageType === 'supabase') {
+        const isConnected = await supabaseStorage.checkSupabaseConnection();
+        setIsCloudConnected(isConnected);
+        return isConnected;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking cloud connection:', error);
+      setIsCloudConnected(false);
+      return false;
+    }
+  }, [currentStorageType]);
+
+  // Effect to check cloud connection on mount and when storage type changes
+  useEffect(() => {
+    if (currentStorageType === 'supabase') {
+      checkCloudConnection();
+    } else {
+      setIsCloudConnected(false);
+    }
+  }, [currentStorageType, checkCloudConnection]);
+
+  // Switch between storage mechanisms
+  const switchStorage = useCallback(async (newStorageType: StorageType): Promise<boolean> => {
+    try {
+      if (newStorageType === currentStorageType) return true;
+
+      setIsLoading(true);
+      console.log(`Switching storage from ${currentStorageType} to ${newStorageType}...`);
+
+      // Save the current preference to localStorage
+      window.localStorage.setItem('storagePreference', newStorageType);
+
+      // Update the storage mechanism
+      storage = newStorageType === 'supabase' ? supabaseStorage : dexieStorage;
+
+      // If switching to Supabase, check connection
+      if (newStorageType === 'supabase') {
+        const isConnected = await checkCloudConnection();
+        if (!isConnected) {
+          console.error('Failed to connect to Supabase');
+          return false;
+        }
+
+        // Initialize Supabase if needed
+        try {
+          await supabaseStorage.initializeSupabase();
+        } catch (initError) {
+          console.error('Error initializing Supabase:', initError);
+        }
+      }
+
+      // Update the current storage type
+      setCurrentStorageType(newStorageType);
+
+      // Reload data from the new storage
+      try {
+        const [
+          tasksData,
+          projectsData,
+          categoriesData,
+          dailyPlansData,
+          workScheduleData,
+          journalEntriesData
+        ] = await Promise.all([
+          storage.getTasks(),
+          storage.getProjects(),
+          storage.getCategories(),
+          storage.getDailyPlans(),
+          storage.getWorkSchedule(),
+          storage.getJournalEntries()
+        ]);
+
+        setTasks(tasksData);
+        setProjects(projectsData);
+        setCategories(categoriesData);
+        setDailyPlans(dailyPlansData);
+        setWorkSchedule(workScheduleData);
+        setJournalEntries(journalEntriesData);
+      } catch (loadError) {
+        console.error('Error loading data from new storage:', loadError);
+      }
+
+      console.log(`Successfully switched to ${newStorageType} storage`);
+      return true;
+    } catch (error) {
+      console.error('Error switching storage:', error);
+      setIsError(true);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentStorageType, checkCloudConnection]);
+
+  // Sync local data to cloud
+  const syncToCloud = useCallback(async (): Promise<boolean> => {
+    if (currentStorageType !== 'supabase') {
+      // First export data from Dexie
+      try {
+        setIsLoading(true);
+        setSpecificLoadingState('importExport', true);
+
+        console.log('Syncing data to Supabase...');
+
+        // Get data from Dexie
+        const dexieData = await dexieStorage.exportData();
+
+        // Import to Supabase
+        const result = await supabaseStorage.importData(dexieData);
+
+        if (result) {
+          console.log('Successfully synced data to Supabase');
+          return true;
+        } else {
+          console.error('Failed to sync data to Supabase');
+          return false;
+        }
+      } catch (error) {
+        console.error('Error syncing to cloud:', error);
+        return false;
+      } finally {
+        setIsLoading(false);
+        setSpecificLoadingState('importExport', false);
+      }
+    } else {
+      // Already using Supabase, no need to sync
+      return true;
+    }
+  }, [currentStorageType, setSpecificLoadingState]);
+
+  // Sync cloud data to local
+  const syncFromCloud = useCallback(async (): Promise<boolean> => {
+    if (currentStorageType !== 'dexie') {
+      // First export data from Supabase
+      try {
+        setIsLoading(true);
+        setSpecificLoadingState('importExport', true);
+
+        console.log('Syncing data from Supabase...');
+
+        // Get data from Supabase
+        const supabaseData = await supabaseStorage.exportData();
+
+        // Import to Dexie
+        const result = await dexieStorage.importData(supabaseData);
+
+        if (result) {
+          console.log('Successfully synced data from Supabase');
+
+          // Reload data if we're using Dexie
+          if (currentStorageType === 'dexie') {
+            try {
+              const [
+                tasksData,
+                projectsData,
+                categoriesData,
+                dailyPlansData,
+                workScheduleData,
+                journalEntriesData
+              ] = await Promise.all([
+                dexieStorage.getTasks(),
+                dexieStorage.getProjects(),
+                dexieStorage.getCategories(),
+                dexieStorage.getDailyPlans(),
+                dexieStorage.getWorkSchedule(),
+                dexieStorage.getJournalEntries()
+              ]);
+
+              setTasks(tasksData);
+              setProjects(projectsData);
+              setCategories(categoriesData);
+              setDailyPlans(dailyPlansData);
+              setWorkSchedule(workScheduleData);
+              setJournalEntries(journalEntriesData);
+            } catch (loadError) {
+              console.error('Error loading data after sync:', loadError);
+            }
+          }
+
+          return true;
+        } else {
+          console.error('Failed to sync data from Supabase');
+          return false;
+        }
+      } catch (error) {
+        console.error('Error syncing from cloud:', error);
+        return false;
+      } finally {
+        setIsLoading(false);
+        setSpecificLoadingState('importExport', false);
+      }
+    } else {
+      // Already using Dexie, no need to sync
+      return true;
+    }
+  }, [currentStorageType, setSpecificLoadingState]);
+
   const contextValue: AppContextType = {
     tasks,
     addTask,
@@ -1300,6 +1532,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     resetData,
     initializeSampleData,
     performDatabaseMaintenance,
+
+    // Storage Management
+    getCurrentStorage,
+    switchStorage,
+    syncToCloud,
+    syncFromCloud,
+    isCloudConnected,
+    checkCloudConnection,
 
     isLoading,
     loadingStates,
