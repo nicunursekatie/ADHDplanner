@@ -4,7 +4,8 @@ import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Modal from '../components/common/Modal';
 import { testDexieDatabase } from '../utils/testDexie';
-import { Download, Upload, Trash2, AlertCircle, Loader, Database, Check, XCircle } from 'lucide-react';
+import { analyzeImportFile, convertImportFormat } from '../utils/importAnalyzer';
+import { Download, Upload, Trash2, AlertCircle, Loader, Database, Check, XCircle, FileText } from 'lucide-react';
 
 const SettingsPage: React.FC = () => {
   const { exportData, importData, resetData, initializeSampleData, performDatabaseMaintenance } = useAppContext();
@@ -20,6 +21,18 @@ const SettingsPage: React.FC = () => {
   const [isEmergencyResetting, setIsEmergencyResetting] = useState(false);
   const [emergencyResetModalOpen, setEmergencyResetModalOpen] = useState(false);
   const [emergencyResetSuccess, setEmergencyResetSuccess] = useState(false);
+  // File analysis states
+  const [isAnalyzingFile, setIsAnalyzingFile] = useState(false);
+  const [fileAnalysisResult, setFileAnalysisResult] = useState<{
+    valid: boolean;
+    topLevelKeys: string[];
+    format: string;
+    hasTasksData: boolean;
+    needsConversion: boolean;
+    conversionHints: string[];
+  } | null>(null);
+  const [showAnalysisModal, setShowAnalysisModal] = useState(false);
+  const [convertedContent, setConvertedContent] = useState<string | null>(null);
 
   // State for database test
   const [testResults, setTestResults] = useState<{success: boolean; message: string; details?: {test: string; success: boolean; message: string}[]}>(null);
@@ -80,6 +93,8 @@ const SettingsPage: React.FC = () => {
 
         setImportFile(e.target.files[0]);
         setImportError(null);
+        setFileAnalysisResult(null); // Reset any previous analysis
+        setConvertedContent(null);
       }
     } catch (error) {
       console.error('Error selecting file:', error);
@@ -87,9 +102,58 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  const handleImportData = () => {
+  // Function to analyze the import file format
+  const handleAnalyzeFile = () => {
     if (!importFile) {
+      setImportError('Please select a file to analyze');
+      return;
+    }
+
+    setIsAnalyzingFile(true);
+    setImportError(null);
+
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const analysisResult = analyzeImportFile(content);
+        setFileAnalysisResult(analysisResult);
+        setShowAnalysisModal(true);
+
+        // If the file needs conversion, try to convert it
+        if (analysisResult.needsConversion && analysisResult.format !== 'unknown') {
+          try {
+            const converted = convertImportFormat(content, analysisResult.format);
+            setConvertedContent(converted);
+          } catch (conversionError) {
+            console.error('Error converting file:', conversionError);
+          }
+        }
+      } catch (error) {
+        console.error('Error analyzing file:', error);
+        setImportError('Error analyzing file. The file may be corrupted or in an unsupported format.');
+      } finally {
+        setIsAnalyzingFile(false);
+      }
+    };
+
+    reader.onerror = () => {
+      setImportError('Error reading the file. The file might be corrupt or inaccessible.');
+      setIsAnalyzingFile(false);
+    };
+
+    reader.readAsText(importFile);
+  };
+
+  const handleImportData = (useConverted = false) => {
+    if (!importFile && !useConverted) {
       setImportError('Please select a file to import');
+      return;
+    }
+
+    if (useConverted && !convertedContent) {
+      setImportError('No converted content available. Please analyze the file first.');
       return;
     }
 
@@ -97,8 +161,8 @@ const SettingsPage: React.FC = () => {
     setIsImporting(true);
     setImportError(null);
 
-    // Safety check for large files
-    if (importFile.size > 25 * 1024 * 1024) { // 25MB limit
+    // Safety check for large files if not using converted content
+    if (!useConverted && importFile && importFile.size > 25 * 1024 * 1024) { // 25MB limit
       setImportError('File is too large. Please select a file smaller than 25MB or use the Emergency Reset option if needed.');
       setIsImporting(false);
       return;
@@ -110,6 +174,13 @@ const SettingsPage: React.FC = () => {
       document.title = `Importing... ${Math.floor(Date.now() / 1000) % 3 + 1}`;
     }, 1000);
 
+    // If using converted content, proceed directly with that
+    if (useConverted && convertedContent) {
+      processImport(convertedContent, progressInterval);
+      return;
+    }
+
+    // Otherwise read from the file
     // Use a small timeout to let the UI update before starting the import
     setTimeout(() => {
       try {
@@ -118,116 +189,9 @@ const SettingsPage: React.FC = () => {
         reader.onload = async (e) => {
           try {
             const content = e.target?.result as string;
-
-            // Less restrictive validation - just check if it looks like JSON and has basic structure
-            try {
-              // Simple check - does it look like JSON?
-              if (!content.trim().startsWith('{') || !content.trim().endsWith('}')) {
-                console.error('File doesn\'t appear to be JSON');
-                setImportError('The file doesn\'t appear to be a valid JSON file. It should start with { and end with }.');
-                setIsImporting(false);
-                clearInterval(progressInterval);
-                document.title = "ADHDplanner";
-                return;
-              }
-
-              // Look for basic data markers without trying to parse the whole file
-              const containsTasksMarker = content.includes('"tasks"') || content.includes('"Tasks"');
-              const containsProjectsMarker = content.includes('"projects"') || content.includes('"Projects"');
-
-              // More lenient check for required properties - any one of these would indicate it's likely our format
-              const possibleProps = [
-                '"tasks":', '"projects":', '"categories":',
-                '"Tasks":', '"Projects":', '"Categories":',
-                '"dailyPlans":', '"DailyPlans":',
-                '"journalEntries":', '"JournalEntries":'
-              ];
-
-              const hasAnyProps = possibleProps.some(prop => content.includes(prop));
-
-              if (!hasAnyProps) {
-                console.warn('File lacks expected properties');
-                setImportError('The file may not be a valid TaskManager export. Continue anyway?');
-                // We'll continue anyway - the user might know what they're doing
-              } else {
-                console.log('Import basic validation passed, proceeding with import...');
-              }
-            } catch (jsonError) {
-              console.error('JSON validation error:', jsonError);
-              // Continue anyway - we'll let the full import process attempt to parse it
-              console.log('Continuing despite validation error...');
-            }
-
-            // Start import with processed data chunks
-            console.log('Starting data import...');
-
-            try {
-              // Use a timeout to allow UI updates during processing
-              const result = await Promise.race([
-                importData(content),
-                new Promise<boolean>((_, reject) => {
-                  // Set a generous timeout for large imports (120 seconds)
-                  setTimeout(() => reject(new Error('Import timeout - operation took too long')), 120000);
-                })
-              ]);
-
-              if (result) {
-                console.log('Import succeeded!');
-                setImportSuccess(true);
-                setImportError(null);
-                clearInterval(progressInterval);
-                document.title = "ADHDplanner";
-
-                // Close modal after success
-                if (timeoutRef.current) {
-                  clearTimeout(timeoutRef.current);
-                }
-
-                timeoutRef.current = setTimeout(() => {
-                  setImportModalOpen(false);
-                  // Reset file input
-                  if (fileInputRef.current) {
-                    fileInputRef.current.value = '';
-                  }
-                  // Refresh page to load new data cleanly
-                  window.location.reload();
-                }, 2000);
-              } else {
-                console.error('Import returned false');
-                setImportError('Failed to import data. Make sure the file is a valid TaskManager export file and try again.');
-                clearInterval(progressInterval);
-                document.title = "ADHDplanner";
-              }
-            } catch (timeoutError) {
-              console.error('Import timeout or error:', timeoutError);
-              setImportError('The import process took too long. The file may be too large or complex. Try using the Emergency Reset option first, or split your data into smaller exports.');
-              clearInterval(progressInterval);
-              document.title = "ADHDplanner";
-            }
-
-            setIsImporting(false);
+            processImport(content, progressInterval);
           } catch (error) {
-            console.error('Import error:', error);
-            let errorMessage = 'An unexpected error occurred during import.';
-
-            if (error instanceof Error) {
-              console.error('Error details:', error.message);
-              // Provide more specific error message based on the error type
-              if (error.message.includes('schema') || error.message.includes('property')) {
-                errorMessage = 'The import file contains data that does not match the expected format. This might be due to a version mismatch.';
-              } else if (error.message.includes('duplicate')) {
-                errorMessage = 'The import failed due to duplicate data. Please reset your data before importing.';
-              } else if (error.message.includes('memory') || error.message.includes('allocation failed')) {
-                errorMessage = 'The browser ran out of memory. Try using the Emergency Reset option first, or import a smaller file.';
-              } else if (error.message.includes('timeout')) {
-                errorMessage = 'The import process timed out. Try using the Emergency Reset option first, or import a smaller file.';
-              }
-            }
-
-            setImportError(`${errorMessage} Please try again or contact support if the problem persists.`);
-            setIsImporting(false);
-            clearInterval(progressInterval);
-            document.title = "ADHDplanner";
+            handleImportError(error, progressInterval);
           }
         };
 
@@ -239,15 +203,118 @@ const SettingsPage: React.FC = () => {
           document.title = "ADHDplanner";
         };
 
-        reader.readAsText(importFile);
+        reader.readAsText(importFile!);
       } catch (error) {
-        console.error('Import process error:', error);
-        setImportError('An unexpected error occurred. Please try again or try using a different file.');
+        handleImportError(error, progressInterval);
+      }
+    }, 100);
+  };
+
+  // Helper function to process the import content
+  const processImport = async (content: string, progressInterval: number) => {
+    try {
+      // Less restrictive validation - just check if it looks like JSON
+      if (!content.trim().startsWith('{') || !content.trim().endsWith('}')) {
+        console.error('File doesn\'t appear to be JSON');
+        setImportError('The file doesn\'t appear to be a valid JSON file. It should start with { and end with }.');
         setIsImporting(false);
         clearInterval(progressInterval);
         document.title = "ADHDplanner";
+        return;
       }
-    }, 100);
+
+      // Look for basic data markers without trying to parse the whole file
+
+      // More lenient check for required properties - any one of these would indicate it's likely our format
+      const possibleProps = [
+        '"tasks":', '"projects":', '"categories":',
+        '"Tasks":', '"Projects":', '"Categories":',
+        '"dailyPlans":', '"DailyPlans":',
+        '"journalEntries":', '"JournalEntries":'
+      ];
+
+      const hasAnyProps = possibleProps.some(prop => content.includes(prop));
+
+      if (!hasAnyProps) {
+        console.warn('File lacks expected properties');
+        // Continue anyway - user has explicitly chosen to import this
+        console.log('Continuing import despite missing expected properties...');
+      } else {
+        console.log('Import basic validation passed, proceeding with import...');
+      }
+
+      // Start import with processed data chunks
+      console.log('Starting data import...');
+
+      // Use a timeout to allow UI updates during processing
+      const result = await Promise.race([
+        importData(content),
+        new Promise<boolean>((_, reject) => {
+          // Set a generous timeout for large imports (120 seconds)
+          setTimeout(() => reject(new Error('Import timeout - operation took too long')), 120000);
+        })
+      ]);
+
+      if (result) {
+        console.log('Import succeeded!');
+        setImportSuccess(true);
+        setImportError(null);
+        setShowAnalysisModal(false); // Close analysis modal if open
+        clearInterval(progressInterval);
+        document.title = "ADHDplanner";
+
+        // Close modal after success
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+
+        timeoutRef.current = setTimeout(() => {
+          setImportModalOpen(false);
+          // Reset file input
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
+          // Refresh page to load new data cleanly
+          window.location.reload();
+        }, 2000);
+      } else {
+        console.error('Import returned false');
+        setImportError('Failed to import data. Make sure the file is a valid export file or try analyzing it first.');
+        clearInterval(progressInterval);
+        document.title = "ADHDplanner";
+      }
+    } catch (error) {
+      handleImportError(error, progressInterval);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  // Helper function to handle import errors
+  const handleImportError = (error: unknown, progressInterval: number) => {
+    console.error('Import error:', error);
+    let errorMessage = 'An unexpected error occurred during import.';
+
+    if (error instanceof Error) {
+      console.error('Error details:', error.message);
+      // Provide more specific error message based on the error type
+      if (error.message.includes('schema') || error.message.includes('property')) {
+        errorMessage = 'The import file contains data that does not match the expected format. Try analyzing the file first.';
+      } else if (error.message.includes('duplicate')) {
+        errorMessage = 'The import failed due to duplicate data. Please reset your data before importing.';
+      } else if (error.message.includes('memory') || error.message.includes('allocation failed')) {
+        errorMessage = 'The browser ran out of memory. Try using the Emergency Reset option first, or import a smaller file.';
+      } else if (error.message.includes('timeout')) {
+        errorMessage = 'The import process timed out. Try using the Emergency Reset option first, or import a smaller file.';
+      } else if (error.message.includes('JSON')) {
+        errorMessage = 'The file format appears to be invalid. Try using the Analyze File option to check compatibility.';
+      }
+    }
+
+    setImportError(`${errorMessage} Please try again or try analyzing the file to check compatibility.`);
+    setIsImporting(false);
+    clearInterval(progressInterval);
+    document.title = "ADHDplanner";
   };
   
   const handleResetClick = () => {
@@ -581,9 +648,9 @@ const SettingsPage: React.FC = () => {
           {!importSuccess ? (
             <>
               <p className="text-gray-600">
-                Select a TaskManager export file (.json) to import. This will add the data to your existing data.
+                Select a task/todo data file (.json) to import. This will add the data to your existing data.
               </p>
-              
+
               <div className="mt-4">
                 <input
                   ref={fileInputRef}
@@ -601,7 +668,7 @@ const SettingsPage: React.FC = () => {
                   Maximum file size: 10MB
                 </p>
               </div>
-              
+
               {importError && (
                 <div className="p-3 bg-red-50 text-red-700 rounded-md flex items-start">
                   <AlertCircle size={16} className="mr-2 mt-0.5 flex-shrink-0" />
@@ -622,28 +689,40 @@ const SettingsPage: React.FC = () => {
                   </ul>
                 </div>
               )}
-              
-              <div className="flex justify-end space-x-3 pt-4">
+
+              <div className="flex flex-wrap justify-between gap-2 pt-4">
                 <Button
                   variant="secondary"
-                  onClick={() => setImportModalOpen(false)}
+                  size="small"
+                  icon={<FileText size={14} />}
+                  onClick={handleAnalyzeFile}
+                  disabled={!importFile || isImporting || isAnalyzingFile}
                 >
-                  Cancel
+                  {isAnalyzingFile ? 'Analyzing...' : 'Analyze File Format'}
                 </Button>
-                <Button
-                  variant="primary"
-                  onClick={handleImportData}
-                  disabled={!importFile || isImporting}
-                >
-                  {isImporting ? (
-                    <>
-                      <Loader size={16} className="mr-2 animate-spin" />
-                      Importing... (please wait)
-                    </>
-                  ) : (
-                    'Import'
-                  )}
-                </Button>
+
+                <div className="flex space-x-2">
+                  <Button
+                    variant="secondary"
+                    onClick={() => setImportModalOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={() => handleImportData(false)}
+                    disabled={!importFile || isImporting}
+                  >
+                    {isImporting ? (
+                      <>
+                        <Loader size={16} className="mr-2 animate-spin" />
+                        Importing... (please wait)
+                      </>
+                    ) : (
+                      'Import'
+                    )}
+                  </Button>
+                </div>
               </div>
             </>
           ) : (
@@ -656,6 +735,84 @@ const SettingsPage: React.FC = () => {
                 Your data has been imported successfully.
               </p>
             </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* File Analysis Modal */}
+      <Modal
+        isOpen={showAnalysisModal}
+        onClose={() => setShowAnalysisModal(false)}
+        title="File Analysis Results"
+      >
+        <div className="space-y-4">
+          {fileAnalysisResult && (
+            <>
+              <div className={`p-3 rounded-md ${fileAnalysisResult.valid ? 'bg-green-50' : 'bg-red-50'}`}>
+                <h3 className={`text-lg font-medium ${fileAnalysisResult.valid ? 'text-green-700' : 'text-red-700'}`}>
+                  {fileAnalysisResult.valid
+                    ? `Valid ${fileAnalysisResult.format} format`
+                    : 'Invalid file format'}
+                </h3>
+                <p className="text-sm mt-1">
+                  {fileAnalysisResult.needsConversion
+                    ? 'This file needs conversion to be imported'
+                    : 'This file can be imported directly'}
+                </p>
+
+                {fileAnalysisResult.topLevelKeys.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-sm font-medium">File contains:</p>
+                    <ul className="text-xs mt-1 space-y-1">
+                      {fileAnalysisResult.topLevelKeys.map((key, index) => (
+                        <li key={index} className="text-gray-600">{key}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {fileAnalysisResult.conversionHints.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-sm font-medium">Analysis notes:</p>
+                    <ul className="text-xs mt-1 space-y-1 list-disc list-inside">
+                      {fileAnalysisResult.conversionHints.map((hint, index) => (
+                        <li key={index} className="text-gray-600">{hint}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              {convertedContent && (
+                <div className="p-3 bg-blue-50 rounded-md">
+                  <h3 className="text-md font-medium text-blue-700">Conversion Available</h3>
+                  <p className="text-sm mt-1">
+                    We've converted your file to a compatible format. You can import the converted data.
+                  </p>
+                </div>
+              )}
+
+              <div className="flex justify-between pt-4">
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowAnalysisModal(false)}
+                >
+                  Close
+                </Button>
+
+                {convertedContent && (
+                  <Button
+                    variant="primary"
+                    onClick={() => {
+                      handleImportData(true); // Import using the converted content
+                      setShowAnalysisModal(false);
+                    }}
+                  >
+                    Import Converted Data
+                  </Button>
+                )}
+              </div>
+            </>
           )}
         </div>
       </Modal>
