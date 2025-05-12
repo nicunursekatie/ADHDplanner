@@ -62,14 +62,20 @@ const SettingsPage: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [syncSuccess, setSyncSuccess] = useState<boolean | null>(null);
 
-  console.log('SettingsPage render - currentStorage:', currentStorage);
-  console.log('SettingsPage render - isConnected:', isConnected);
+  // Moved to useEffect
 
-  // Effect to update storage state when the context values change
+  // Effect to log when storage type changes
   useEffect(() => {
-    setCurrentStorage(getCurrentStorage());
+    const storage = getCurrentStorage();
+    setCurrentStorage(storage);
+    console.log('SettingsPage: currentStorage changed to:', storage);
+  }, [getCurrentStorage]);
+
+  // Effect to log when connection state changes
+  useEffect(() => {
     setIsConnected(isCloudConnected);
-  }, [getCurrentStorage, isCloudConnected]);
+    console.log('SettingsPage: isConnected changed to:', isCloudConnected);
+  }, [isCloudConnected]);
 
   // Function to check cloud connection
   const handleCheckConnection = async () => {
@@ -805,10 +811,7 @@ const SettingsPage: React.FC = () => {
                     variant="secondary"
                     size="small"
                     className="w-full mt-1"
-                    onClick={() => {
-                      console.log('Switch to Local Storage button clicked');
-                      handleSwitchStorage('dexie');
-                    }}
+                    onClick={() => handleSwitchStorage('dexie')}
                     disabled={isSwitchingStorage}
                   >
                     {isSwitchingStorage ? 'Switching...' : 'Switch to Local Storage'}
@@ -882,10 +885,7 @@ const SettingsPage: React.FC = () => {
                     variant="secondary"
                     size="small"
                     className="w-full mt-1"
-                    onClick={() => {
-                      console.log('Switch to Cloud Storage button clicked');
-                      handleSwitchStorage('supabase');
-                    }}
+                    onClick={() => handleSwitchStorage('supabase')}
                     disabled={isSwitchingStorage || !isConnected}
                     title={!isConnected ? "Cannot switch to cloud storage while offline" : ""}
                   >
@@ -939,10 +939,7 @@ const SettingsPage: React.FC = () => {
                 <Button
                   variant="secondary"
                   size="small"
-                  onClick={() => {
-                    console.log('Sync to Cloud button clicked');
-                    handleSyncToCloud();
-                  }}
+                  onClick={() => handleSyncToCloud()}
                   disabled={isSyncing || !isConnected}
                 >
                   {isSyncing ? (
@@ -961,10 +958,7 @@ const SettingsPage: React.FC = () => {
                 <Button
                   variant="secondary"
                   size="small"
-                  onClick={() => {
-                    console.log('Sync from Cloud button clicked');
-                    handleSyncFromCloud();
-                  }}
+                  onClick={() => handleSyncFromCloud()}
                   disabled={isSyncing || !isConnected}
                 >
                   {isSyncing ? (
