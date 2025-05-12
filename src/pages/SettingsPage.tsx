@@ -213,34 +213,40 @@ const SettingsPage: React.FC = () => {
   // Helper function to process the import content
   const processImport = async (content: string, progressInterval: number) => {
     try {
-      // Less restrictive validation - just check if it looks like JSON
-      if (!content.trim().startsWith('{') || !content.trim().endsWith('}')) {
-        console.error('File doesn\'t appear to be JSON');
-        setImportError('The file doesn\'t appear to be a valid JSON file. It should start with { and end with }.');
-        setIsImporting(false);
-        clearInterval(progressInterval);
-        document.title = "ADHDplanner";
-        return;
-      }
+      // Skip validation when using an analyzed file
+      const isAlreadyAnalyzed = fileAnalysisResult && fileAnalysisResult.valid;
 
-      // Look for basic data markers without trying to parse the whole file
+      if (!isAlreadyAnalyzed) {
+        // Only do validation if file hasn't been analyzed
+        // Less restrictive validation - just check if it looks like JSON
+        if (!content.trim().startsWith('{') || !content.trim().endsWith('}')) {
+          console.error('File doesn\'t appear to be JSON');
+          setImportError('The file doesn\'t appear to be a valid JSON file. It should start with { and end with }.');
+          setIsImporting(false);
+          clearInterval(progressInterval);
+          document.title = "ADHDplanner";
+          return;
+        }
 
-      // More lenient check for required properties - any one of these would indicate it's likely our format
-      const possibleProps = [
-        '"tasks":', '"projects":', '"categories":',
-        '"Tasks":', '"Projects":', '"Categories":',
-        '"dailyPlans":', '"DailyPlans":',
-        '"journalEntries":', '"JournalEntries":'
-      ];
+        // More lenient check for required properties - any one of these would indicate it's likely our format
+        const possibleProps = [
+          '"tasks":', '"projects":', '"categories":',
+          '"Tasks":', '"Projects":', '"Categories":',
+          '"dailyPlans":', '"DailyPlans":',
+          '"journalEntries":', '"JournalEntries":'
+        ];
 
-      const hasAnyProps = possibleProps.some(prop => content.includes(prop));
+        const hasAnyProps = possibleProps.some(prop => content.includes(prop));
 
-      if (!hasAnyProps) {
-        console.warn('File lacks expected properties');
-        // Continue anyway - user has explicitly chosen to import this
-        console.log('Continuing import despite missing expected properties...');
+        if (!hasAnyProps) {
+          console.warn('File lacks expected properties');
+          // Continue anyway - user has explicitly chosen to import this
+          console.log('Continuing import despite missing expected properties...');
+        } else {
+          console.log('Import basic validation passed, proceeding with import...');
+        }
       } else {
-        console.log('Import basic validation passed, proceeding with import...');
+        console.log('Using already analyzed file, skipping validation checks...');
       }
 
       // Start import with processed data chunks
@@ -708,20 +714,37 @@ const SettingsPage: React.FC = () => {
                   >
                     Cancel
                   </Button>
-                  <Button
-                    variant="primary"
-                    onClick={() => handleImportData(false)}
-                    disabled={!importFile || isImporting}
-                  >
-                    {isImporting ? (
-                      <>
-                        <Loader size={16} className="mr-2 animate-spin" />
-                        Importing... (please wait)
-                      </>
-                    ) : (
-                      'Import'
-                    )}
-                  </Button>
+                  {fileAnalysisResult && fileAnalysisResult.valid ? (
+                    <Button
+                      variant="primary"
+                      onClick={() => handleImportData(!!convertedContent)}
+                      disabled={isImporting}
+                    >
+                      {isImporting ? (
+                        <>
+                          <Loader size={16} className="mr-2 animate-spin" />
+                          Importing... (please wait)
+                        </>
+                      ) : (
+                        'Import Analyzed File'
+                      )}
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="primary"
+                      onClick={() => handleImportData(false)}
+                      disabled={!importFile || isImporting}
+                    >
+                      {isImporting ? (
+                        <>
+                          <Loader size={16} className="mr-2 animate-spin" />
+                          Importing... (please wait)
+                        </>
+                      ) : (
+                        'Import'
+                      )}
+                    </Button>
+                  )}
                 </div>
               </div>
             </>

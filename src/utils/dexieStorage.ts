@@ -383,12 +383,26 @@ export const importData = async (jsonData: string): Promise<boolean> => {
     const CHUNK_SIZE = 50;
 
     // Check for basic JSON validity before attempting full parse
+    // But we'll be more lenient to support various formats
+    if (!jsonData.trim().startsWith('{') || !jsonData.trim().endsWith('}')) {
+      try {
+        // Try to wrap it in an object if it's not already an object
+        jsonData = `{ "data": ${jsonData} }`;
+        // Test if this fixed the issue
+        JSON.parse(jsonData.slice(0, 100));
+      } catch (validationError) {
+        console.error('Invalid JSON format even after attempted fixes:', validationError);
+        return false;
+      }
+    }
+
     try {
-      // Just validate JSON structure without keeping the whole result in memory
-      JSON.parse(jsonData.slice(0, 1000) + jsonData.slice(-10));
+      // Very quick basic validation without parsing whole file
+      JSON.parse(jsonData.slice(0, 100) + jsonData.slice(-10));
     } catch (validationError) {
       console.error('Invalid JSON format:', validationError);
-      return false;
+      // Continue anyway - we'll let the section parser handle it
+      console.log('Attempting to continue despite JSON validation error...');
     }
 
     // Process data in sections to prevent loading everything into memory at once
@@ -399,12 +413,17 @@ export const importData = async (jsonData: string): Promise<boolean> => {
       // Helper function to extract a section of the JSON
       const extractSection = (sectionName: string, source: string): unknown[] | null => {
         try {
-          // Check for different possible property name formats
+          // More variations for property name formats
           const possibleNames = [
             `"${sectionName}":`,
             `"${sectionName.toLowerCase()}":`,
             `"${sectionName.toUpperCase()}":`,
             `"${sectionName[0].toUpperCase() + sectionName.slice(1).toLowerCase()}":`,
+            // Add even more variations with various quotes and whitespace
+            `'${sectionName}':`,
+            `${sectionName}:`,
+            `"${sectionName}" :`,  // Space after property name
+            `"${sectionName}"  :`, // Multiple spaces
           ];
 
           // Find the first matching section
@@ -417,6 +436,17 @@ export const importData = async (jsonData: string): Promise<boolean> => {
               sectionStart = index;
               matchedName = propName;
               break;
+            }
+          }
+
+          // Try even more flexible pattern matching if still not found
+          if (sectionStart === -1) {
+            // Case-insensitive search with regexp
+            const regex = new RegExp(`["']?${sectionName}["']?\\s*:`, 'i');
+            const match = source.match(regex);
+            if (match && match.index !== undefined) {
+              sectionStart = match.index;
+              matchedName = match[0];
             }
           }
 
@@ -509,7 +539,33 @@ export const importData = async (jsonData: string): Promise<boolean> => {
       // Process sections in sequence with breaks for UI responsiveness
 
       // 1. Process tasks (usually the largest data set)
-      const tasks = extractSection('tasks', jsonData);
+      let tasks = extractSection('tasks', jsonData);
+
+      // Fallback: if no tasks found but 'data' field exists, try that
+      if ((!tasks || tasks.length === 0) && jsonData.includes('"data"')) {
+        console.log('No tasks found, but data field exists - trying to extract from there');
+        const dataSection = extractSection('data', jsonData);
+
+        if (dataSection && Array.isArray(dataSection) && dataSection.length > 0) {
+          console.log('Found data array, treating as tasks');
+          tasks = dataSection;
+        }
+      }
+
+      // Another fallback: try to extract from root level array
+      if ((!tasks || tasks.length === 0) && jsonData.trim().startsWith('[')) {
+        try {
+          console.log('No tasks found, but JSON starts with array - trying to parse as task array');
+          const rootArray = JSON.parse(jsonData);
+          if (Array.isArray(rootArray) && rootArray.length > 0) {
+            console.log('Found root array, treating as tasks');
+            tasks = rootArray;
+          }
+        } catch (error) {
+          console.error('Error parsing root array:', error);
+        }
+      }
+
       if (tasks && Array.isArray(tasks) && tasks.length > 0) {
         console.log(`Adding ${tasks.length} tasks in chunks`);
         const taskChunks = chunkArray(tasks, CHUNK_SIZE);
