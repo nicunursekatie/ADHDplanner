@@ -1,11 +1,15 @@
+// Load .env in local dev. Remove in production on Supabase Edge.
+import "https://deno.land/std@0.168.0/dotenv/load.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // ─── Load environment variables ─────────────────────────────────
-const supabaseUrl = Deno.env.get("https://qhucdunadrbnfcjdnkxr.supabase.co") || "";
-const supabaseKey = Deno.env.get("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFodWNkdW5hZHJibmZjamRua3hyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NjkwOTU3OSwiZXhwIjoyMDYyNDg1NTc5fQ.mUhXVB7sCpoZoq4MdOyCWANz-oHdK5-GC0IpqeRozKI") || "";
+// Use the variable NAMES from your .env, not the actual URL/key strings.
+const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+const supabaseKey = Deno.env.get("SUPABASE_KEY") || "";
+
 if (!supabaseUrl || !supabaseKey) {
-  console.error("Missing SUPABASE_URL or SERVICE_ROLE_KEY");
+  console.error("Missing SUPABASE_URL or SUPABASE_KEY");
   Deno.exit(1);
 }
 
@@ -14,20 +18,18 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // ─── Edge function handler ───────────────────────────────────────
 serve(async (req) => {
-  // Common CORS headers
   const headers = new Headers({
-    'Access-Control-Allow-Origin': '*', // restrict in production
+    'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Content-Type': 'application/json'
   });
 
-  // Handle preflight
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers });
   }
 
-  // Only GET supported
   if (req.method !== 'GET') {
     return new Response(
       JSON.stringify({ error: 'Method not allowed' }),
@@ -36,9 +38,9 @@ serve(async (req) => {
   }
 
   try {
-    // Query the table
+    // Query your work_schedules table
     const { data, error } = await supabase
-      .from('work_schedules')  // ← replace with your actual table name
+      .from('work_schedules')
       .select('*');
 
     if (error) {
@@ -48,7 +50,6 @@ serve(async (req) => {
       );
     }
 
-    // Return the data
     return new Response(JSON.stringify({ data }), { status: 200, headers });
   } catch (err) {
     console.error(err);
