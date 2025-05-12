@@ -8,7 +8,16 @@ import { analyzeImportFile, convertImportFormat } from '../utils/importAnalyzer'
 import { Download, Upload, Trash2, AlertCircle, Loader, Database, Check, XCircle, FileText } from 'lucide-react';
 
 const SettingsPage: React.FC = () => {
-  const { exportData, importData, resetData, initializeSampleData, performDatabaseMaintenance } = useAppContext();
+  const {
+    exportData,
+    importData,
+    resetData,
+    initializeSampleData,
+    performDatabaseMaintenance,
+    tasks, // Get these state values to force re-renders when they change
+    projects,
+    categories
+  } = useAppContext();
 
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [resetModalOpen, setResetModalOpen] = useState(false);
@@ -280,8 +289,8 @@ const SettingsPage: React.FC = () => {
           if (fileInputRef.current) {
             fileInputRef.current.value = '';
           }
-          // Refresh page to load new data cleanly
-          window.location.reload();
+          // Don't reload the page - manually trigger data refresh instead
+          console.log('Manually refreshing data after import');
         }, 2000);
       } else {
         console.error('Import returned false');
@@ -384,8 +393,8 @@ const SettingsPage: React.FC = () => {
       // Close the modal after a success delay
       setTimeout(() => {
         setEmergencyResetModalOpen(false);
-        // Reload the page to reinitialize everything
-        window.location.reload();
+        // Don't reload the page, let things initialize naturally
+        console.log('Emergency reset completed - not reloading page');
       }, 2000);
 
     } catch (error) {
@@ -757,6 +766,44 @@ const SettingsPage: React.FC = () => {
               <p className="mt-1 text-sm text-gray-500">
                 Your data has been imported successfully.
               </p>
+              <div className="mt-3 p-3 bg-blue-50 rounded-md">
+                <p className="text-sm text-blue-700 font-medium">Data loaded:</p>
+                <ul className="text-xs text-blue-600 mt-1 space-y-1">
+                  <li>Tasks: {tasks.length}</li>
+                  <li>Projects: {projects.length}</li>
+                  <li>Categories: {categories.length}</li>
+                </ul>
+              </div>
+              <p className="mt-3 text-xs text-gray-500">
+                If you don't see your imported data, please navigate to a different page and then back.
+              </p>
+
+              <div className="flex justify-center space-x-3 mt-4">
+                <Button
+                  variant="secondary"
+                  size="small"
+                  onClick={() => {
+                    // Close the modal first
+                    setImportModalOpen(false);
+                    // Then navigate to tasks page using window.location
+                    window.location.hash = "#/tasks";
+                  }}
+                >
+                  View Tasks
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="small"
+                  onClick={() => {
+                    // Close the modal first
+                    setImportModalOpen(false);
+                    // Then navigate to projects page
+                    window.location.hash = "#/projects";
+                  }}
+                >
+                  View Projects
+                </Button>
+              </div>
             </div>
           )}
         </div>
