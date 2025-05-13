@@ -183,8 +183,16 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
       const section = reviewSections.find(s => s.id === activeSectionId);
       if (section) {
         if (currentPromptIndex < section.prompts.length - 1) {
+          // If there's journal content in the current prompt, save it
+          if (journalInput.trim()) {
+            handleSaveJournal();
+          }
+
+          // Move to the next prompt
           setCurrentPromptIndex(currentPromptIndex + 1);
         } else {
+          // Last prompt - process completion
+
           // If there's journal content, save it before completing the section
           if (journalInput.trim()) {
             handleSaveJournal();
@@ -325,6 +333,10 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
           // Reset loading state if component is still mounted
           if (isMounted.current) {
             setIsSavingJournal(false);
+
+            // Keep the journal input available after saving
+            // This is the key fix: don't hide the journal after saving
+            setShowJournal(true);
           }
         }
       }, 100); // Small delay to let UI update first
