@@ -6,8 +6,9 @@ import {
   HelpCircle,
   BrainCircuit,
   RefreshCw,
-  ListChecks,
-  BookOpen
+  ListChecks
+  // JOURNAL FEATURE DISABLED
+  // BookOpen
 } from 'lucide-react';
 import WeeklyReviewStatus from '../components/planning/WeeklyReviewStatus';
 import { useAppContext } from '../context/AppContext';
@@ -173,6 +174,7 @@ const Dashboard: React.FC = () => {
                   </div>
                 </Link>
 
+                {/* JOURNAL FEATURE DISABLED
                 <Link to="/journal">
                   <div className="p-3 bg-violet-50 rounded-lg hover:bg-violet-100 transition-colors cursor-pointer flex items-center justify-between">
                     <div className="flex items-center">
@@ -182,6 +184,7 @@ const Dashboard: React.FC = () => {
                     <ArrowRight size={16} className="text-violet-500" />
                   </div>
                 </Link>
+                */}
 
                 <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg mt-3">
                   <p className="text-sm text-gray-600">

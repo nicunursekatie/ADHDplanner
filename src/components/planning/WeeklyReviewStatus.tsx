@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useAppContext } from '../../context/AppContext';
+// JOURNAL FEATURE DISABLED
+// import { useAppContext } from '../../context/AppContext';
 import { RefreshCw, CheckCircle, AlertTriangle } from 'lucide-react';
 import { getISOWeekAndYear } from '../../utils/helpers';
 
@@ -9,7 +10,9 @@ interface WeeklyReviewStatusProps {
 }
 
 const WeeklyReviewStatus: React.FC<WeeklyReviewStatusProps> = ({ compact = false }) => {
-  const { getLatestWeeklyReview } = useAppContext();
+  // JOURNAL FEATURE DISABLED
+  // const { getLatestWeeklyReview } = useAppContext();
+  // Using a stub since the actual function is disabled
   
   // Get current week information
   const today = useMemo(() => new Date(), []);
@@ -17,8 +20,10 @@ const WeeklyReviewStatus: React.FC<WeeklyReviewStatusProps> = ({ compact = false
     getISOWeekAndYear(today), [today]
   );
   
+  // JOURNAL FEATURE DISABLED
   // Get last completed review
-  const latestReview = getLatestWeeklyReview();
+  // const latestReview = getLatestWeeklyReview();
+  const latestReview = null; // Stubbed since journal feature is disabled
   
   // Determine if review is due
   const isReviewDue = useMemo(() => {
@@ -36,29 +41,8 @@ const WeeklyReviewStatus: React.FC<WeeklyReviewStatusProps> = ({ compact = false
     return true;
   }, [latestReview, currentWeekNumber, currentWeekYear]);
   
-  // Format date nicely for display
-  const formatDate = (entries?: { updatedAt: string }[]) => {
-    if (!entries || !Array.isArray(entries) || entries.length === 0) return 'Never';
-
-    // Find the most recent entry
-    const sortedEntries = [...entries].sort((a, b) =>
-      new Date(b.updatedAt || '').getTime() - new Date(a.updatedAt || '').getTime()
-    );
-    
-    const latestEntry = sortedEntries[0];
-
-    if (!latestEntry || !latestEntry.updatedAt) return 'Never';
-
-    const date = new Date(latestEntry.updatedAt);
-    
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'short', 
-      month: 'short', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
+  // JOURNAL FEATURE DISABLED
+  // Format date nicely for display is no longer needed
   
   // For compact version (used in dashboard)
   if (compact) {
@@ -133,10 +117,8 @@ const WeeklyReviewStatus: React.FC<WeeklyReviewStatusProps> = ({ compact = false
             }
           </div>
           <div className="text-xs text-gray-500 mt-1">
-            {latestReview && latestReview.entries
-              ? `Completed: ${formatDate(latestReview.entries)}`
-              : 'Time to start your first review!'
-            }
+            {/* JOURNAL FEATURE DISABLED */}
+            Time to start your first review!
           </div>
         </div>
       </div>

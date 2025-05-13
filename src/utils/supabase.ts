@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Task, Project, Category, DailyPlan, JournalEntry } from '../types';
+import { Task, Project, Category, DailyPlan } from '../types'; // JOURNAL FEATURE DISABLED: Removed JournalEntry import
 import { WorkSchedule } from '../types/WorkSchedule';
 
 // Initialize Supabase client
@@ -440,13 +440,15 @@ export const saveWorkSchedule = async (schedule: WorkSchedule): Promise<void> =>
   }
 };
 
+// JOURNAL FEATURE DISABLED
+/*
 // Journal Entries
 export const getJournalEntries = async (): Promise<JournalEntry[]> => {
   try {
     const { data, error } = await supabase
       .from('journal_entries')
       .select('*');
-      
+
     if (error) throw error;
     return data || [];
   } catch (error) {
@@ -462,9 +464,9 @@ export const saveJournalEntries = async (entries: JournalEntry[]): Promise<void>
       .from('journal_entries')
       .delete()
       .not('id', 'is', null);
-      
+
     if (deleteError) throw deleteError;
-    
+
     // Then insert the new ones in chunks
     if (entries.length > 0) {
       const CHUNK_SIZE = 100;
@@ -473,7 +475,7 @@ export const saveJournalEntries = async (entries: JournalEntry[]): Promise<void>
         const { error: insertError } = await supabase
           .from('journal_entries')
           .insert(chunk);
-          
+
         if (insertError) throw insertError;
       }
     }
@@ -481,6 +483,7 @@ export const saveJournalEntries = async (entries: JournalEntry[]): Promise<void>
     console.error('Error saving journal entries to Supabase:', error);
   }
 };
+*/
 
 // Data Import/Export
 export const exportData = async (): Promise<string> => {
@@ -491,8 +494,8 @@ export const exportData = async (): Promise<string> => {
     const categories = await getCategories();
     const dailyPlans = await getDailyPlans();
     const workSchedule = await getWorkSchedule();
-    const journalEntries = await getJournalEntries();
-    
+    // JOURNAL FEATURE DISABLED: const journalEntries = await getJournalEntries();
+
     // Create an export object
     const exportObject = {
       tasks,
@@ -500,7 +503,7 @@ export const exportData = async (): Promise<string> => {
       categories,
       dailyPlans,
       workSchedule,
-      journalEntries,
+      // JOURNAL FEATURE DISABLED: journalEntries,
       exportDate: new Date().toISOString(),
       version: '1.0.0'
     };
@@ -553,10 +556,13 @@ export const importData = async (jsonData: string): Promise<boolean> => {
       await saveWorkSchedule(data.workSchedule);
     }
     
+    // JOURNAL FEATURE DISABLED
+    /*
     // Import journal entries
     if (data.journalEntries && Array.isArray(data.journalEntries)) {
       await saveJournalEntries(data.journalEntries);
     }
+    */
     
     console.log('Data import to Supabase completed successfully');
     return true;
@@ -576,9 +582,9 @@ export const resetData = async (): Promise<void> => {
       'tasks', 
       'projects', 
       'categories', 
-      'daily_plans', 
-      'work_schedules', 
-      'journal_entries'
+      'daily_plans',
+      'work_schedules'
+      // JOURNAL FEATURE DISABLED: 'journal_entries'
     ];
     
     // Delete data from each table
@@ -791,8 +797,9 @@ export const syncToSupabase = async (): Promise<boolean> => {
         const dailyPlans = await dexieStorage.getDailyPlans();
         console.log('supabase.ts: Fetching work schedule...');
         const workSchedule = await dexieStorage.getWorkSchedule();
-        console.log('supabase.ts: Fetching journal entries...');
-        const journalEntries = await dexieStorage.getJournalEntries();
+        console.log('supabase.ts: Journal entries feature disabled');
+        // JOURNAL FEATURE DISABLED: const journalEntries = await dexieStorage.getJournalEntries();
+        const journalEntries = []; // Empty array since feature is disabled
 
         console.log('supabase.ts: Data fetch summary:');
         console.log(`supabase.ts: - Tasks: ${tasks.length}`);
@@ -800,7 +807,7 @@ export const syncToSupabase = async (): Promise<boolean> => {
         console.log(`supabase.ts: - Categories: ${categories.length}`);
         console.log(`supabase.ts: - Daily Plans: ${dailyPlans.length}`);
         console.log(`supabase.ts: - Work Schedule: ${workSchedule ? 'Present' : 'None'}`);
-        console.log(`supabase.ts: - Journal Entries: ${journalEntries.length}`);
+        console.log(`supabase.ts: - Journal Entries: DISABLED`);
 
         // Upload to Supabase
         console.log('supabase.ts: Uploading data to Supabase...');
@@ -908,6 +915,8 @@ export const syncToSupabase = async (): Promise<boolean> => {
           syncResults.workSchedule = false;
         }
 
+        // JOURNAL FEATURE DISABLED
+        /*
         // Sync journal entries
         try {
           console.log(`supabase.ts: Syncing ${journalEntries.length} journal entries...`);
@@ -927,6 +936,10 @@ export const syncToSupabase = async (): Promise<boolean> => {
           }
           syncResults.journalEntries = false;
         }
+        */
+        // Set journal entries sync result to true since feature is disabled
+        console.log('supabase.ts: Journal entries feature disabled - skipping sync');
+        syncResults.journalEntries = true;
 
         // Evaluate overall sync success
         const allSuccess = Object.values(syncResults).every(result => result);
@@ -1078,6 +1091,8 @@ export const syncFromSupabase = async (): Promise<boolean> => {
         fetchResults.workSchedule = null;
       }
 
+      // JOURNAL FEATURE DISABLED
+      /*
       // Fetch journal entries
       try {
         console.log('supabase.ts: Fetching journal entries from Supabase...');
@@ -1093,6 +1108,10 @@ export const syncFromSupabase = async (): Promise<boolean> => {
         }
         fetchResults.journalEntries = [];
       }
+      */
+      // Set empty journal entries array since feature is disabled
+      console.log('supabase.ts: Journal entries feature disabled - skipping fetch');
+      fetchResults.journalEntries = [];
 
       // Verify we have data to sync
       if (!hasDataToSync) {
@@ -1212,6 +1231,8 @@ export const syncFromSupabase = async (): Promise<boolean> => {
         saveResults.workSchedule = false;
       }
 
+      // JOURNAL FEATURE DISABLED
+      /*
       // Save journal entries
       try {
         const journalEntries = fetchResults.journalEntries || [];
@@ -1232,6 +1253,10 @@ export const syncFromSupabase = async (): Promise<boolean> => {
         }
         saveResults.journalEntries = false;
       }
+      */
+      // Set journal entries save result to true since feature is disabled
+      console.log('supabase.ts: Journal entries feature disabled - skipping save to Dexie');
+      saveResults.journalEntries = true;
 
       // Evaluate overall sync success
       const allSuccess = Object.values(saveResults).every(result => result);

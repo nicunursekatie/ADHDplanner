@@ -19,7 +19,7 @@ import SettingsPage from './pages/SettingsPage';
 import BrainDumpPage from './pages/BrainDumpPage';
 import WeeklyReviewPage from './pages/WeeklyReviewPage';
 import AccountabilityPage from './pages/AccountabilityPage';
-import JournalPage from './pages/JournalPage';
+// JOURNAL FEATURE DISABLED: import JournalPage from './pages/JournalPage';
 
 // Emergency database reset component
 const EmergencyReset: React.FC = () => {
@@ -107,7 +107,7 @@ function App() {
             <Route path="/brain-dump" element={<BrainDumpPage />} />
             <Route path="/weekly-review" element={<WeeklyReviewPage />} />
             <Route path="/accountability" element={<AccountabilityPage />} />
-            <Route path="/journal" element={<JournalPage />} />
+            {/* JOURNAL FEATURE DISABLED: <Route path="/journal" element={<JournalPage />} /> */}
           </Routes>
         </Layout>
       </Router>

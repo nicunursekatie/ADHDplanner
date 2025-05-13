@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { Task, JournalEntry } from '../../types';
+import { Task } from '../../types'; // JOURNAL FEATURE DISABLED: Removed JournalEntry
 import { getISOWeekAndYear } from '../../utils/helpers';
 import Card from '../common/Card';
 import Button from '../common/Button';
@@ -15,10 +15,11 @@ import {
   LayoutGrid,
   NotebookPen,
   Plus,
-  RefreshCw,
-  Save,
-  BookOpen,
-  Loader
+  RefreshCw
+  // JOURNAL FEATURE DISABLED
+  // Save,
+  // BookOpen,
+  // Loader
 } from 'lucide-react';
 
 interface WeeklyReviewSystemProps {
@@ -39,22 +40,27 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
     tasks,
     projects,
     quickAddTask,
-    updateTask,
-    addJournalEntry,
-    updateJournalEntry,
-    getJournalEntriesForWeek
+    updateTask
+    // JOURNAL FEATURE DISABLED
+    // addJournalEntry,
+    // updateJournalEntry,
+    // getJournalEntriesForWeek
   } = useAppContext();
 
   // Refs for component lifecycle and performance
   const isMounted = useRef(true);
   const [taskInput, setTaskInput] = useState('');
-  const [journalInput, setJournalInput] = useState('');
-  const [currentJournalEntry, setCurrentJournalEntry] = useState<JournalEntry | null>(null);
+  // JOURNAL FEATURE DISABLED
+  // const [journalInput, setJournalInput] = useState('');
+  // JOURNAL FEATURE DISABLED
+  // const [currentJournalEntry, setCurrentJournalEntry] = useState<JournalEntry | null>(null);
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
   const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
-  const [isSavingJournal, setIsSavingJournal] = useState(false);
+  // JOURNAL FEATURE DISABLED
+  // const [isSavingJournal, setIsSavingJournal] = useState(false);
   const [reviewComplete, setReviewComplete] = useState(false);
-  const [showJournal, setShowJournal] = useState(false);
+  // JOURNAL FEATURE DISABLED
+  // const [showJournal, setShowJournal] = useState(false);
 
   // Get dates for this week and next week using useMemo to avoid re-creating on every render
   const today = useMemo(() => new Date(), []);
@@ -67,8 +73,11 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
   }, []);
 
   // Get current week information
-  const { weekNumber, weekYear } = useMemo(() => getISOWeekAndYear(today), [today]);
-  const [currentWeekEntries, setCurrentWeekEntries] = useState<JournalEntry[]>([]);
+  // JOURNAL FEATURE DISABLED: These variables are not used with journal features disabled
+  // const { weekNumber, weekYear } = useMemo(() => getISOWeekAndYear(today), [today]);
+  useMemo(() => getISOWeekAndYear(today), [today]); // Still call to avoid changing dependencies
+  // JOURNAL FEATURE DISABLED
+  // const [currentWeekEntries, setCurrentWeekEntries] = useState<JournalEntry[]>([]);
   const nextWeek = useMemo(() => {
     const date = new Date();
     date.setDate(date.getDate() + 7);
@@ -185,22 +194,23 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
         if (currentPromptIndex < section.prompts.length - 1) {
           setCurrentPromptIndex(currentPromptIndex + 1);
         } else {
-          // If there's journal content, save it before completing the section
-          if (journalInput.trim()) {
-            handleSaveJournal();
-          } else if (!isSectionCompleted(activeSectionId)) {
-            // Create a placeholder entry to mark this section as complete
-            const todayStr = today.toISOString().split('T')[0];
-            const newEntry = addJournalEntry({
-              date: todayStr,
-              content: "Section completed",
-              reviewSectionId: activeSectionId,
-              weekNumber,
-              weekYear,
-              isCompleted: true
-            });
-            setCurrentWeekEntries(prev => [...prev, newEntry]);
-          }
+          // JOURNAL FEATURE DISABLED
+          // // If there's journal content, save it before completing the section
+          // if (journalInput.trim()) {
+          //   handleSaveJournal();
+          // } else if (!isSectionCompleted(activeSectionId)) {
+          //   // Create a placeholder entry to mark this section as complete
+          //   const todayStr = today.toISOString().split('T')[0];
+          //   const newEntry = addJournalEntry({
+          //     date: todayStr,
+          //     content: "Section completed",
+          //     reviewSectionId: activeSectionId,
+          //     weekNumber,
+          //     weekYear,
+          //     isCompleted: true
+          //   });
+          //   setCurrentWeekEntries(prev => [...prev, newEntry]);
+          // }
 
           // Mark section as complete in UI
           const updatedSections = reviewSections.map(s =>
@@ -210,10 +220,8 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
           setActiveSectionId(null);
           setCurrentPromptIndex(0);
 
-          // Check if all sections are complete (either marked in UI or in database)
-          const allSectionsComplete = updatedSections.every(s =>
-            s.complete || isSectionCompleted(s.id)
-          );
+          // Check if all sections are complete in UI (journal-based completion is disabled)
+          const allSectionsComplete = updatedSections.every(s => s.complete);
 
           if (allSectionsComplete) {
             setReviewComplete(true);
@@ -235,124 +243,128 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
     }
   };
 
-  // Get journal entries for the current week when component loads
+  // JOURNAL FEATURE DISABLED
+  // // Get journal entries for the current week when component loads
+  // useEffect(() => {
+  //   const entries = getJournalEntriesForWeek(weekNumber, weekYear);
+  //   setCurrentWeekEntries(entries);
+
+  //   // Check if the review is already complete for this week
+  //   const allSectionsCompleted = reviewSections.every(section => {
+  //     const sectionEntries = entries.filter(entry => entry.reviewSectionId === section.id);
+  //     return sectionEntries.some(entry =>
+  //       entry.isCompleted || (entry.content && entry.content.trim().length > 0)
+  //     );
+  //   });
+
+  //   setReviewComplete(allSectionsCompleted);
+  // }, [weekNumber, weekYear, getJournalEntriesForWeek, reviewSections]);
+
+  // Set review complete to false initially since we don't have journal entries to check
   useEffect(() => {
-    const entries = getJournalEntriesForWeek(weekNumber, weekYear);
-    setCurrentWeekEntries(entries);
-
-    // Check if the review is already complete for this week
-    const allSectionsCompleted = reviewSections.every(section => {
-      const sectionEntries = entries.filter(entry => entry.reviewSectionId === section.id);
-      return sectionEntries.some(entry =>
-        entry.isCompleted || (entry.content && entry.content.trim().length > 0)
-      );
-    });
-
-    setReviewComplete(allSectionsCompleted);
-  }, [weekNumber, weekYear, getJournalEntriesForWeek, reviewSections]);
-
-  // Load current journal entry when section changes
-  useEffect(() => {
-    if (activeSectionId) {
-      // Find an entry for this section in the current week
-      const sectionEntry = currentWeekEntries.find(entry => entry.reviewSectionId === activeSectionId);
-
-      if (sectionEntry) {
-        setCurrentJournalEntry(sectionEntry);
-        setJournalInput(sectionEntry.content || '');
-        // Show journal if it exists
-        setShowJournal(true);
-      } else {
-        setCurrentJournalEntry(null);
-        setJournalInput('');
-        // Hide journal if no entry exists yet
-        setShowJournal(false);
-      }
-    }
-  }, [activeSectionId, currentWeekEntries]);
-
-  const handleSaveJournal = useCallback(() => {
-    if (!journalInput.trim() || isSavingJournal) return;
-
-    // Set loading state
-    setIsSavingJournal(true);
-
-    try {
-      const todayStr = today.toISOString().split('T')[0];
-
-      setTimeout(() => {
-        if (!isMounted.current) return;
-
-        try {
-          if (currentJournalEntry) {
-            // Update existing entry
-            const updatedEntry: JournalEntry = {
-              ...currentJournalEntry,
-              content: journalInput,
-              isCompleted: true, // Mark as completed when saved
-              updatedAt: new Date().toISOString()
-            };
-            updateJournalEntry(updatedEntry);
-
-            // Update the current week entries if component is still mounted
-            if (isMounted.current) {
-              setCurrentWeekEntries(prev =>
-                prev.map(entry => entry.id === updatedEntry.id ? updatedEntry : entry)
-              );
-              setCurrentJournalEntry(updatedEntry);
-            }
-          } else {
-            // Create new entry
-            const newEntry = addJournalEntry({
-              date: todayStr,
-              content: journalInput,
-              reviewSectionId: activeSectionId || undefined,
-              weekNumber,
-              weekYear,
-              isCompleted: true
-            });
-
-            // Update state if component is still mounted
-            if (isMounted.current) {
-              setCurrentJournalEntry(newEntry);
-              // Add to current week entries
-              setCurrentWeekEntries(prev => [...prev, newEntry]);
-            }
-          }
-        } catch (error) {
-          console.error('Error saving journal entry:', error);
-        } finally {
-          // Reset loading state if component is still mounted
-          if (isMounted.current) {
-            setIsSavingJournal(false);
-          }
-        }
-      }, 100); // Small delay to let UI update first
-    } catch (error) {
-      console.error('Error in handleSaveJournal:', error);
-      if (isMounted.current) {
-        setIsSavingJournal(false);
-      }
-    }
-  }, [journalInput, currentJournalEntry, today, activeSectionId, weekNumber, weekYear, updateJournalEntry, addJournalEntry, isSavingJournal]);
-
-  const toggleJournal = useCallback(() => {
-    if (isMounted.current) {
-      setShowJournal(prev => !prev);
-    }
+    setReviewComplete(false);
   }, []);
 
-  // Helper to check if a section is completed based on journal entries
+  // JOURNAL FEATURE DISABLED
+  // // Load current journal entry when section changes
+  // useEffect(() => {
+  //   if (activeSectionId) {
+  //     // Find an entry for this section in the current week
+  //     const sectionEntry = currentWeekEntries.find(entry => entry.reviewSectionId === activeSectionId);
+
+  //     if (sectionEntry) {
+  //       setCurrentJournalEntry(sectionEntry);
+  //       setJournalInput(sectionEntry.content || '');
+  //       // Show journal if it exists
+  //       setShowJournal(true);
+  //     } else {
+  //       setCurrentJournalEntry(null);
+  //       setJournalInput('');
+  //       // Hide journal if no entry exists yet
+  //       setShowJournal(false);
+  //     }
+  //   }
+  // }, [activeSectionId, currentWeekEntries]);
+
+  // JOURNAL FEATURE DISABLED
+  // const handleSaveJournal = useCallback(() => {
+  //   if (!journalInput.trim() || isSavingJournal) return;
+
+  //   // Set loading state
+  //   setIsSavingJournal(true);
+
+  //   try {
+  //     const todayStr = today.toISOString().split('T')[0];
+
+  //     setTimeout(() => {
+  //       if (!isMounted.current) return;
+
+  //       try {
+  //         if (currentJournalEntry) {
+  //           // Update existing entry
+  //           const updatedEntry: JournalEntry = {
+  //             ...currentJournalEntry,
+  //             content: journalInput,
+  //             isCompleted: true, // Mark as completed when saved
+  //             updatedAt: new Date().toISOString()
+  //           };
+  //           updateJournalEntry(updatedEntry);
+
+  //           // Update the current week entries if component is still mounted
+  //           if (isMounted.current) {
+  //             setCurrentWeekEntries(prev =>
+  //               prev.map(entry => entry.id === updatedEntry.id ? updatedEntry : entry)
+  //             );
+  //             setCurrentJournalEntry(updatedEntry);
+  //           }
+  //         } else {
+  //           // Create new entry
+  //           const newEntry = addJournalEntry({
+  //             date: todayStr,
+  //             content: journalInput,
+  //             reviewSectionId: activeSectionId || undefined,
+  //             weekNumber,
+  //             weekYear,
+  //             isCompleted: true
+  //           });
+
+  //           // Update state if component is still mounted
+  //           if (isMounted.current) {
+  //             setCurrentJournalEntry(newEntry);
+  //             // Add to current week entries
+  //             setCurrentWeekEntries(prev => [...prev, newEntry]);
+  //           }
+  //         }
+  //       } catch (error) {
+  //         console.error('Error saving journal entry:', error);
+  //       } finally {
+  //         // Reset loading state if component is still mounted
+  //         if (isMounted.current) {
+  //           setIsSavingJournal(false);
+  //         }
+  //       }
+  //     }, 100); // Small delay to let UI update first
+  //   } catch (error) {
+  //     console.error('Error in handleSaveJournal:', error);
+  //     if (isMounted.current) {
+  //       setIsSavingJournal(false);
+  //     }
+  //   }
+  // }, [journalInput, currentJournalEntry, today, activeSectionId, weekNumber, weekYear, updateJournalEntry, addJournalEntry, isSavingJournal]);
+
+  // JOURNAL FEATURE DISABLED
+  // const toggleJournal = useCallback(() => {
+  //   if (isMounted.current) {
+  //     setShowJournal(prev => !prev);
+  //   }
+  // }, []);
+
+  // JOURNAL FEATURE DISABLED
+  // Helper to check if a section is completed based on review section state
   const isSectionCompleted = (sectionId: string): boolean => {
-    // Consider a section completed if:
-    // 1. There's an entry for this section AND
-    // 2. Either isCompleted is true OR it has content (for backwards compatibility)
-    return currentWeekEntries.some(entry => {
-      const hasReviewSectionId = entry.reviewSectionId === sectionId;
-      const isExplicitlyCompleted = entry.isCompleted === true;
-      const hasContent = entry.content && entry.content.trim().length > 0;
-      return hasReviewSectionId && (isExplicitlyCompleted || hasContent);
-    });
+    // Since journal entries are disabled, use the reviewSections state to check completion
+    const section = reviewSections.find(s => s.id === sectionId);
+    return section?.complete || false;
   };
   
   return (
@@ -450,49 +462,8 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
                     </Button>
                   </div>
 
-                  {/* Journal Entry Button */}
-                  <div className="mb-4">
-                    <Button
-                      variant={showJournal ? "default" : "outline"}
-                      size="sm"
-                      onClick={toggleJournal}
-                      icon={<BookOpen size={16} />}
-                      className="w-full"
-                    >
-                      {showJournal ? "Hide Journal Entry" : "Add Journal Entry"}
-                    </Button>
-                  </div>
-
-                  {/* Journal Entry Text Area */}
-                  {showJournal && (
-                    <div className="mb-4 bg-gray-50 p-3 rounded-md border">
-                      <div className="flex items-center mb-2">
-                        <BookOpen size={16} className="text-blue-600 mr-2" />
-                        <h4 className="text-sm font-medium text-gray-700">Journal Entry</h4>
-                      </div>
-                      <textarea
-                        value={journalInput}
-                        onChange={(e) => setJournalInput(e.target.value)}
-                        className="w-full min-h-[120px] border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm p-2"
-                        placeholder="Use this space to jot down reflections that aren't specific tasks. What insights are you having? What patterns are you noticing? How are you feeling about your progress?"
-                      />
-                      <div className="flex justify-end mt-2">
-                        <Button
-                          size="sm"
-                          onClick={handleSaveJournal}
-                          icon={isSavingJournal ? <Loader size={16} className="animate-spin" /> : <Save size={16} />}
-                          disabled={isSavingJournal || !journalInput.trim()}
-                        >
-                          {isSavingJournal ? 'Saving...' : 'Save Entry'}
-                        </Button>
-                      </div>
-                      {currentJournalEntry && (
-                        <p className="text-xs text-gray-500 mt-2">
-                          Last updated: {new Date(currentJournalEntry.updatedAt).toLocaleString()}
-                        </p>
-                      )}
-                    </div>
-                  )}
+                  {/* JOURNAL FEATURE DISABLED */}
+                  {/* Journal Entry Button and Text Area removed */}
                   
                   {/* Relevant task lists based on the section */}
                   {activeSectionId === 'overdue' && overdueTasks.length > 0 && (
@@ -601,15 +572,8 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
                         Back to Review
                       </Button>
 
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        as="a"
-                        href="/journal"
-                        icon={<BookOpen size={16} />}
-                      >
-                        View All Journal Entries
-                      </Button>
+                      {/* JOURNAL FEATURE DISABLED */}
+                      {/* Button to view journal entries removed */}
                     </div>
 
                     <Button onClick={handleNextPrompt}>

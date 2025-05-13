@@ -75,7 +75,8 @@ export interface PhaseTask {
   description?: string;
 }
 
-// Journal entry for weekly reflections
+// JOURNAL FEATURE DISABLED
+/*
 export interface JournalEntry {
   id: string;
   date: string; // ISO date string
@@ -87,6 +88,7 @@ export interface JournalEntry {
   createdAt: string;
   updatedAt: string;
 }
+*/
 
 // Re-export WorkSchedule types
 export * from './WorkSchedule';

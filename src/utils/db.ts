@@ -1,5 +1,5 @@
 import Dexie from 'dexie';
-import { Task, Project, Category, DailyPlan, JournalEntry } from '../types';
+import { Task, Project, Category, DailyPlan } from '../types'; // JOURNAL FEATURE DISABLED: Removed JournalEntry
 import { WorkSchedule } from '../types/WorkSchedule';
 
 /**
@@ -14,7 +14,8 @@ export class ADHDPlannerDB extends Dexie {
   categories!: Dexie.Table<Category, string>;
   dailyPlans!: Dexie.Table<DailyPlan, string>;
   workSchedules!: Dexie.Table<WorkSchedule, string>;
-  journalEntries!: Dexie.Table<JournalEntry, string>;
+  // JOURNAL FEATURE DISABLED
+  // journalEntries!: Dexie.Table<JournalEntry, string>;
 
   constructor() {
     super('ADHDPlannerDB');
@@ -26,7 +27,7 @@ export class ADHDPlannerDB extends Dexie {
       categories: 'id, createdAt, updatedAt',
       dailyPlans: 'id, date',
       workSchedules: 'id, createdAt, updatedAt',
-      journalEntries: 'id, date, weekNumber, weekYear, createdAt, updatedAt'
+      // JOURNAL FEATURE DISABLED: journalEntries: 'id, date, weekNumber, weekYear, createdAt, updatedAt'
     });
 
     // Note: We're using interfaces, not classes, so we don't use mapToClass
@@ -65,15 +66,18 @@ export class ADHDPlannerDB extends Dexie {
     return this.tasks.where('parentTaskId').equals(parentTaskId).toArray();
   }
 
+  // JOURNAL FEATURE DISABLED
   /**
    * Get journal entries for a specific week
    */
+  /*
   async getJournalEntriesForWeek(weekNumber: number, weekYear: number): Promise<JournalEntry[]> {
     return this.journalEntries
       .where('weekNumber').equals(weekNumber)
       .and(entry => entry.weekYear === weekYear)
       .toArray();
   }
+  */
 
   /**
    * Get daily plan for a specific date

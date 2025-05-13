@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { Task, Project, Category, DailyPlan, WhatNowCriteria, JournalEntry } from '../types';
+import { Task, Project, Category, DailyPlan, WhatNowCriteria } from '../types'; // JOURNAL FEATURE DISABLED: Removed JournalEntry import
 import { WorkSchedule, WorkShift, ShiftType, DEFAULT_SHIFTS } from '../types/WorkSchedule';
 
 // Import storage mechanisms
@@ -28,7 +28,7 @@ const getStorage = () => {
 };
 
 // We'll use Dexie storage as our default storage mechanism
-let storage = getStorage();
+const storage = getStorage();
 
 interface AppContextType {
   // Tasks
@@ -70,14 +70,14 @@ interface AppContextType {
   getShiftsForMonth: (year: number, month: number) => WorkShift[];
   getShiftForDate: (date: string) => WorkShift | undefined;
 
-  // Journal Entries
-  journalEntries: JournalEntry[];
-  addJournalEntry: (entry: Partial<JournalEntry>) => Promise<JournalEntry>;
-  updateJournalEntry: (entry: JournalEntry) => Promise<void>;
-  deleteJournalEntry: (entryId: string) => Promise<void>;
-  getJournalEntriesForDate: (date: string) => JournalEntry[];
-  getJournalEntriesForWeek: (weekNumber: number, weekYear: number) => JournalEntry[];
-  getLatestWeeklyReview: () => { weekNumber: number; weekYear: number; entries: JournalEntry[] } | null;
+  // JOURNAL FEATURE DISABLED
+  // journalEntries: JournalEntry[];
+  // addJournalEntry: (entry: Partial<JournalEntry>) => Promise<JournalEntry>;
+  // updateJournalEntry: (entry: JournalEntry) => Promise<void>;
+  // deleteJournalEntry: (entryId: string) => Promise<void>;
+  // getJournalEntriesForDate: (date: string) => JournalEntry[];
+  // getJournalEntriesForWeek: (weekNumber: number, weekYear: number) => JournalEntry[];
+  // getLatestWeeklyReview: () => { weekNumber: number; weekYear: number; entries: JournalEntry[] } | null;
 
   // What Now Wizard
   recommendTasks: (criteria: WhatNowCriteria) => Task[];
@@ -100,7 +100,7 @@ interface AppContextType {
     categories: boolean;
     dailyPlans: boolean;
     workSchedule: boolean;
-    journalEntries: boolean;
+    // JOURNAL FEATURE DISABLED: journalEntries: boolean;
     importExport: boolean;
   };
   isDataInitialized: boolean;
@@ -117,7 +117,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [categories, setCategories] = useState<Category[]>([]);
   const [dailyPlans, setDailyPlans] = useState<DailyPlan[]>([]);
   const [workSchedule, setWorkSchedule] = useState<WorkSchedule | null>(null);
-  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
+  // JOURNAL FEATURE DISABLED
+  // const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDataInitialized, setIsDataInitialized] = useState(false);
   const [isError, setIsError] = useState(false);
@@ -143,7 +144,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     categories: false,
     dailyPlans: false,
     workSchedule: false,
-    journalEntries: false,
+    // JOURNAL FEATURE DISABLED: journalEntries: false,
     importExport: false
   });
 
@@ -172,7 +173,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setCategories([]);
         setDailyPlans([]);
         setWorkSchedule(null);
-        setJournalEntries([]);
+        // JOURNAL FEATURE DISABLED: setJournalEntries([]);
 
         // Then immediately stop loading
         setIsLoading(false);
@@ -916,13 +917,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           }
 
           try {
+            // JOURNAL FEATURE DISABLED
+            /*
             console.log('Loading journal entries...');
             const journalEntriesData = await storage.getJournalEntries();
             setJournalEntries(journalEntriesData);
             setSpecificLoadingState('journalEntries', false);
+            */
           } catch (journalError) {
             console.error('Error loading journal entries after import:', journalError);
-            setSpecificLoadingState('journalEntries', false);
+            // JOURNAL FEATURE DISABLED
+            // setSpecificLoadingState('journalEntries', false);
           }
 
           console.log('AppContext: All data reloaded successfully');
@@ -957,7 +962,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setCategories([]);
       setDailyPlans([]);
       setWorkSchedule(null);
-      setJournalEntries([]);
+      // JOURNAL FEATURE DISABLED: setJournalEntries([]);
       setIsDataInitialized(false);
     } catch (error) {
       console.error('Error resetting data:', error);
@@ -1006,7 +1011,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, []);
 
-  // Journal Entries
+  // JOURNAL FEATURE DISABLED
+  /*
   const addJournalEntry = useCallback(async (entryData: Partial<JournalEntry>): Promise<JournalEntry> => {
     try {
       const timestamp = new Date().toISOString();
@@ -1172,6 +1178,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       isComplete
     };
   }, [journalEntries]);
+  */
   
   // Create a subtask directly linked to a parent task
   const addSubtask = useCallback(async (parentId: string, subtaskData: Partial<Task>): Promise<Task> => {
@@ -1320,6 +1327,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     getShiftsForMonth,
     getShiftForDate,
 
+    // JOURNAL FEATURE DISABLED
+    /*
     journalEntries,
     addJournalEntry,
     updateJournalEntry,
@@ -1327,6 +1336,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     getJournalEntriesForDate,
     getJournalEntriesForWeek,
     getLatestWeeklyReview,
+    */
 
     recommendTasks,
 

@@ -29,7 +29,7 @@ const Header: React.FC = () => {
     { path: '/categories', label: 'Categories', icon: <Tag size={18} /> },
     { path: '/calendar', label: 'Calendar', icon: <Calendar size={18} /> },
     { path: '/planner', label: 'Daily Planner', icon: <Clock size={18} /> },
-    { path: '/journal', label: 'Journal', icon: <BookOpen size={18} /> },
+    // JOURNAL FEATURE DISABLED: { path: '/journal', label: 'Journal', icon: <BookOpen size={18} /> },
     { path: '/settings', label: 'Settings', icon: <Settings size={18} /> },
   ];
   

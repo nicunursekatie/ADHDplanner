@@ -1,4 +1,4 @@
-import { Task, Project, Category, DailyPlan, JournalEntry } from '../types';
+import { Task, Project, Category, DailyPlan } from '../types'; // JOURNAL FEATURE DISABLED: Removed JournalEntry
 import { WorkSchedule } from '../types/WorkSchedule';
 import { db } from './db';
 
@@ -13,6 +13,8 @@ const handleStorageError = (operation: string, error: Error | unknown): never =>
 export const getTasks = async (): Promise<Task[]> => {
   try {
     return await db.tasks.toArray();
+  try {
+    // Add the code to be executed here
   } catch (error) {
     return handleStorageError('get tasks', error);
   }
@@ -253,7 +255,8 @@ export const saveWorkSchedule = async (schedule: WorkSchedule): Promise<void> =>
   }
 };
 
-// Journal Entries
+// JOURNAL FEATURE DISABLED
+/*
 export const getJournalEntries = async (): Promise<JournalEntry[]> => {
   try {
     return await db.journalEntries.toArray();
@@ -298,6 +301,7 @@ export const deleteJournalEntry = async (entryId: string): Promise<void> => {
     handleStorageError('delete journal entry', error);
   }
 };
+*/
 
 // Data Import/Export
 export const exportData = async (): Promise<string> => {
@@ -334,10 +338,13 @@ export const exportData = async (): Promise<string> => {
     // Use consistent field name workSchedule (not workSchedules)
     exportObject.workSchedule = workSchedules.length > 0 ? workSchedules[0] : null;
 
+    // JOURNAL FEATURE DISABLED
+    /*
     // Export journal entries
     const journalEntries = await db.journalEntries.toArray();
     console.log(`Exporting ${journalEntries.length} journal entries`);
     exportObject.journalEntries = journalEntries;
+    */
 
     // Convert to JSON string in chunks if necessary for very large datasets
     console.log('Converting data to JSON...');
@@ -743,6 +750,8 @@ export const importData = async (jsonData: string): Promise<boolean> => {
         console.warn('Error processing work schedule, skipping:', scheduleErr);
       }
 
+      // JOURNAL FEATURE DISABLED
+      /*
       // 6. Process journal entries
       const journalEntries = extractSection('journalEntries', jsonData);
       if (journalEntries && Array.isArray(journalEntries) && journalEntries.length > 0) {
@@ -758,6 +767,7 @@ export const importData = async (jsonData: string): Promise<boolean> => {
           await db.journalEntries.bulkAdd(journalEntries);
         }
       }
+      */
 
       // Free memory
       jsonData = '';
@@ -772,8 +782,8 @@ export const importData = async (jsonData: string): Promise<boolean> => {
           db.projects.clear(),
           db.categories.clear(),
           db.dailyPlans.clear(),
-          db.workSchedules.clear(),
-          db.journalEntries.clear()
+          db.workSchedules.clear()
+          // JOURNAL FEATURE DISABLED: db.journalEntries.clear()
         ]);
 
         // Process data from parsedData object if we have it
@@ -889,11 +899,14 @@ export const importData = async (jsonData: string): Promise<boolean> => {
             await db.workSchedules.add(parsedData.workSchedule);
           }
 
+          // JOURNAL FEATURE DISABLED
+          /*
           // For journal entries
           if (Array.isArray(parsedData.journalEntries)) {
             console.log(`Adding ${parsedData.journalEntries.length} journal entries...`);
             await db.journalEntries.bulkAdd(parsedData.journalEntries);
           }
+          */
         }
       }
 
@@ -916,9 +929,7 @@ export const importData = async (jsonData: string): Promise<boolean> => {
       } else if (importError instanceof RangeError) {
         console.error('Range error detected - possibly too much data to process');
       }
-
-      return false;
-    }
+    return false;
   } catch (error) {
     console.error('Failed to import data:', error);
     // Log more detailed error information for debugging
@@ -930,7 +941,6 @@ export const importData = async (jsonData: string): Promise<boolean> => {
     return false;
   }
 };
-
 // Generate a unique ID (utility function)
 const generateId = (): string => {
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
@@ -957,8 +967,9 @@ export const resetData = async (): Promise<void> => {
     console.log('Clearing work schedules...');
     await db.workSchedules.clear();
 
-    console.log('Clearing journal entries...');
-    await db.journalEntries.clear();
+    // JOURNAL FEATURE DISABLED
+    // console.log('Clearing journal entries...');
+    // await db.journalEntries.clear();
 
     console.log('Database reset complete');
   } catch (error) {
