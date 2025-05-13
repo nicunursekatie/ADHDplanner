@@ -483,12 +483,14 @@ export const resetData = async (): Promise<void> => {
 
 /**
  * Compact the database to reclaim space
+ * Note: This is a no-op because compact is not fully supported in all environments
  */
 export const compact = async (): Promise<void> => {
   try {
-    console.log('Compacting database...');
-    await db.compact();
-    console.log('Database compaction complete');
+    console.log('Database compaction requested (skipping for compatibility)');
+    // Don't actually call compact as it's causing issues
+    // await db.compact();
+    console.log('Database compaction skipped');
   } catch (error) {
     console.error('Error compacting database:', error);
     handleStorageError('compact database', error);
