@@ -15,6 +15,7 @@ export const getTasks = async (): Promise<Task[]> => {
     return await db.tasks.toArray();
   } catch (error) {
     handleStorageError('get tasks', error);
+    return []; // Return an empty array as a fallback
   }
 };
 
@@ -65,6 +66,7 @@ export const getProjects = async (): Promise<Project[]> => {
     return await db.projects.toArray();
   } catch (error) {
     handleStorageError('get projects', error);
+    return []; // Return an empty array as a fallback
   }
 };
 
@@ -111,8 +113,10 @@ export const getCategories = async (): Promise<Category[]> => {
     return await db.categories.toArray();
   } catch (error) {
     handleStorageError('get categories', error);
+    return []; // Return an empty array as a fallback
   }
 };
+
 
 export const saveCategories = async (categories: Category[]): Promise<void> => {
   try {
@@ -157,6 +161,7 @@ export const getDailyPlans = async (): Promise<DailyPlan[]> => {
     return await db.dailyPlans.toArray();
   } catch (error) {
     handleStorageError('get daily plans', error);
+    return []; // Return an empty array as a fallback
   }
 };
 
@@ -180,6 +185,7 @@ export const getDailyPlan = async (date: string): Promise<DailyPlan | null> => {
   } catch (error) {
     handleStorageError('get daily plan', error);
   }
+  return null;
 };
 
 export const saveDailyPlan = async (plan: DailyPlan): Promise<void> => {
@@ -239,6 +245,7 @@ export const getWorkSchedule = async (): Promise<WorkSchedule | null> => {
   } catch (error) {
     handleStorageError('get work schedule', error);
   }
+  return null; // Explicitly return null if no value is returned in the try-catch block
 };
 
 export const saveWorkSchedule = async (schedule: WorkSchedule): Promise<void> => {
@@ -260,6 +267,7 @@ export const getJournalEntries = async (): Promise<JournalEntry[]> => {
     return await db.journalEntries.toArray();
   } catch (error) {
     handleStorageError('get journal entries', error);
+    return []; // Return an empty array as a fallback
   }
 };
 
@@ -320,7 +328,7 @@ export const exportData = async (): Promise<string> => {
     exportObject.projects = projects;
 
     // Export categories
-    const categories = await db.categories.toArray();
+    const categories = await getCategories();
     console.log(`Exporting ${categories.length} categories`);
     exportObject.categories = categories;
 
@@ -506,7 +514,7 @@ export const performDatabaseMaintenance = async (): Promise<void> => {
     // Count old completed tasks
     const oldCompletedTasks = await db.tasks
       .where('completed')
-      .equals(true)
+      .equals(1)
       .and(task => task.updatedAt < cutoffDate)
       .count();
 
@@ -516,7 +524,7 @@ export const performDatabaseMaintenance = async (): Promise<void> => {
       // Set archived flag on old completed tasks
       await db.tasks
         .where('completed')
-        .equals(true)
+        .equals(1)
         .and(task => task.updatedAt < cutoffDate)
         .modify({ archived: true });
     }
