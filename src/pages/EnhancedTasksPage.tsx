@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { Task } from '../types';
 import EnhancedTaskCard from '../components/tasks/EnhancedTaskCard';
@@ -43,148 +43,212 @@ const EnhancedTasksPage: React.FC = () => {
     }
   }, [hasRecentlyDeleted]);
   
-  const handleOpenModal = (task?: Task) => {
+  // Memoize event handlers to prevent unnecessary re-rendering
+  const handleOpenModal = useCallback((task?: Task) => {
     if (task) {
       setEditingTask(task);
     } else {
       setEditingTask(null);
     }
     setIsModalOpen(true);
-  };
-  
-  const handleCloseModal = () => {
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
     setIsModalOpen(false);
     setEditingTask(null);
-  };
-  
-  const handleDeleteTask = (taskId: string) => {
+  }, []);
+
+  const handleDeleteTask = useCallback((taskId: string) => {
     deleteTask(taskId);
-  };
-  
-  const handleUndo = () => {
+  }, [deleteTask]);
+
+  const handleUndo = useCallback(() => {
     undoDelete();
     setShowUndoNotification(false);
-  };
-  
-  const toggleFilter = () => {
-    setIsFilterOpen(!isFilterOpen);
-  };
-  
-  const clearFilters = () => {
+  }, [undoDelete]);
+
+  const toggleFilter = useCallback(() => {
+    setIsFilterOpen(prevState => !prevState);
+  }, []);
+
+  const clearFilters = useCallback(() => {
     setShowCompleted(false);
     setShowArchived(false);
     setFilterProjectId(null);
     setFilterCategoryId(null);
-  };
+  }, []);
 
-  const handleArchiveConfirmOpen = () => {
+  // Memoize the completed tasks count to avoid recalculation
+  const completedTasksCount = useMemo(() =>
+    tasks.filter(task => task.completed && !task.archived).length,
+  [tasks]);
+
+  const handleArchiveConfirmOpen = useCallback(() => {
     // Only show confirmation if there are completed tasks to archive
-    const completedTasks = tasks.filter(task => task.completed && !task.archived);
-    if (completedTasks.length > 0) {
+    if (completedTasksCount > 0) {
       setShowArchiveConfirm(true);
     }
-  };
+  }, [completedTasksCount]);
 
-  const handleArchiveConfirmClose = () => {
+  const handleArchiveConfirmClose = useCallback(() => {
     setShowArchiveConfirm(false);
-  };
+  }, []);
 
-  const handleArchiveCompleted = () => {
+  const handleArchiveCompleted = useCallback(() => {
     archiveCompletedTasks();
     setShowArchiveConfirm(false);
-  };
+  }, [archiveCompletedTasks]);
   
   // Get tomorrow's date in YYYY-MM-DD format
-  const getTomorrowDate = (): string => {
+  const getTomorrowDate = useCallback((): string => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     return formatDate(tomorrow);
-  };
-  
+  }, []);
+
   // Get tasks due tomorrow
-  const getTasksDueTomorrow = (tasks: Task[]): Task[] => {
+  const getTasksDueTomorrow = useCallback((taskList: Task[]): Task[] => {
     const tomorrowDate = getTomorrowDate();
-    return tasks.filter(task => 
-      task.dueDate === tomorrowDate && 
-      !task.completed && 
+    return taskList.filter(task =>
+      task.dueDate === tomorrowDate &&
+      !task.completed &&
       !task.archived
     );
-  };
-  
+  }, [getTomorrowDate]);
+
   // Filter tasks based on global filters (project, category)
-  const applyBaseFilter = (task: Task): boolean => {
+  const applyBaseFilter = useCallback((task: Task): boolean => {
     // Filter by project
     if (filterProjectId && task.projectId !== filterProjectId) {
       return false;
     }
-    
+
     // Filter by category
     if (filterCategoryId && !(task.categoryIds?.includes(filterCategoryId) || false)) {
       return false;
     }
-    
+
     return true;
-  };
-  
-  // Get tasks for each section
-  const overdueTasks = getOverdueTasks(tasks)
-    .filter(task => !task.archived)
-    .filter(applyBaseFilter);
-    
-  const todayTasks = getTasksDueToday(tasks)
-    .filter(task => !task.archived)
-    .filter(applyBaseFilter);
-    
-  const tomorrowTasks = getTasksDueTomorrow(tasks)
-    .filter(applyBaseFilter);
-    
-  const thisWeekTasks = getTasksDueThisWeek(tasks)
-    .filter(task => 
+  }, [filterProjectId, filterCategoryId]);
+
+  // Memoize all task filtering to prevent recomputation on each render
+  const filteredTasks = useMemo(() => {
+    // Apply basic filtering (completion, archiving) once to the entire dataset
+    const baseFilteredTasks = tasks.filter(task => {
+      // Check completion filter
+      if (task.completed && !showCompleted) {
+        return false;
+      }
+
+      // Check archived filter
+      if (task.archived && !showArchived) {
+        return false;
+      }
+
+      // Apply project and category filters
+      return applyBaseFilter(task);
+    });
+
+    // Now calculate all the specialized lists
+    const today = formatDate(new Date());
+    const tomorrow = getTomorrowDate();
+
+    const overdue = getOverdueTasks(baseFilteredTasks);
+    const today_tasks = getTasksDueToday(baseFilteredTasks);
+    const tomorrow_tasks = baseFilteredTasks.filter(task =>
+      task.dueDate === tomorrow &&
+      !task.completed);
+
+    const thisWeek = getTasksDueThisWeek(baseFilteredTasks).filter(task =>
       // Remove tasks already shown in Today or Tomorrow
-      task.dueDate !== formatDate(new Date()) && 
-      task.dueDate !== getTomorrowDate()
-    )
-    .filter(task => !task.archived)
-    .filter(applyBaseFilter);
-    
-  // Other tasks (no due date, or due date beyond this week)
-  const otherTasks = tasks.filter(task => 
-    // Not completed or show completed is enabled
-    (showCompleted || !task.completed) &&
-    // Not archived or show archived is enabled
-    (showArchived || !task.archived) &&
-    // Not in other categories
-    (!task.dueDate || 
-      (!overdueTasks.some(t => t.id === task.id) && 
-       !todayTasks.some(t => t.id === task.id) && 
-       !tomorrowTasks.some(t => t.id === task.id) && 
-       !thisWeekTasks.some(t => t.id === task.id))
-    )
-  ).filter(applyBaseFilter);
-  
-  // Get currently active task list based on the selected tab
-  const getActiveTaskList = (): Task[] => {
+      task.dueDate !== today &&
+      task.dueDate !== tomorrow
+    );
+
+    // Calculate other tasks more efficiently
+    // Create a Set of task IDs that are already in other categories for faster lookups
+    const specialTaskIds = new Set([
+      ...overdue.map(t => t.id),
+      ...today_tasks.map(t => t.id),
+      ...tomorrow_tasks.map(t => t.id),
+      ...thisWeek.map(t => t.id)
+    ]);
+
+    // Other tasks are those that aren't in any specialized category
+    const other = baseFilteredTasks.filter(task => !specialTaskIds.has(task.id));
+
+    return {
+      overdue,
+      today: today_tasks,
+      tomorrow: tomorrow_tasks,
+      thisWeek,
+      other
+    };
+  }, [tasks, showCompleted, showArchived, applyBaseFilter, getTomorrowDate]);
+
+  // Memoize tab switching to prevent expensive operations
+  const setActiveTabWithOptimization = useCallback((tab: 'today' | 'tomorrow' | 'week' | 'overdue' | 'all') => {
+    // If we're already on this tab, don't do anything
+    if (activeTab === tab) return;
+    setActiveTab(tab);
+  }, [activeTab]);
+
+  // Memoize getting the active task list based on the selected tab
+  const activeTaskList = useMemo(() => {
     switch (activeTab) {
       case 'today':
-        return todayTasks;
+        return filteredTasks.today;
       case 'tomorrow':
-        return tomorrowTasks;
+        return filteredTasks.tomorrow;
       case 'week':
-        return thisWeekTasks;
+        return filteredTasks.thisWeek;
       case 'overdue':
-        return overdueTasks;
-      case 'all':
-        return [...overdueTasks, ...todayTasks, ...tomorrowTasks, ...thisWeekTasks, ...otherTasks];
+        return filteredTasks.overdue;
+      case 'all': {
+        // Pre-allocate the array to the exact size needed to avoid resizing
+        const totalLength =
+          filteredTasks.overdue.length +
+          filteredTasks.today.length +
+          filteredTasks.tomorrow.length +
+          filteredTasks.thisWeek.length +
+          filteredTasks.other.length;
+
+        // If there are no tasks, return empty array to avoid unnecessary work
+        if (totalLength === 0) return [];
+
+        // Otherwise, combine the arrays with the most efficient method
+        const allTasks = new Array(totalLength);
+        let index = 0;
+
+        // Add tasks from each category (faster than spread operator)
+        for (const task of filteredTasks.overdue) allTasks[index++] = task;
+        for (const task of filteredTasks.today) allTasks[index++] = task;
+        for (const task of filteredTasks.tomorrow) allTasks[index++] = task;
+        for (const task of filteredTasks.thisWeek) allTasks[index++] = task;
+        for (const task of filteredTasks.other) allTasks[index++] = task;
+
+        return allTasks;
+      }
       default:
-        return todayTasks;
+        return filteredTasks.today;
     }
-  };
-  
-  // Filtered tasks for current view
-  const activeTaskList = getActiveTaskList();
-  
-  // Group tasks by parent/child for list view
-  const parentTasks = activeTaskList.filter(task => !task.parentTaskId);
+  }, [activeTab, filteredTasks]);
+
+  // Memoize parent tasks to avoid filtering on each render
+  const parentTasks = useMemo(() => {
+    // Create a Set of parent task IDs for quick lookup
+    const parentTaskIds = new Set();
+
+    // First pass: collect all parent task IDs
+    for (const task of activeTaskList) {
+      if (!task.parentTaskId) {
+        parentTaskIds.add(task.id);
+      }
+    }
+
+    // Second pass: filter tasks that are parents
+    return activeTaskList.filter(task => parentTaskIds.has(task.id));
+  }, [activeTaskList]);
   
   return (
     <div className="space-y-6">
@@ -254,53 +318,53 @@ const EnhancedTasksPage: React.FC = () => {
               ? 'border-indigo-500 text-indigo-600 bg-indigo-50' 
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
           }`}
-          onClick={() => setActiveTab('today')}
+          onClick={() => setActiveTabWithOptimization('today')}
         >
           <div className="flex items-center space-x-2">
             <Calendar size={16} />
-            <span>Today{todayTasks.length > 0 && ` (${todayTasks.length})`}</span>
+            <span>Today{filteredTasks.today.length > 0 && ` (${filteredTasks.today.length})`}</span>
           </div>
         </button>
-        
+
         <button
           className={`px-4 py-2 font-medium text-sm rounded-t-md border-b-2 transition-colors ${
-            activeTab === 'tomorrow' 
-              ? 'border-indigo-500 text-indigo-600 bg-indigo-50' 
+            activeTab === 'tomorrow'
+              ? 'border-indigo-500 text-indigo-600 bg-indigo-50'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
           }`}
-          onClick={() => setActiveTab('tomorrow')}
+          onClick={() => setActiveTabWithOptimization('tomorrow')}
         >
           <div className="flex items-center space-x-2">
             <CalendarDays size={16} />
-            <span>Tomorrow{tomorrowTasks.length > 0 && ` (${tomorrowTasks.length})`}</span>
+            <span>Tomorrow{filteredTasks.tomorrow.length > 0 && ` (${filteredTasks.tomorrow.length})`}</span>
           </div>
         </button>
-        
+
         <button
           className={`px-4 py-2 font-medium text-sm rounded-t-md border-b-2 transition-colors ${
-            activeTab === 'week' 
-              ? 'border-indigo-500 text-indigo-600 bg-indigo-50' 
+            activeTab === 'week'
+              ? 'border-indigo-500 text-indigo-600 bg-indigo-50'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
           }`}
-          onClick={() => setActiveTab('week')}
+          onClick={() => setActiveTabWithOptimization('week')}
         >
           <div className="flex items-center space-x-2">
             <CalendarDays size={16} />
-            <span>This Week{thisWeekTasks.length > 0 && ` (${thisWeekTasks.length})`}</span>
+            <span>This Week{filteredTasks.thisWeek.length > 0 && ` (${filteredTasks.thisWeek.length})`}</span>
           </div>
         </button>
-        
+
         <button
           className={`px-4 py-2 font-medium text-sm rounded-t-md border-b-2 transition-colors ${
-            activeTab === 'overdue' 
-              ? 'border-red-500 text-red-600 bg-red-50' 
+            activeTab === 'overdue'
+              ? 'border-red-500 text-red-600 bg-red-50'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
           }`}
-          onClick={() => setActiveTab('overdue')}
+          onClick={() => setActiveTabWithOptimization('overdue')}
         >
           <div className="flex items-center space-x-2">
-            <AlertTriangle size={16} className={overdueTasks.length > 0 ? 'text-red-500' : ''} />
-            <span>Overdue{overdueTasks.length > 0 && ` (${overdueTasks.length})`}</span>
+            <AlertTriangle size={16} className={filteredTasks.overdue.length > 0 ? 'text-red-500' : ''} />
+            <span>Overdue{filteredTasks.overdue.length > 0 && ` (${filteredTasks.overdue.length})`}</span>
           </div>
         </button>
         
@@ -310,7 +374,7 @@ const EnhancedTasksPage: React.FC = () => {
               ? 'border-indigo-500 text-indigo-600 bg-indigo-50' 
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
           }`}
-          onClick={() => setActiveTab('all')}
+          onClick={() => setActiveTabWithOptimization('all')}
         >
           <div className="flex items-center space-x-2">
             <Layers size={16} />
@@ -480,14 +544,14 @@ const EnhancedTasksPage: React.FC = () => {
                   {activeTab === 'all' && (
                     <div className="space-y-6">
                       {/* Overdue section */}
-                      {overdueTasks.length > 0 && (
+                      {filteredTasks.overdue.length > 0 && (
                         <div>
                           <h3 className="text-lg font-medium text-red-600 mb-3 flex items-center">
                             <AlertTriangle size={16} className="mr-2" />
                             Overdue
                           </h3>
                           <div className="space-y-2">
-                            {overdueTasks
+                            {filteredTasks.overdue
                               .filter(task => !task.parentTaskId)
                               .map(task => (
                                 <EnhancedTaskCard
@@ -503,16 +567,16 @@ const EnhancedTasksPage: React.FC = () => {
                           </div>
                         </div>
                       )}
-                      
+
                       {/* Today section */}
-                      {todayTasks.length > 0 && (
+                      {filteredTasks.today.length > 0 && (
                         <div>
                           <h3 className="text-lg font-medium text-indigo-600 mb-3 flex items-center">
                             <Calendar size={16} className="mr-2" />
                             Today
                           </h3>
                           <div className="space-y-2">
-                            {todayTasks
+                            {filteredTasks.today
                               .filter(task => !task.parentTaskId)
                               .map(task => (
                                 <EnhancedTaskCard
@@ -528,16 +592,16 @@ const EnhancedTasksPage: React.FC = () => {
                           </div>
                         </div>
                       )}
-                      
+
                       {/* Tomorrow section */}
-                      {tomorrowTasks.length > 0 && (
+                      {filteredTasks.tomorrow.length > 0 && (
                         <div>
                           <h3 className="text-lg font-medium text-indigo-600 mb-3 flex items-center">
                             <CalendarDays size={16} className="mr-2" />
                             Tomorrow
                           </h3>
                           <div className="space-y-2">
-                            {tomorrowTasks
+                            {filteredTasks.tomorrow
                               .filter(task => !task.parentTaskId)
                               .map(task => (
                                 <EnhancedTaskCard
@@ -553,16 +617,16 @@ const EnhancedTasksPage: React.FC = () => {
                           </div>
                         </div>
                       )}
-                      
+
                       {/* This week section */}
-                      {thisWeekTasks.length > 0 && (
+                      {filteredTasks.thisWeek.length > 0 && (
                         <div>
                           <h3 className="text-lg font-medium text-indigo-600 mb-3 flex items-center">
                             <CalendarDays size={16} className="mr-2" />
                             This Week
                           </h3>
                           <div className="space-y-2">
-                            {thisWeekTasks
+                            {filteredTasks.thisWeek
                               .filter(task => !task.parentTaskId)
                               .map(task => (
                                 <EnhancedTaskCard
@@ -578,16 +642,16 @@ const EnhancedTasksPage: React.FC = () => {
                           </div>
                         </div>
                       )}
-                      
+
                       {/* Other tasks section */}
-                      {otherTasks.filter(t => !t.parentTaskId).length > 0 && (
+                      {filteredTasks.other.filter(t => !t.parentTaskId).length > 0 && (
                         <div>
                           <h3 className="text-lg font-medium text-gray-700 mb-3 flex items-center">
                             <Layers size={16} className="mr-2" />
                             Other Tasks
                           </h3>
                           <div className="space-y-2">
-                            {otherTasks
+                            {filteredTasks.other
                               .filter(task => !task.parentTaskId)
                               .map(task => (
                                 <EnhancedTaskCard
@@ -674,7 +738,6 @@ const EnhancedTasksPage: React.FC = () => {
         onClose={handleCloseModal}
         title={editingTask ? 'Edit Task' : 'Create New Task'}
       >
-        {console.log('Rendering task form with task:', editingTask)}
         <TaskForm
           task={editingTask || undefined}
           parentTask={null}

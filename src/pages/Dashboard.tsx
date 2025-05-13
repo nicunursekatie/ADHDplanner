@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Plus,
@@ -17,10 +17,10 @@ import { ImprovedTaskCard } from '../components/tasks/ImprovedTaskCard';
 import Modal from '../components/common/Modal';
 import { StreamlinedTaskForm } from '../components/tasks/StreamlinedTaskForm';
 import { EnhancedQuickCapture } from '../components/tasks/EnhancedQuickCapture';
-import { 
-  getTasksDueToday, 
-  getTasksDueThisWeek, 
-  getOverdueTasks 
+import {
+  getTasksDueToday,
+  getTasksDueThisWeek,
+  getOverdueTasks
 } from '../utils/helpers';
 import { Task } from '../types';
 
@@ -34,10 +34,11 @@ const Dashboard: React.FC = () => {
     initializeSampleData,
     deleteTask
   } = useAppContext();
-  
+
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  
+
+  // Early returns for loading and initialization
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -45,7 +46,7 @@ const Dashboard: React.FC = () => {
       </div>
     );
   }
-  
+
   if (!isDataInitialized) {
     return (
       <div className="max-w-3xl mx-auto py-8">
@@ -58,7 +59,7 @@ const Dashboard: React.FC = () => {
               You don't have any data yet. Would you like to start with some sample data?
             </p>
             <div className="flex justify-center space-x-4">
-              <Button 
+              <Button
                 variant="primary"
                 onClick={initializeSampleData}
               >
@@ -75,27 +76,71 @@ const Dashboard: React.FC = () => {
       </div>
     );
   }
-  
-  const tasksDueToday = getTasksDueToday(tasks);
-  const tasksDueThisWeek = getTasksDueThisWeek(tasks);
-  const overdueTasks = getOverdueTasks(tasks);
-  const completedTasks = tasks.filter(task => task.completed);
-  const incompleteTasks = tasks.filter(task => !task.completed);
-  
-  const handleOpenTaskModal = (task?: Task) => {
+
+  // Memoize filtered task lists to prevent recalculation on every render
+  const tasksDueToday = useMemo(() => getTasksDueToday(tasks), [tasks]);
+  const tasksDueThisWeek = useMemo(() => getTasksDueThisWeek(tasks), [tasks]);
+  const overdueTasks = useMemo(() => getOverdueTasks(tasks), [tasks]);
+  const completedTasks = useMemo(() => tasks.filter(task => task.completed), [tasks]);
+  const incompleteTasks = useMemo(() => tasks.filter(task => !task.completed), [tasks]);
+
+  // Memoize task interaction handlers
+  const handleOpenTaskModal = useCallback((task?: Task) => {
     if (task) {
       setEditingTask(task);
     } else {
       setEditingTask(null);
     }
     setIsTaskModalOpen(true);
-  };
-  
-  const handleCloseTaskModal = () => {
+  }, []);
+
+  const handleCloseTaskModal = useCallback(() => {
     setIsTaskModalOpen(false);
     setEditingTask(null);
-  };
+  }, []);
   
+  // Memoize reused filter operations
+  const filteredWeeklyTasks = useMemo(() =>
+    tasksDueThisWeek.filter(task => !tasksDueToday.some(t => t.id === task.id)).slice(0, 3),
+  [tasksDueThisWeek, tasksDueToday]);
+
+  const hasFilteredWeeklyTasks = useMemo(() =>
+    tasksDueThisWeek.filter(task => !tasksDueToday.some(t => t.id === task.id)).length > 0,
+  [tasksDueThisWeek, tasksDueToday]);
+
+  // Memoize sorted tasks lists
+  const sortedRecentTasks = useMemo(() =>
+    [...incompleteTasks]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 3),
+  [incompleteTasks]);
+
+  const sortedCompletedTasks = useMemo(() =>
+    [...completedTasks]
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      .slice(0, 3),
+  [completedTasks]);
+
+  // Memoize project tasks calculation
+  const projectTaskCounts = useMemo(() => {
+    const counts = new Map();
+    projects.forEach(project => {
+      counts.set(
+        project.id,
+        tasks.filter(task => task.projectId === project.id && !task.completed).length
+      );
+    });
+    return counts;
+  }, [projects, tasks]);
+
+  // Handler for the brain dump input
+  const handleBrainDumpKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+      handleOpenTaskModal();
+      e.currentTarget.value = '';
+    }
+  }, [handleOpenTaskModal]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -108,7 +153,7 @@ const Dashboard: React.FC = () => {
           <Button
             variant="primary"
             icon={<Plus size={16} />}
-            onClick={() => handleOpenTaskModal()}
+            onClick={handleOpenTaskModal}
           >
             New Task
           </Button>
@@ -122,7 +167,7 @@ const Dashboard: React.FC = () => {
           </Link>
         </div>
       </div>
-      
+
       {/* Quick Task Input */}
       <div className="mb-4">
         <EnhancedQuickCapture
@@ -220,16 +265,11 @@ const Dashboard: React.FC = () => {
                   type="text"
                   className="flex-1 rounded-l-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                   placeholder="Add something you just remembered..."
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-                      handleOpenTaskModal();
-                      e.currentTarget.value = '';
-                    }
-                  }}
+                  onKeyDown={handleBrainDumpKeyDown}
                 />
                 <Button
                   className="rounded-l-none"
-                  onClick={() => handleOpenTaskModal()}
+                  onClick={handleOpenTaskModal}
                   icon={<Plus size={16} />}
                 >
                   Add Task
@@ -246,7 +286,7 @@ const Dashboard: React.FC = () => {
           title="Overdue Tasks"
           className="border-l-4 border-red-500 mb-6"
           headerAction={
-            <Link 
+            <Link
               to="/tasks"
               className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
             >
@@ -266,10 +306,10 @@ const Dashboard: React.FC = () => {
                 onDelete={deleteTask}
               />
             ))}
-            
+
             {overdueTasks.length > 2 && (
               <div className="pt-1">
-                <Link 
+                <Link
                   to="/tasks"
                   className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center justify-center"
                 >
@@ -280,14 +320,14 @@ const Dashboard: React.FC = () => {
           </div>
         </Card>
       )}
-      
+
       {/* Main task sections - more compact layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Due Today and Coming Up This Week in first row */}
         <Card
           title="Due Today"
           headerAction={
-            <Link 
+            <Link
               to="/tasks"
               className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
             >
@@ -307,7 +347,7 @@ const Dashboard: React.FC = () => {
                 onDelete={deleteTask}
               />
             ))}
-            
+
             {tasksDueToday.length === 0 && (
               <div className="text-center py-3 text-gray-500">
                 No tasks due today
@@ -319,7 +359,7 @@ const Dashboard: React.FC = () => {
         <Card
           title="Coming Up This Week"
           headerAction={
-            <Link 
+            <Link
               to="/tasks"
               className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
             >
@@ -329,7 +369,7 @@ const Dashboard: React.FC = () => {
           }
         >
           <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-            {tasksDueThisWeek.filter(task => !tasksDueToday.some(t => t.id === task.id)).slice(0, 3).map(task => (
+            {filteredWeeklyTasks.map(task => (
               <ImprovedTaskCard
                 key={task.id}
                 task={task}
@@ -339,8 +379,8 @@ const Dashboard: React.FC = () => {
                 onDelete={deleteTask}
               />
             ))}
-            
-            {tasksDueThisWeek.filter(task => !tasksDueToday.some(t => t.id === task.id)).length === 0 && (
+
+            {!hasFilteredWeeklyTasks && (
               <div className="text-center py-3 text-gray-500">
                 No upcoming tasks this week
               </div>
@@ -352,7 +392,7 @@ const Dashboard: React.FC = () => {
         <Card
           title="Recently Added"
           headerAction={
-            <Link 
+            <Link
               to="/tasks"
               className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
             >
@@ -362,21 +402,17 @@ const Dashboard: React.FC = () => {
           }
         >
           <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-            {incompleteTasks
-              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-              .slice(0, 3)
-              .map(task => (
-                <ImprovedTaskCard
-                  key={task.id}
-                  task={task}
-                  projects={projects}
-                  categories={categories}
-                  onEdit={handleOpenTaskModal}
-                  onDelete={deleteTask}
-                />
-              ))
-            }
-            
+            {sortedRecentTasks.map(task => (
+              <ImprovedTaskCard
+                key={task.id}
+                task={task}
+                projects={projects}
+                categories={categories}
+                onEdit={handleOpenTaskModal}
+                onDelete={deleteTask}
+              />
+            ))}
+
             {incompleteTasks.length === 0 && (
               <div className="text-center py-3 text-gray-500">
                 No recently added tasks
@@ -384,11 +420,11 @@ const Dashboard: React.FC = () => {
             )}
           </div>
         </Card>
-        
+
         <Card
           title="Projects"
           headerAction={
-            <Link 
+            <Link
               to="/projects"
               className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
             >
@@ -399,30 +435,28 @@ const Dashboard: React.FC = () => {
         >
           <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
             {projects.slice(0, 4).map(project => {
-              const projectTasks = tasks.filter(
-                task => task.projectId === project.id && !task.completed
-              );
-              
+              const taskCount = projectTaskCounts.get(project.id) || 0;
+
               return (
-                <Link 
-                  key={project.id} 
+                <Link
+                  key={project.id}
                   to={`/projects/${project.id}`}
                   className="flex items-center justify-between p-2 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex items-center">
-                    <div 
-                      className="w-3 h-3 rounded-full mr-3" 
+                    <div
+                      className="w-3 h-3 rounded-full mr-3"
                       style={{ backgroundColor: project.color }}
                     ></div>
                     <span className="font-medium">{project.name}</span>
                   </div>
                   <span className="text-sm text-gray-500">
-                    {projectTasks.length} task{projectTasks.length !== 1 ? 's' : ''}
+                    {taskCount} task{taskCount !== 1 ? 's' : ''}
                   </span>
                 </Link>
               );
             })}
-            
+
             {projects.length === 0 && (
               <div className="text-center py-3 text-gray-500">
                 No projects yet
@@ -431,15 +465,15 @@ const Dashboard: React.FC = () => {
           </div>
         </Card>
       </div>
-      
-      
+
+
       {/* Recently Completed at bottom */}
       {completedTasks.length > 0 && (
         <Card
           title="Recently Completed"
           className="border-l-4 border-green-500 mt-4"
           headerAction={
-            <Link 
+            <Link
               to="/tasks"
               className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center"
             >
@@ -449,20 +483,16 @@ const Dashboard: React.FC = () => {
           }
         >
           <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-            {completedTasks
-              .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-              .slice(0, 3)
-              .map(task => (
-                <ImprovedTaskCard
-                  key={task.id}
-                  task={task}
-                  projects={projects}
-                  categories={categories}
-                  onEdit={handleOpenTaskModal}
-                  onDelete={deleteTask}
-                />
-              ))
-            }
+            {sortedCompletedTasks.map(task => (
+              <ImprovedTaskCard
+                key={task.id}
+                task={task}
+                projects={projects}
+                categories={categories}
+                onEdit={handleOpenTaskModal}
+                onDelete={deleteTask}
+              />
+            ))}
           </div>
         </Card>
       )}

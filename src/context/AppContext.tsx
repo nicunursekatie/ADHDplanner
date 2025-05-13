@@ -6,29 +6,14 @@ import { WorkSchedule, WorkShift, ShiftType, DEFAULT_SHIFTS } from '../types/Wor
 import * as localStorage from '../utils/localStorage';
 import * as dexieStorage from '../utils/dexieStorage';
 import { generateId, createSampleData, getISOWeekAndYear } from '../utils/helpers';
-import { migrateFromLocalStorageToDexie, checkForLocalStorageData } from '../utils/migrationUtils';
 
 interface DeletedTask {
   task: Task;
   timestamp: number;
 }
 
-// Storage types
-export type StorageType = 'dexie';
-
-// Function to get the current storage mechanism based on user preference
-const getStorageMechanism = (): StorageType => {
-  return 'dexie';
-};
-
-
-// Initialize storage based on preference
-const getStorage = () => {
-  return dexieStorage;
-};
-
-// We'll use Dexie storage as our default storage mechanism
-let storage = getStorage();
+// We'll use Dexie storage as our only storage mechanism
+const storage = dexieStorage;
 
 interface AppContextType {
   // Tasks
@@ -89,8 +74,8 @@ interface AppContextType {
   initializeSampleData: () => Promise<void>;
   performDatabaseMaintenance: () => Promise<void>;
 
-  // Storage Management
-  getCurrentStorage: () => StorageType;
+  // Storage Management - using Dexie only now
+  getCurrentStorage: () => string;
 
   // App State
   isLoading: boolean;
@@ -122,7 +107,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [isDataInitialized, setIsDataInitialized] = useState(false);
   const [isError, setIsError] = useState(false);
   const [deletedTasks, setDeletedTasks] = useState<DeletedTask[]>([]);
-  const [currentStorageType, setCurrentStorageType] = useState<StorageType>('dexie');
+  // We only use Dexie now
 
   // Clean up old deleted tasks
   useEffect(() => {
@@ -161,12 +146,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     const loadData = async () => {
       try {
-        console.log('Initial data loading started with emergency mode');
+        console.log('Initial data loading started');
         setIsLoading(true);
         setIsError(false);
 
-        // EMERGENCY MODE: Skip loading all data at once to prevent memory issues
-        // Just set empty arrays for everything to start with
+        // Start with empty arrays in case loading fails
         setTasks([]);
         setProjects([]);
         setCategories([]);
@@ -174,40 +158,58 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setWorkSchedule(null);
         setJournalEntries([]);
 
-        // Then immediately stop loading
+        // Try to compact the database first to improve performance
+        try {
+          await storage.compact();
+          console.log('Database compacted successfully');
+        } catch (compactError) {
+          console.error('Error compacting database:', compactError);
+          // Continue anyway - not critical
+        }
+
+        // Load essential data first (projects, categories) in parallel
+        try {
+          console.log('Loading essential data (projects and categories)...');
+          const [projectsData, categoriesData] = await Promise.all([
+            storage.getProjects(),
+            storage.getCategories()
+          ]);
+
+          setProjects(projectsData);
+          setCategories(categoriesData);
+          console.log(`Loaded ${projectsData.length} projects and ${categoriesData.length} categories`);
+
+          // Set early initialization to true so UI can start rendering
+          setIsDataInitialized(true);
+
+          // Then load the tasks - this might be the heaviest operation
+          console.log('Loading tasks...');
+          const tasksData = await storage.getTasks();
+          console.log(`Loaded ${tasksData.length} tasks`);
+          setTasks(tasksData);
+
+          // Finally load the remaining data that isn't needed immediately
+          console.log('Loading remaining data...');
+          const [dailyPlansData, workScheduleData, journalEntriesData] = await Promise.all([
+            storage.getDailyPlans(),
+            storage.getWorkSchedule(),
+            storage.getJournalEntries()
+          ]);
+
+          setDailyPlans(dailyPlansData);
+          setWorkSchedule(workScheduleData);
+          setJournalEntries(journalEntriesData);
+
+          console.log('All data loaded successfully');
+        } catch (loadError) {
+          console.error('Error loading data:', loadError);
+          setIsError(true);
+        }
+
+        // Regardless of whether we loaded all data or not, stop the loading indicator
         setIsLoading(false);
-        setIsDataInitialized(true);
-
-        console.log('Initial setup complete in emergency mode - skipped loading data');
-
-        // After a short delay, try to reset the database
-        setTimeout(async () => {
-          try {
-            console.log('Attempting emergency database reset/repair...');
-
-            // Try to compact the database first
-            try {
-              await storage.compact();
-              console.log('Database compacted successfully in emergency mode');
-            } catch (compactError) {
-              console.error('Error compacting database in emergency mode:', compactError);
-            }
-
-            // Set it to empty data
-            console.log('Setting empty data in emergency mode');
-            await storage.saveTasks([]);
-            await storage.saveProjects([]);
-            await storage.saveCategories([]);
-            await storage.saveDailyPlans([]);
-            // Do not clear workSchedule and journalEntries to preserve some data
-
-            console.log('Emergency database reset/repair completed');
-          } catch (emergencyError) {
-            console.error('Error in emergency reset process:', emergencyError);
-          }
-        }, 2000);
       } catch (error) {
-        console.error('Error in emergency loading mode:', error);
+        console.error('Error in data loading process:', error);
         setIsError(true);
         setIsLoading(false);
       }
@@ -837,8 +839,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch (error) {
       console.error('Error exporting data:', error);
       setIsError(true);
-      // Fallback to localStorage export
-      return localStorage.exportData();
+      throw error; // No fallback anymore, just throw the error
     }
   }, []);
 
@@ -1276,9 +1277,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, []);
 
   // Storage Management Functions
-  const getCurrentStorage = useCallback((): StorageType => {
-    return currentStorageType;
-  }, [currentStorageType]);
+  const getCurrentStorage = useCallback((): string => {
+    return 'dexie'; // Only using Dexie now
+  }, []);
 
 
 

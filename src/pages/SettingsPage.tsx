@@ -49,16 +49,14 @@ const SettingsPage: React.FC = () => {
   const [testResults, setTestResults] = useState<{success: boolean; message: string; details?: {test: string; success: boolean; message: string}[]}>(null);
   const [isTesting, setIsTesting] = useState(false);
 
-  // Storage management states
-  const [currentStorage, setCurrentStorage] = useState<'dexie'>(getCurrentStorage());
+  // Using Dexie for storage
 
   // Moved to useEffect
 
-  // Effect to log when storage type changes
+  // Just log the storage type once on component mount
   useEffect(() => {
     const storage = getCurrentStorage();
-    setCurrentStorage(storage);
-    console.log('SettingsPage: currentStorage changed to:', storage);
+    console.log('SettingsPage: Using storage type:', storage);
   }, [getCurrentStorage]);
   
   const handleExportData = () => {

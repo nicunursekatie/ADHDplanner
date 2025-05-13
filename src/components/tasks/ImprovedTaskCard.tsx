@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback, memo } from 'react';
 import {
   CheckCircle2,
   Circle,
@@ -28,7 +28,7 @@ interface ImprovedTaskCardProps {
   onComplete?: (taskId: string) => void;
 }
 
-export const ImprovedTaskCard: React.FC<ImprovedTaskCardProps> = ({
+export const ImprovedTaskCard: React.FC<ImprovedTaskCardProps> = memo(({
   task,
   projects,
   categories,
@@ -40,69 +40,72 @@ export const ImprovedTaskCard: React.FC<ImprovedTaskCardProps> = ({
   const [expanded, setExpanded] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const { completeTask, tasks, addTask } = useAppContext();
-  
-  const project = task.projectId 
-    ? projects.find(p => p.id === task.projectId) 
-    : null;
-  
-  const taskCategories = categories.filter(c => 
-    task.categoryIds?.includes(c.id) || false
-  );
-  
-  const subtasks = tasks.filter(t => 
-    task.subtasks?.includes(t.id) || false
-  );
-  
-  const toggleExpand = () => {
-    setExpanded(!expanded);
-  };
-  
-  const handleComplete = (e: React.MouseEvent) => {
+
+  // Memoize project lookup
+  const project = useMemo(() =>
+    task.projectId ? projects.find(p => p.id === task.projectId) : null,
+  [task.projectId, projects]);
+
+  // Memoize category filtering
+  const taskCategories = useMemo(() =>
+    categories.filter(c => task.categoryIds?.includes(c.id) || false),
+  [categories, task.categoryIds]);
+
+  // Memoize subtask filtering
+  const subtasks = useMemo(() =>
+    task.subtasks?.length ? tasks.filter(t => task.subtasks?.includes(t.id) || false) : [],
+  [task.subtasks, tasks]);
+
+  const toggleExpand = useCallback(() => {
+    setExpanded(prev => !prev);
+  }, []);
+
+  const handleComplete = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (onComplete) {
       onComplete(task.id);
     } else {
       completeTask(task.id);
     }
-  };
-  
-  const handleEdit = (e: React.MouseEvent) => {
+  }, [task.id, onComplete, completeTask]);
+
+  const handleEdit = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (onEdit) {
       onEdit(task);
     }
-  };
+  }, [task, onEdit]);
 
-  const handleDelete = (e: React.MouseEvent) => {
+  const handleDelete = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (onDelete) {
       onDelete(task.id);
     }
-  };
-  
-  const handlePostpone = (e: React.MouseEvent) => {
+  }, [task.id, onDelete]);
+
+  const handlePostpone = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (onEdit && task.dueDate) {
       // Create a new date from the current due date and add one day
       const currentDate = new Date(task.dueDate);
       currentDate.setDate(currentDate.getDate() + 1);
-      
+
       // Format as YYYY-MM-DD
       const newDate = currentDate.toISOString().split('T')[0];
-      
+
       // Create a modified task with the new due date
       const postponedTask = {
         ...task,
         dueDate: newDate
       };
-      
+
       onEdit(postponedTask);
     }
-  };
-  
-  const handleDuplicate = (e: React.MouseEvent) => {
+  }, [task, onEdit]);
+
+  const handleDuplicate = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    
+
     // Create a duplicate without the ID, completed and archived flags
     const duplicateTask: Partial<Task> = {
       title: `${task.title} (copy)`,
@@ -118,37 +121,37 @@ export const ImprovedTaskCard: React.FC<ImprovedTaskCardProps> = ({
       completed: false,
       archived: false
     };
-    
+
     addTask(duplicateTask);
-  };
-  
+  }, [task, addTask]);
+
   // Determine priority color
-  const getPriorityColor = () => {
+  const getPriorityColor = useCallback(() => {
     switch (task.priority) {
       case 'high': return 'bg-red-500';
       case 'medium': return 'bg-orange-500';
       case 'low': return 'bg-green-500';
       default: return 'bg-gray-400';
     }
-  };
-  
+  }, [task.priority]);
+
   // Format due date with color based on urgency
-  const renderDueDate = () => {
+  const renderDueDate = useCallback(() => {
     if (!task.dueDate) return null;
-    
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     // Parse the task due date from YYYY-MM-DD format
     const [year, month, day] = task.dueDate.split('-').map(num => parseInt(num, 10));
     const dueDate = new Date(year, month - 1, day); // Month is 0-indexed in JS Date
     dueDate.setHours(0, 0, 0, 0);
-    
+
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    
+
     let textColor = 'text-gray-500';
-    
+
     if (dueDate < today) {
       textColor = 'text-red-600 font-medium';
     } else if (dueDate.getTime() === today.getTime()) {
@@ -156,44 +159,83 @@ export const ImprovedTaskCard: React.FC<ImprovedTaskCardProps> = ({
     } else if (dueDate.getTime() === tomorrow.getTime()) {
       textColor = 'text-orange-500';
     }
-    
+
     return (
       <div className={`flex items-center text-xs ${textColor}`}>
         <Calendar size={14} className="mr-1" />
         {formatDateForDisplay(task.dueDate)}
       </div>
     );
-  };
-  
+  }, [task.dueDate]);
+
   // Check if task is due today
-  const isDueToday = () => {
+  const isDueToday = useMemo(() => {
     if (!task.dueDate) return false;
-    
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     const [year, month, day] = task.dueDate.split('-').map(num => parseInt(num, 10));
     const dueDate = new Date(year, month - 1, day);
     dueDate.setHours(0, 0, 0, 0);
-    
+
     return dueDate.getTime() === today.getTime();
-  };
+  }, [task.dueDate]);
   
+  // Memoize the class name string to avoid recalculations on every render
+  const cardClassName = useMemo(() => {
+    return `bg-white rounded-lg shadow-sm p-4 mb-3 border-l-4 hover:shadow transition-all ${
+      task.completed ? 'border-green-500 bg-green-50' :
+      isDueToday ? 'border-green-500' :
+      task.priority === 'high' ? 'border-red-500' :
+      task.priority === 'medium' ? 'border-orange-500' :
+      'border-indigo-500'
+    } ${isSubtask ? 'ml-6' : ''}`;
+  }, [task.completed, isDueToday, task.priority, isSubtask]);
+
+  // Memoize mouseEnter and mouseLeave handlers
+  const handleMouseEnter = useCallback(() => setShowActions(true), []);
+  const handleMouseLeave = useCallback(() => setShowActions(false), []);
+
+  // Memoize the truncated description
+  const truncatedDescription = useMemo(() => {
+    if (!task.description) return null;
+    return task.description.length > 100
+      ? `${task.description.substring(0, 100)}...`
+      : task.description;
+  }, [task.description]);
+
+  // Memoize the rendered subtasks to prevent re-rendering when parent changes
+  const renderedSubtasks = useMemo(() => {
+    if (!expanded || !subtasks.length) return null;
+
+    return (
+      <div className="mt-2">
+        {subtasks.map(subtask => (
+          <ImprovedTaskCard
+            key={subtask.id}
+            task={subtask}
+            projects={projects}
+            categories={categories}
+            isSubtask={true}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onComplete={onComplete}
+          />
+        ))}
+      </div>
+    );
+  }, [expanded, subtasks, projects, categories, onEdit, onDelete, onComplete]);
+
   return (
-    <div 
-      className={`bg-white rounded-lg shadow-sm p-4 mb-3 border-l-4 hover:shadow transition-all ${
-        task.completed ? 'border-green-500 bg-green-50' : 
-        isDueToday() ? 'border-green-500' :
-        task.priority === 'high' ? 'border-red-500' : 
-        task.priority === 'medium' ? 'border-orange-500' : 
-        'border-indigo-500'
-      } ${isSubtask ? 'ml-6' : ''}`}
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => setShowActions(false)}
+    <div
+      className={cardClassName}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       <div className="flex items-start">
-        <button 
-          className="mr-3 mt-1 flex-shrink-0 focus:outline-none group" 
+        <button
+          className="mr-3 mt-1 flex-shrink-0 focus:outline-none group"
           onClick={handleComplete}
           aria-label={task.completed ? "Mark as incomplete" : "Mark as complete"}
         >
@@ -203,9 +245,9 @@ export const ImprovedTaskCard: React.FC<ImprovedTaskCardProps> = ({
             <Circle className="h-5 w-5 text-gray-400 group-hover:text-indigo-500" />
           )}
         </button>
-        
+
         <div className="flex-grow">
-          <div 
+          <div
             className="flex items-start justify-between cursor-pointer"
             onClick={handleEdit}
           >
@@ -214,42 +256,40 @@ export const ImprovedTaskCard: React.FC<ImprovedTaskCardProps> = ({
                 <h3 className={`text-lg font-medium ${task.completed ? 'line-through text-gray-500' : 'text-gray-900'}`}>
                   {task.title}
                 </h3>
-                
+
                 {task.priority && (
                   <div className={`ml-2 w-2 h-2 rounded-full ${getPriorityColor()}`} />
                 )}
               </div>
-              
-              {task.description && (
+
+              {truncatedDescription && (
                 <p className={`mt-1 text-sm ${task.completed ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {task.description.length > 100 
-                    ? `${task.description.substring(0, 100)}...` 
-                    : task.description}
+                  {truncatedDescription}
                 </p>
               )}
-              
+
               <div className="mt-2 flex flex-wrap gap-2 items-center">
                 {renderDueDate()}
-                
+
                 {project && (
                   <div className="flex items-center text-xs">
                     <Folder size={14} className="mr-1" style={{ color: project.color }} />
                     <span style={{ color: project.color }}>{project.name}</span>
                   </div>
                 )}
-                
+
                 {task.estimatedMinutes && (
                   <div className="flex items-center text-xs text-gray-500">
                     <Clock size={14} className="mr-1" />
                     {task.estimatedMinutes} min
                   </div>
                 )}
-                
+
                 {taskCategories.length > 0 && (
                   <div className="flex items-center gap-1">
                     <Tags size={14} className="text-gray-400" />
                     {taskCategories.map(category => (
-                      <Badge 
+                      <Badge
                         key={category.id}
                         text={category.name}
                         bgColor={category.color}
@@ -271,7 +311,7 @@ export const ImprovedTaskCard: React.FC<ImprovedTaskCardProps> = ({
                     <ArrowRight size={16} />
                   </button>
                 )}
-                
+
                 <button
                   onClick={handleEdit}
                   className="p-1.5 text-gray-400 hover:text-indigo-500 rounded transition-colors hover:bg-indigo-50"
@@ -279,7 +319,7 @@ export const ImprovedTaskCard: React.FC<ImprovedTaskCardProps> = ({
                 >
                   <Edit2 size={16} />
                 </button>
-                
+
                 <button
                   onClick={handleDuplicate}
                   className="p-1.5 text-gray-400 hover:text-indigo-500 rounded transition-colors hover:bg-indigo-50"
@@ -287,7 +327,7 @@ export const ImprovedTaskCard: React.FC<ImprovedTaskCardProps> = ({
                 >
                   <Copy size={16} />
                 </button>
-                
+
                 {onDelete && (
                   <button
                     onClick={handleDelete}
@@ -300,7 +340,7 @@ export const ImprovedTaskCard: React.FC<ImprovedTaskCardProps> = ({
               </div>
             )}
           </div>
-          
+
           {task.subtasks?.length > 0 && (
             <div className="mt-3">
               <button
@@ -318,29 +358,14 @@ export const ImprovedTaskCard: React.FC<ImprovedTaskCardProps> = ({
                   {task.subtasks?.length} subtask{task.subtasks?.length !== 1 ? 's' : ''}
                 </span>
               </button>
-              
-              {expanded && (
-                <div className="mt-2">
-                  {subtasks.map(subtask => (
-                    <ImprovedTaskCard
-                      key={subtask.id}
-                      task={subtask}
-                      projects={projects}
-                      categories={categories}
-                      isSubtask={true}
-                      onEdit={onEdit}
-                      onDelete={onDelete}
-                      onComplete={onComplete}
-                    />
-                  ))}
-                </div>
-              )}
+
+              {renderedSubtasks}
             </div>
           )}
         </div>
       </div>
     </div>
   );
-};
+});
 
 export default ImprovedTaskCard;

@@ -43,42 +43,57 @@ const EnhancedTaskCard: React.FC<EnhancedTaskCardProps> = ({
   const [newSubtaskTime, setNewSubtaskTime] = useState<number>(15);
   const { completeTask, tasks, addSubtask } = useAppContext();
   
-  // Calculate total time of all subtasks
-  const totalSubtaskTime = tasks
-    .filter(t => task.subtasks?.includes(t.id))
-    .reduce((total, subtask) => total + (subtask.estimatedMinutes || 0), 0);
-  
-  // Check if the task is overdue or due today
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  let isOverdue = false;
-  let isToday = false;
-  
-  if (task.dueDate && !task.completed) {
-    // Parse the task due date from YYYY-MM-DD format
-    const [year, month, day] = task.dueDate.split('-').map(num => parseInt(num, 10));
-    const dueDate = new Date(year, month - 1, day); // Month is 0-indexed in JS Date
-    dueDate.setHours(0, 0, 0, 0);
-    
-    // Task is overdue if due date is before today
-    isOverdue = dueDate < today;
-    
-    // Task is due today if the dates are equal
-    isToday = dueDate.getTime() === today.getTime();
-  }
-    
-  const project = task.projectId 
-    ? projects.find(p => p.id === task.projectId) 
-    : null;
-  
-  const taskCategories = categories.filter(c => 
-    task.categoryIds?.includes(c.id) || false
-  );
-  
-  const subtasks = tasks.filter(t => 
-    task.subtasks?.includes(t.id) || false
-  );
+  // Create a memoized function to get subtasks
+  const getSubtasks = useCallback(() => {
+    return task.subtasks?.length
+      ? tasks.filter(t => task.subtasks.includes(t.id))
+      : [];
+  }, [task.subtasks, tasks]);
+
+  // Memoize subtasks to avoid recomputation
+  const subtasks = React.useMemo(() => getSubtasks(), [getSubtasks]);
+
+  // Memoize total time calculation
+  const totalSubtaskTime = React.useMemo(() => {
+    return subtasks.reduce((total, subtask) => total + (subtask.estimatedMinutes || 0), 0);
+  }, [subtasks]);
+
+  // Memoize date calculations
+  const { isOverdue, isToday } = React.useMemo(() => {
+    const result = { isOverdue: false, isToday: false };
+
+    if (task.dueDate && !task.completed) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Parse the task due date from YYYY-MM-DD format
+      const [year, month, day] = task.dueDate.split('-').map(num => parseInt(num, 10));
+      const dueDate = new Date(year, month - 1, day); // Month is 0-indexed in JS Date
+      dueDate.setHours(0, 0, 0, 0);
+
+      // Task is overdue if due date is before today
+      result.isOverdue = dueDate < today;
+
+      // Task is due today if the dates are equal
+      result.isToday = dueDate.getTime() === today.getTime();
+    }
+
+    return result;
+  }, [task.dueDate, task.completed]);
+
+  // Memoize project lookup
+  const project = React.useMemo(() => {
+    return task.projectId
+      ? projects.find(p => p.id === task.projectId)
+      : null;
+  }, [task.projectId, projects]);
+
+  // Memoize categories filter
+  const taskCategories = React.useMemo(() => {
+    return task.categoryIds?.length
+      ? categories.filter(c => task.categoryIds.includes(c.id))
+      : [];
+  }, [task.categoryIds, categories]);
   
   const toggleExpand = () => {
     setExpanded(!expanded);

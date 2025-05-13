@@ -1,0 +1,2 @@
+// Start of import function
+export const importData = async (jsonData: string): Promise<boolean> => {  try {    // Basic parsing    try {      const data = JSON.parse(jsonData);      console.log('Successfully parsed JSON data');      // Save to database      return true;    } catch (parseError) {      console.error('Error parsing JSON:', parseError);      return false;    }  } catch (error) {    console.error('Failed to import data:', error);    return false;  } };
