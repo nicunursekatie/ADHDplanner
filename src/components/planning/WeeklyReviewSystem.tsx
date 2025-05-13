@@ -182,6 +182,9 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
     if (activeSectionId) {
       const section = reviewSections.find(s => s.id === activeSectionId);
       if (section) {
+        // Store current journal visibility state
+        const currentShowJournal = showJournal;
+
         if (currentPromptIndex < section.prompts.length - 1) {
           // If there's journal content in the current prompt, save it
           if (journalInput.trim()) {
@@ -190,6 +193,13 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
 
           // Move to the next prompt
           setCurrentPromptIndex(currentPromptIndex + 1);
+
+          // Preserve journal visibility state after prompt change
+          setTimeout(() => {
+            if (isMounted.current) {
+              setShowJournal(currentShowJournal);
+            }
+          }, 50);
         } else {
           // Last prompt - process completion
 
@@ -281,8 +291,13 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
       } else {
         setCurrentJournalEntry(null);
         setJournalInput('');
-        // Hide journal if no entry exists yet
-        setShowJournal(false);
+        // Don't automatically hide journal when changing sections
+        // We'll preserve the visibility state from the previous prompt instead
+        // Only hide it if this is the first time we're activating a section
+        // which means we're coming from the section list view
+        if (!currentJournalEntry) {
+          setShowJournal(false);
+        }
       }
     }
   }, [activeSectionId, currentWeekEntries, currentJournalEntry]);
@@ -358,7 +373,12 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
 
             // Keep the journal input available after saving
             // This is the key fix: don't hide the journal after saving
-            setShowJournal(true);
+            // We delay this to ensure it takes effect after any other state updates
+            setTimeout(() => {
+              if (isMounted.current) {
+                setShowJournal(true);
+              }
+            }, 50);
           }
         }
       }, 100); // Small delay to let UI update first
