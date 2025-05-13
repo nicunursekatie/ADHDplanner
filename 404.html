@@ -1,100 +1,72 @@
-<!-- text/html -->
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <base href="/ADHDplanner/" />
-    <link rel="icon" type="image/svg+xml" href="masked-icon.svg" />
-    <link rel="shortcut icon" href="favicon.ico" />
-    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
-    <link rel="manifest" href="manifest.json" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#4F46E5" />
-    <meta name="description" content="A task management and planning app designed for ADHD users" />
-    <title>ADHD Planner</title>
-    <!-- PWA helper functions loaded inline to avoid module import issues -->
-    <script>
-      // This script helps fix PWA issues with GitHub Pages by handling various edge cases
-      document.addEventListener('DOMContentLoaded', function() {
-        // Detect base path - handle GitHub Pages and other deployments
-        let basePath = '';
-        const baseElement = document.querySelector('base');
-        if (baseElement && baseElement.href) {
-          basePath = new URL(baseElement.href).pathname;
-        } else if (window.location.pathname.includes('/ADHDplanner/')) {
-          basePath = '/ADHDplanner/';
-        }
-        
-        // Handle manifest fallback
-        if (navigator.serviceWorker) {
-          const manifestLink = document.querySelector('link[rel="manifest"]');
-          
-          // Try to fetch from multiple locations to help with GitHub Pages
-          if (manifestLink) {
-            // First try the standard path
-            fetch(manifestLink.href)
-              .catch(() => {
-                console.log('Manifest fetch failed, trying alternatives...');
-                
-                // Try different paths
-                const alternativePaths = [
-                  'manifest.json',
-                  `${basePath}manifest.json`,
-                  '/manifest.json',
-                  '/ADHDplanner/manifest.json',
-                  './manifest.json'
-                ];
-                
-                // Try each alternative path
-                const tryNextPath = (index) => {
-                  if (index >= alternativePaths.length) {
-                    console.warn('All manifest locations failed');
-                    return;
-                  }
-                  
-                  fetch(alternativePaths[index])
-                    .then(response => {
-                      if (response.ok) {
-                        console.log(`Found manifest at ${alternativePaths[index]}`);
-                        manifestLink.href = alternativePaths[index];
-                      }
-                    })
-                    .catch(() => {
-                      tryNextPath(index + 1);
-                    });
-                };
-                
-                tryNextPath(0);
-              });
-          }
-        }
-        
-        // Fix any duplicate paths in all links and scripts
-        const fixDuplicatePathsInElements = (selector, attribute) => {
-          document.querySelectorAll(selector).forEach(element => {
-            const path = element.getAttribute(attribute);
-            if (path && path.includes('/ADHDplanner/ADHDplanner/')) {
-              element.setAttribute(
-                attribute,
-                path.replace('/ADHDplanner/ADHDplanner/', '/ADHDplanner/')
-              );
-            }
-          });
-        };
-        
-        // Fix paths in various elements
-        fixDuplicatePathsInElements('link[rel="icon"]', 'href');
-        fixDuplicatePathsInElements('link[rel="shortcut icon"]', 'href');
-        fixDuplicatePathsInElements('link[rel="apple-touch-icon"]', 'href');
-        fixDuplicatePathsInElements('link[rel="manifest"]', 'href');
-        fixDuplicatePathsInElements('script', 'src');
-        fixDuplicatePathsInElements('img', 'src');
-      });
-    </script>
-    <script type="module" crossorigin src="/ADHDplanner/assets/js/main-BKO3OAMb.js"></script>
-    <link rel="stylesheet" crossorigin href="/ADHDplanner/assets/css/main-Cm8eWXGI.css">
-  <link rel="manifest" href="/ADHDplanner/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/ADHDplanner/registerSW.js"></script></head>
-  <body>
-    <div id="root"></div> ✅
-  </body>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>ADHD Planner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="shortcut icon" href="/ADHDplanner/favicon.ico" />
+  <script type="text/javascript">
+    // Single Page Apps for GitHub Pages
+    // MIT License
+    // https://github.com/rafgraph/spa-github-pages
+    // Modified for our specific deployment
+    var segmentCount = 0;
+    
+    // GitHub Pages specific logic for project pages - ADHDplanner is in the path
+    var hostname = window.location.hostname;
+    if (hostname.indexOf('github.io') !== -1 || hostname.indexOf('pages.dev') !== -1) {
+      segmentCount = 1; // When hosted on GitHub Pages or similar platforms
+    }
+    
+    var l = window.location;
+    
+    // Check if we're at the root path
+    var isRootPath = l.pathname === "/" || l.pathname === "/ADHDplanner/" || l.pathname === "/ADHDplanner";
+    
+    if (!isRootPath) {
+      l.replace(
+        l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+        l.pathname.split('/').slice(0, 1 + segmentCount).join('/') + '/?p=/' +
+        l.pathname.slice(1).split('/').slice(segmentCount).join('/').replace(/&/g, '~and~') +
+        (l.search ? '&q=' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+        l.hash
+      );
+    } else {
+      // If we're already at the root, just go to the index page
+      window.location.href = '/ADHDplanner/';
+    }
+  </script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: #f7f7f7;
+    }
+    .message {
+      text-align: center;
+      padding: 2rem;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      max-width: 500px;
+    }
+    h1 {
+      color: #4F46E5;
+      margin-top: 0;
+    }
+    /* Add a special comment to ensure the file is served with the right MIME type */
+    /* text/html */
+  </style>
+</head>
+<body>
+  <div class="message">
+    <h1>Redirecting...</h1>
+    <p>If you are not redirected automatically, click <a href="/ADHDplanner/">here</a>.</p>
+  </div>
+</body>
 </html>
