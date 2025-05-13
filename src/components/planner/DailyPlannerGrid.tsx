@@ -485,116 +485,118 @@ const DailyPlannerGrid: React.FC<DailyPlannerGridProps> = ({ date }) => {
                   const isSelected = selectedBlock?.id === block.id;
                   
                   return (
-                    <DroppableTimeBlock key={block.id} block={block}>
-                      <div
-                        className={`bg-white rounded-lg shadow-sm transition-all ${
-                          isSelected ? 'ring-2 ring-indigo-500' : ''
-                        }`}
-                        onClick={() => handleBlockClick(block)}
-                      >
-                        <div className="p-4">
-                          <div className="flex justify-between items-start mb-2">
-                            <h3 className="font-medium text-gray-900">{block.title}</h3>
-                            <div className="flex flex-col items-end">
-                              <div className="flex items-center">
-                                <span className="text-sm text-gray-500 mr-2">
-                                  {formatTimeForDisplay(block.startTime)} - {formatTimeForDisplay(block.endTime)}
-                                </span>
-                                <button 
-                                  className="p-1 rounded-full hover:bg-gray-100"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEditBlock(block);
-                                  }}
-                                >
-                                  <Edit size={14} className="text-gray-500" />
-                                </button>
-                              </div>
-                              {(() => {
-                                // Get formatted duration
-                                const { hours, minutes } = calculateDuration(
-                                  block.startTime, 
-                                  block.endTime, 
-                                  { formatted: true, allowOvernight: true }
-                                );
-                                
-                                if (hours === 0 && minutes === 0) {
-                                  return null;
-                                }
-                                
-                                // Only show hours if there are any
-                                const durationText = hours > 0 ? 
-                                  `${hours}h ${minutes > 0 ? `${minutes}m` : ''}` : 
-                                  `${minutes}m`;
-                                
-                                return (
-                                  <span className="text-xs text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded mt-1">
-                                    {durationText}
+                    <div key={block.id}>
+                      <DroppableTimeBlock block={block}>
+                        <div
+                          className={`bg-white rounded-lg shadow-sm transition-all ${
+                            isSelected ? 'ring-2 ring-indigo-500' : ''
+                          }`}
+                          onClick={() => handleBlockClick(block)}
+                        >
+                          <div className="p-4">
+                            <div className="flex justify-between items-start mb-2">
+                              <h3 className="font-medium text-gray-900">{block.title}</h3>
+                              <div className="flex flex-col items-end">
+                                <div className="flex items-center">
+                                  <span className="text-sm text-gray-500 mr-2">
+                                    {formatTimeForDisplay(block.startTime)} - {formatTimeForDisplay(block.endTime)}
                                   </span>
-                                );
-                              })()}
+                                  <button
+                                    className="p-1 rounded-full hover:bg-gray-100"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditBlock(block);
+                                    }}
+                                  >
+                                    <Edit size={14} className="text-gray-500" />
+                                  </button>
+                                </div>
+                                {(() => {
+                                  // Get formatted duration
+                                  const { hours, minutes } = calculateDuration(
+                                    block.startTime,
+                                    block.endTime,
+                                    { formatted: true, allowOvernight: true }
+                                  );
+
+                                  if (hours === 0 && minutes === 0) {
+                                    return null;
+                                  }
+
+                                  // Only show hours if there are any
+                                  const durationText = hours > 0 ?
+                                    `${hours}h ${minutes > 0 ? `${minutes}m` : ''}` :
+                                    `${minutes}m`;
+
+                                  return (
+                                    <span className="text-xs text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded mt-1">
+                                      {durationText}
+                                    </span>
+                                  );
+                                })()}
+                              </div>
                             </div>
+
+                            {block.description && (
+                              <p className="text-sm text-gray-600 mb-2">{block.description}</p>
+                            )}
+
+                            {(() => {
+                              // Get all tasks for this block
+                              const blockTasks: Task[] = [];
+
+                              // Add task from legacy taskId field if present
+                              if (block.taskId) {
+                                const legacyTask = tasks.find(t => t.id === block.taskId);
+                                if (legacyTask) blockTasks.push(legacyTask);
+                              }
+
+                              // Add tasks from taskIds array, only including top-level tasks
+                              if (block.taskIds && block.taskIds.length > 0) {
+                                block.taskIds.forEach(id => {
+                                  const task = tasks.find(t => t.id === id);
+                                  // Only add top-level tasks or tasks whose parent is not in the same block
+                                  if (task && !blockTasks.some(t => t.id === id) &&
+                                     (!task.parentTaskId || !block.taskIds.includes(task.parentTaskId))) {
+                                    blockTasks.push(task);
+                                  }
+                                });
+                              }
+
+                              if (blockTasks.length > 0) {
+                                return (
+                                  <div className="mt-3 space-y-2">
+                                    {blockTasks.map(task => (
+                                      <div key={task.id} className="task-container">
+                                        {/* Add a visual parent indicator if this task has subtasks */}
+                                        {task.subtasks && task.subtasks.length > 0 && (
+                                          <div className="mb-1 px-2 py-0.5 bg-indigo-50 text-indigo-600 text-xs rounded inline-flex items-center">
+                                            <span className="font-medium mr-1">{task.subtasks.length}</span>
+                                            <span>subtask{task.subtasks.length !== 1 ? 's' : ''} included</span>
+                                          </div>
+                                        )}
+                                        <TaskCard
+                                          task={task}
+                                          projects={projects}
+                                          categories={categories}
+                                          onDelete={() => handleRemoveTaskFromBlock(task.id)}
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
+                                );
+                              } else {
+                                return (
+                                  <div className="mt-3 p-4 border-2 border-dashed border-gray-200 rounded-lg text-center text-sm text-gray-500">
+                                    Drag a task here to schedule it
+                                  </div>
+                                );
+                              }
+                            })()}
                           </div>
-                          
-                          {block.description && (
-                            <p className="text-sm text-gray-600 mb-2">{block.description}</p>
-                          )}
-                              
-                          {(() => {
-                            // Get all tasks for this block
-                            const blockTasks: Task[] = [];
-                            
-                            // Add task from legacy taskId field if present
-                            if (block.taskId) {
-                              const legacyTask = tasks.find(t => t.id === block.taskId);
-                              if (legacyTask) blockTasks.push(legacyTask);
-                            }
-                            
-                            // Add tasks from taskIds array, only including top-level tasks
-                            if (block.taskIds && block.taskIds.length > 0) {
-                              block.taskIds.forEach(id => {
-                                const task = tasks.find(t => t.id === id);
-                                // Only add top-level tasks or tasks whose parent is not in the same block
-                                if (task && !blockTasks.some(t => t.id === id) && 
-                                   (!task.parentTaskId || !block.taskIds.includes(task.parentTaskId))) {
-                                  blockTasks.push(task);
-                                }
-                              });
-                            }
-                            
-                            if (blockTasks.length > 0) {
-                              return (
-                                <div className="mt-3 space-y-2">
-                                  {blockTasks.map(task => (
-                                    <div key={task.id} className="task-container">
-                                      {/* Add a visual parent indicator if this task has subtasks */}
-                                      {task.subtasks && task.subtasks.length > 0 && (
-                                        <div className="mb-1 px-2 py-0.5 bg-indigo-50 text-indigo-600 text-xs rounded inline-flex items-center">
-                                          <span className="font-medium mr-1">{task.subtasks.length}</span>
-                                          <span>subtask{task.subtasks.length !== 1 ? 's' : ''} included</span>
-                                        </div>
-                                      )}
-                                      <TaskCard
-                                        task={task}
-                                        projects={projects}
-                                        categories={categories}
-                                        onDelete={() => handleRemoveTaskFromBlock(task.id)}
-                                      />
-                                    </div>
-                                  ))}
-                                </div>
-                              );
-                            } else {
-                              return (
-                                <div className="mt-3 p-4 border-2 border-dashed border-gray-200 rounded-lg text-center text-sm text-gray-500">
-                                  Drag a task here to schedule it
-                                </div>
-                              );
-                            }
-                          })()}
                         </div>
-                      </div>
-                    </DroppableTimeBlock>
+                      </DroppableTimeBlock>
+                    </div>
                   );
                 })}
               </div>
