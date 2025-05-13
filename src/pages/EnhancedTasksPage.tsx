@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { Task } from '../types';
 import EnhancedTaskCard from '../components/tasks/EnhancedTaskCard';
@@ -12,6 +12,32 @@ import Empty from '../components/common/Empty';
 import { Plus, Filter, List, Calendar, X, Undo2, Archive,
          AlertTriangle, CalendarDays, Layers, Network } from 'lucide-react';
 import { formatDate, getOverdueTasks, getTasksDueToday, getTasksDueThisWeek } from '../utils/helpers';
+
+// Memoized task card to prevent unnecessary re-rendering
+const MemoizedTaskCard = memo(({ 
+  task, 
+  projects, 
+  categories, 
+  onEdit, 
+  onDelete 
+}: { 
+  task: Task; 
+  projects: any[]; 
+  categories: any[]; 
+  onEdit: (task: Task) => void; 
+  onDelete: (id: string) => void; 
+}) => {
+  return (
+    <EnhancedTaskCard
+      key={task.id}
+      task={task}
+      projects={projects}
+      categories={categories}
+      onEdit={onEdit}
+      onDelete={onDelete}
+    />
+  );
+});
 
 const EnhancedTasksPage: React.FC = () => {
   const { tasks, projects, categories, deleteTask, undoDelete, hasRecentlyDeleted, archiveCompletedTasks } = useAppContext();
@@ -45,11 +71,7 @@ const EnhancedTasksPage: React.FC = () => {
   
   // Memoize event handlers to prevent unnecessary re-rendering
   const handleOpenModal = useCallback((task?: Task) => {
-    if (task) {
-      setEditingTask(task);
-    } else {
-      setEditingTask(null);
-    }
+    setEditingTask(task || null);
     setIsModalOpen(true);
   }, []);
 
@@ -68,7 +90,7 @@ const EnhancedTasksPage: React.FC = () => {
   }, [undoDelete]);
 
   const toggleFilter = useCallback(() => {
-    setIsFilterOpen(prevState => !prevState);
+    setIsFilterOpen(prev => !prev);
   }, []);
 
   const clearFilters = useCallback(() => {
@@ -78,17 +100,13 @@ const EnhancedTasksPage: React.FC = () => {
     setFilterCategoryId(null);
   }, []);
 
-  // Memoize the completed tasks count to avoid recalculation
-  const completedTasksCount = useMemo(() =>
-    tasks.filter(task => task.completed && !task.archived).length,
-  [tasks]);
-
   const handleArchiveConfirmOpen = useCallback(() => {
     // Only show confirmation if there are completed tasks to archive
-    if (completedTasksCount > 0) {
+    const hasCompletedTasks = tasks.some(task => task.completed && !task.archived);
+    if (hasCompletedTasks) {
       setShowArchiveConfirm(true);
     }
-  }, [completedTasksCount]);
+  }, [tasks]);
 
   const handleArchiveConfirmClose = useCallback(() => {
     setShowArchiveConfirm(false);
@@ -105,16 +123,6 @@ const EnhancedTasksPage: React.FC = () => {
     tomorrow.setDate(tomorrow.getDate() + 1);
     return formatDate(tomorrow);
   }, []);
-
-  // Get tasks due tomorrow
-  const getTasksDueTomorrow = useCallback((taskList: Task[]): Task[] => {
-    const tomorrowDate = getTomorrowDate();
-    return taskList.filter(task =>
-      task.dueDate === tomorrowDate &&
-      !task.completed &&
-      !task.archived
-    );
-  }, [getTomorrowDate]);
 
   // Filter tasks based on global filters (project, category)
   const applyBaseFilter = useCallback((task: Task): boolean => {
@@ -186,15 +194,15 @@ const EnhancedTasksPage: React.FC = () => {
     };
   }, [tasks, showCompleted, showArchived, applyBaseFilter, getTomorrowDate]);
 
-  // Memoize tab switching to prevent expensive operations
+  // Change tab efficiently
   const setActiveTabWithOptimization = useCallback((tab: 'today' | 'tomorrow' | 'week' | 'overdue' | 'all') => {
     // If we're already on this tab, don't do anything
     if (activeTab === tab) return;
     setActiveTab(tab);
   }, [activeTab]);
 
-  // Memoize getting the active task list based on the selected tab
-  const activeTaskList = useMemo(() => {
+  // Get the active task list based on the selected tab - simplified to avoid errors
+  const activeTaskList = (() => {
     switch (activeTab) {
       case 'today':
         return filteredTasks.today;
@@ -204,51 +212,22 @@ const EnhancedTasksPage: React.FC = () => {
         return filteredTasks.thisWeek;
       case 'overdue':
         return filteredTasks.overdue;
-      case 'all': {
-        // Pre-allocate the array to the exact size needed to avoid resizing
-        const totalLength =
-          filteredTasks.overdue.length +
-          filteredTasks.today.length +
-          filteredTasks.tomorrow.length +
-          filteredTasks.thisWeek.length +
-          filteredTasks.other.length;
-
-        // If there are no tasks, return empty array to avoid unnecessary work
-        if (totalLength === 0) return [];
-
-        // Otherwise, combine the arrays with the most efficient method
-        const allTasks = new Array(totalLength);
-        let index = 0;
-
-        // Add tasks from each category (faster than spread operator)
-        for (const task of filteredTasks.overdue) allTasks[index++] = task;
-        for (const task of filteredTasks.today) allTasks[index++] = task;
-        for (const task of filteredTasks.tomorrow) allTasks[index++] = task;
-        for (const task of filteredTasks.thisWeek) allTasks[index++] = task;
-        for (const task of filteredTasks.other) allTasks[index++] = task;
-
-        return allTasks;
-      }
+      case 'all': 
+        // Simple concatenation for reliable behavior
+        return [
+          ...filteredTasks.overdue,
+          ...filteredTasks.today,
+          ...filteredTasks.tomorrow,
+          ...filteredTasks.thisWeek,
+          ...filteredTasks.other
+        ];
       default:
         return filteredTasks.today;
     }
-  }, [activeTab, filteredTasks]);
+  })();
 
-  // Memoize parent tasks to avoid filtering on each render
-  const parentTasks = useMemo(() => {
-    // Create a Set of parent task IDs for quick lookup
-    const parentTaskIds = new Set();
-
-    // First pass: collect all parent task IDs
-    for (const task of activeTaskList) {
-      if (!task.parentTaskId) {
-        parentTaskIds.add(task.id);
-      }
-    }
-
-    // Second pass: filter tasks that are parents
-    return activeTaskList.filter(task => parentTaskIds.has(task.id));
-  }, [activeTaskList]);
+  // Get parent tasks (no subtasks) - simplified to avoid errors
+  const parentTasks = activeTaskList.filter(task => !task.parentTaskId);
   
   return (
     <div className="space-y-6">
@@ -554,7 +533,7 @@ const EnhancedTasksPage: React.FC = () => {
                             {filteredTasks.overdue
                               .filter(task => !task.parentTaskId)
                               .map(task => (
-                                <EnhancedTaskCard
+                                <MemoizedTaskCard
                                   key={task.id}
                                   task={task}
                                   projects={projects}
@@ -579,7 +558,7 @@ const EnhancedTasksPage: React.FC = () => {
                             {filteredTasks.today
                               .filter(task => !task.parentTaskId)
                               .map(task => (
-                                <EnhancedTaskCard
+                                <MemoizedTaskCard
                                   key={task.id}
                                   task={task}
                                   projects={projects}
@@ -604,7 +583,7 @@ const EnhancedTasksPage: React.FC = () => {
                             {filteredTasks.tomorrow
                               .filter(task => !task.parentTaskId)
                               .map(task => (
-                                <EnhancedTaskCard
+                                <MemoizedTaskCard
                                   key={task.id}
                                   task={task}
                                   projects={projects}
@@ -629,7 +608,7 @@ const EnhancedTasksPage: React.FC = () => {
                             {filteredTasks.thisWeek
                               .filter(task => !task.parentTaskId)
                               .map(task => (
-                                <EnhancedTaskCard
+                                <MemoizedTaskCard
                                   key={task.id}
                                   task={task}
                                   projects={projects}
@@ -654,7 +633,7 @@ const EnhancedTasksPage: React.FC = () => {
                             {filteredTasks.other
                               .filter(task => !task.parentTaskId)
                               .map(task => (
-                                <EnhancedTaskCard
+                                <MemoizedTaskCard
                                   key={task.id}
                                   task={task}
                                   projects={projects}
@@ -674,7 +653,7 @@ const EnhancedTasksPage: React.FC = () => {
                   {activeTab !== 'all' && (
                     <div className="space-y-2">
                       {parentTasks.map(task => (
-                        <EnhancedTaskCard
+                        <MemoizedTaskCard
                           key={task.id}
                           task={task}
                           projects={projects}
