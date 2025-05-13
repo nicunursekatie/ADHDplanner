@@ -267,7 +267,15 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
 
       if (sectionEntry) {
         setCurrentJournalEntry(sectionEntry);
-        setJournalInput(sectionEntry.content || '');
+        // Only set the input value if it's not already being edited
+        // This prevents overwriting user input when entries get updated
+        setJournalInput(prevInput => {
+          // If we're already editing this entry, don't change the input
+          if (currentJournalEntry?.id === sectionEntry.id && prevInput.trim() !== '') {
+            return prevInput;
+          }
+          return sectionEntry.content || '';
+        });
         // Show journal if it exists
         setShowJournal(true);
       } else {
@@ -277,7 +285,7 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
         setShowJournal(false);
       }
     }
-  }, [activeSectionId, currentWeekEntries]);
+  }, [activeSectionId, currentWeekEntries, currentJournalEntry]);
 
   const handleSaveJournal = useCallback(() => {
     if (!journalInput.trim() || isSavingJournal) return;
@@ -308,6 +316,13 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
                 prev.map(entry => entry.id === updatedEntry.id ? updatedEntry : entry)
               );
               setCurrentJournalEntry(updatedEntry);
+
+              // Reset journal input to keep the ability to edit
+              setTimeout(() => {
+                if (isMounted.current) {
+                  setJournalInput(updatedEntry.content || '');
+                }
+              }, 10);
             }
           } else {
             // Create new entry
@@ -325,6 +340,13 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
               setCurrentJournalEntry(newEntry);
               // Add to current week entries
               setCurrentWeekEntries(prev => [...prev, newEntry]);
+
+              // Reset journal input to keep the ability to edit
+              setTimeout(() => {
+                if (isMounted.current) {
+                  setJournalInput(newEntry.content || '');
+                }
+              }, 10);
             }
           }
         } catch (error) {
@@ -487,6 +509,7 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
                         onChange={(e) => setJournalInput(e.target.value)}
                         className="w-full min-h-[120px] border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm p-2"
                         placeholder="Use this space to jot down reflections that aren't specific tasks. What insights are you having? What patterns are you noticing? How are you feeling about your progress?"
+                        disabled={isSavingJournal}
                       />
                       <div className="flex justify-end mt-2">
                         <Button
