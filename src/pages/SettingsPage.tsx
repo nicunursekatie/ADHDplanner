@@ -241,30 +241,43 @@ const SettingsPage: React.FC = () => {
 
       if (!isAlreadyAnalyzed) {
         // Only do validation if file hasn't been analyzed
-        // Less restrictive validation - just check if it looks like JSON
-        if (!content.trim().startsWith('{') || !content.trim().endsWith('}')) {
-          console.error('File doesn\'t appear to be JSON');
-          setImportError('The file doesn\'t appear to be a valid JSON file. It should start with { and end with }.');
-          setIsImporting(false);
-          clearInterval(progressInterval);
-          document.title = "ADHDplanner";
-          return;
+        const trimmedContent = content.trim();
+
+        // Accept both object and array formats
+        if (!(
+          (trimmedContent.startsWith('{') && trimmedContent.endsWith('}')) ||
+          (trimmedContent.startsWith('[') && trimmedContent.endsWith(']'))
+        )) {
+          // Simple check for something that doesn't even remotely look like JSON
+          if (!(trimmedContent.includes('{') || trimmedContent.includes('['))) {
+            console.error('File doesn\'t appear to be JSON at all');
+            setImportError('This doesn\'t appear to be a JSON file. Please select a .json file.');
+            setIsImporting(false);
+            clearInterval(progressInterval);
+            document.title = "ADHDplanner";
+            return;
+          }
+
+          // If it has brackets but they don't match up, let's try to proceed anyway
+          console.warn('File has JSON-like characters but doesn\'t have matching brackets');
+          console.log('Will attempt to import anyway and rely on robust parsing logic...');
         }
 
-        // More lenient check for required properties - any one of these would indicate it's likely our format
-        const possibleProps = [
-          '"tasks":', '"projects":', '"categories":',
-          '"Tasks":', '"Projects":', '"Categories":',
-          '"dailyPlans":', '"DailyPlans":',
-          '"journalEntries":', '"JournalEntries":'
+        // Much more lenient check for required properties - look for data-related keywords
+        const possibleDataTerms = [
+          'task', 'todo', 'item', 'project', 'list', 'category', 'tag', 'label',
+          'plan', 'schedule', 'event', 'entry', 'note', 'journal'
         ];
 
-        const hasAnyProps = possibleProps.some(prop => content.includes(prop));
+        // Check for any data-related terms case-insensitively
+        const hasAnyDataTerms = possibleDataTerms.some(term =>
+          new RegExp(`["']?${term}(s)?["']?`, 'i').test(content)
+        );
 
-        if (!hasAnyProps) {
-          console.warn('File lacks expected properties');
+        if (!hasAnyDataTerms) {
+          console.warn('File lacks expected data-related terms');
           // Continue anyway - user has explicitly chosen to import this
-          console.log('Continuing import despite missing expected properties...');
+          console.log('Continuing import despite unrecognized format...');
         } else {
           console.log('Import basic validation passed, proceeding with import...');
         }

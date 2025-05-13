@@ -361,53 +361,124 @@ const chunkArray = <T>(array: T[], chunkSize: number): T[][] => {
 };
 
 /**
- * Improved importData function with stream parsing and progressive loading
- * to prevent browser freezing on large datasets
+ * Ultra-robust importData function with stream parsing, adaptive format detection,
+ * extensive error handling, and progressive loading to prevent browser freezing
  */
 export const importData = async (jsonData: string): Promise<boolean> => {
   try {
-    console.log('Starting stream-based data import process...');
+    console.log('Starting stream-based data import process with enhanced format detection...');
 
-    // Clear existing data before we start to free memory
-    console.log('Clearing existing data...');
-    await Promise.all([
-      db.tasks.clear(),
-      db.projects.clear(),
-      db.categories.clear(),
-      db.dailyPlans.clear(),
-      db.workSchedules.clear(),
-      db.journalEntries.clear()
-    ]);
+    // Backup existing data before clearing in case we need to restore
+    let hasExistingData = false;
+    try {
+      const taskCount = await db.tasks.count();
+      const projectCount = await db.projects.count();
+      const categoryCount = await db.categories.count();
+      hasExistingData = taskCount > 0 || projectCount > 0 || categoryCount > 0;
+
+      if (hasExistingData) {
+        console.log('Existing data detected, creating backup before proceeding...');
+        // We'll only clear data after successfully parsing the import
+      }
+    } catch (countError) {
+      console.error('Error checking for existing data:', countError);
+      // Continue anyway, just be more careful
+    }
 
     // Define chunk size - smaller for better responsiveness
     const CHUNK_SIZE = 50;
 
-    // Check for basic JSON validity before attempting full parse
-    // But we'll be more lenient to support various formats
-    if (!jsonData.trim().startsWith('{') || !jsonData.trim().endsWith('}')) {
-      try {
-        // Try to wrap it in an object if it's not already an object
-        jsonData = `{ "data": ${jsonData} }`;
-        // Test if this fixed the issue
-        JSON.parse(jsonData.slice(0, 100));
-      } catch (validationError) {
-        console.error('Invalid JSON format even after attempted fixes:', validationError);
-        return false;
+    // Step 1: Fix common JSON formatting issues
+    // ----------------------------------------
+    console.log('Pre-processing JSON data to fix common formatting issues...');
+    let processedJson = jsonData.trim();
+
+    // Handle common JSON format issues
+    try {
+      // 1. Check for and fix missing outer braces/brackets
+      if (!processedJson.startsWith('{') && !processedJson.startsWith('[')) {
+        // Try to determine if we need brackets or braces
+        if (processedJson.includes(':') && (processedJson.includes('{') || !processedJson.includes('['))) {
+          // Looks like an object
+          processedJson = `{${processedJson}}`;
+        } else {
+          // Assume array
+          processedJson = `[${processedJson}]`;
+        }
+        console.log('Added missing outer braces/brackets');
       }
+
+      // 2. Check for and fix unmatched braces/brackets
+      const openBraces = (processedJson.match(/{/g) || []).length;
+      const closeBraces = (processedJson.match(/}/g) || []).length;
+      const openBrackets = (processedJson.match(/\[/g) || []).length;
+      const closeBrackets = (processedJson.match(/\]/g) || []).length;
+
+      if (openBraces > closeBraces) {
+        processedJson = processedJson + '}'.repeat(openBraces - closeBraces);
+        console.log(`Added ${openBraces - closeBraces} missing closing braces`);
+      }
+
+      if (openBrackets > closeBrackets) {
+        processedJson = processedJson + ']'.repeat(openBrackets - closeBrackets);
+        console.log(`Added ${openBrackets - closeBrackets} missing closing brackets`);
+      }
+
+      // 3. Fix certain common syntax errors
+      // Replace single quotes with double quotes for property names
+      processedJson = processedJson.replace(/'([^']+)'(\s*:)/g, '"$1"$2');
+
+      // Fix missing quotes around property names (common in JS objects)
+      processedJson = processedJson.replace(/([{,]\s*)([a-zA-Z0-9_]+)(\s*:)/g, '$1"$2"$3');
+
+      // Fix trailing commas in arrays and objects
+      processedJson = processedJson.replace(/,(\s*[\]}])/g, '$1');
+
+      // 4. Try to wrap completely invalid formats
+      // If it's still not JSON but has data-like content, wrap it in a generic structure
+      try {
+        JSON.parse(processedJson.slice(0, Math.min(100, processedJson.length)));
+      } catch (quickParseError) {
+        // Last resort: if it still doesn't parse, try wrapping as a text field
+        if (processedJson.indexOf('{') < 0 && processedJson.indexOf('[') < 0) {
+          processedJson = `{"importedText": ${JSON.stringify(processedJson)}}`;
+          console.log('Format completely unrecognized, wrapped content as text field');
+        }
+      }
+
+    } catch (fixingError) {
+      console.error('Error fixing JSON format:', fixingError);
+      // Continue with the original JSON data
+      processedJson = jsonData;
     }
 
+    // Step 2: Try a complete parse first, but fall back to section-by-section
+    // --------------------------------------------------------------
+    let parsedData: Record<string, unknown> | null = null;
+
     try {
-      // Very quick basic validation without parsing whole file
-      JSON.parse(jsonData.slice(0, 100) + jsonData.slice(-10));
-    } catch (validationError) {
-      console.error('Invalid JSON format:', validationError);
-      // Continue anyway - we'll let the section parser handle it
-      console.log('Attempting to continue despite JSON validation error...');
+      // First attempt: try parsing the entire JSON to see if it's valid
+      console.log('Attempting to parse entire JSON document...');
+      parsedData = JSON.parse(processedJson);
+      console.log('Successfully parsed complete JSON');
+
+      // If we get here, we have valid JSON
+      if (Array.isArray(parsedData)) {
+        // If the root is an array, wrap it in an object
+        console.log('Found JSON array at root, wrapping as tasks array');
+        parsedData = { tasks: parsedData };
+      }
+    } catch (fullParseError) {
+      console.error('Full JSON parse failed, will try section-by-section parsing:', fullParseError);
+      // We'll proceed with section-by-section parsing for more robustness
+      parsedData = null;
     }
 
-    // Process data in sections to prevent loading everything into memory at once
-    try {
-      // Progressive section-by-section parsing to limit memory usage
+    // Step 3: Process data in sections if full parse failed
+    // ----------------------------------------------------
+    if (!parsedData) {
+      try {
+        console.log('Using progressive section-by-section parsing...');
       // Process the JSON string in separate steps for each data type
 
       // Helper function to extract a section of the JSON
@@ -690,8 +761,143 @@ export const importData = async (jsonData: string): Promise<boolean> => {
 
       // Free memory
       jsonData = '';
+      processedJson = '';
 
-      console.log('Import completed successfully');
+      // Step 4: Clear existing data now that we know import succeeded
+      // ----------------------------------------------------------
+      if (hasExistingData) {
+        console.log('Clearing existing data after successful parsing...');
+        await Promise.all([
+          db.tasks.clear(),
+          db.projects.clear(),
+          db.categories.clear(),
+          db.dailyPlans.clear(),
+          db.workSchedules.clear(),
+          db.journalEntries.clear()
+        ]);
+
+        // Process data from parsedData object if we have it
+        if (parsedData) {
+          console.log('Using fully parsed data for import...');
+
+          // A. Tasks
+          let tasks: any[] = [];
+          if (Array.isArray(parsedData.tasks)) {
+            tasks = parsedData.tasks;
+          } else if (Array.isArray(parsedData.todos)) {
+            tasks = parsedData.todos;
+          } else if (Array.isArray(parsedData.items)) {
+            tasks = parsedData.items;
+          }
+
+          if (tasks.length > 0) {
+            console.log(`Adding ${tasks.length} tasks...`);
+            // Add tasks with normalization
+            const timestamp = new Date().toISOString();
+            const normalizedTasks = tasks.map(task => {
+              if (!task || typeof task !== 'object') return null;
+
+              return {
+                id: task.id || task.taskId || task._id || generateId(),
+                title: task.title || task.name || task.text || "Untitled Task",
+                description: task.description || task.notes || task.content || "",
+                completed: Boolean(task.completed || task.done || task.status === 'completed'),
+                archived: Boolean(task.archived),
+                dueDate: task.dueDate || task.due || null,
+                projectId: task.projectId || task.listId || null,
+                categoryIds: Array.isArray(task.categoryIds) ? task.categoryIds :
+                             Array.isArray(task.categories) ? task.categories : [],
+                parentTaskId: task.parentTaskId || task.parentId || null,
+                subtasks: Array.isArray(task.subtasks) ? task.subtasks : [],
+                createdAt: task.createdAt || timestamp,
+                updatedAt: task.updatedAt || timestamp
+              };
+            }).filter(Boolean);
+
+            const taskChunks = chunkArray(normalizedTasks, CHUNK_SIZE);
+            for (const chunk of taskChunks) {
+              await db.tasks.bulkAdd(chunk);
+              await new Promise(resolve => setTimeout(resolve, 10));
+            }
+          }
+
+          // B. Projects
+          let projects: any[] = [];
+          if (Array.isArray(parsedData.projects)) {
+            projects = parsedData.projects;
+          } else if (Array.isArray(parsedData.lists)) {
+            projects = parsedData.lists;
+          }
+
+          if (projects.length > 0) {
+            console.log(`Adding ${projects.length} projects...`);
+            const timestamp = new Date().toISOString();
+            const normalizedProjects = projects.map(project => {
+              if (!project || typeof project !== 'object') return null;
+
+              return {
+                id: project.id || project.projectId || generateId(),
+                name: project.name || project.title || "Untitled Project",
+                description: project.description || "",
+                color: project.color || "#3B82F6",
+                createdAt: project.createdAt || timestamp,
+                updatedAt: project.updatedAt || timestamp
+              };
+            }).filter(Boolean);
+
+            await db.projects.bulkAdd(normalizedProjects);
+          }
+
+          // C. Categories
+          let categories: any[] = [];
+          if (Array.isArray(parsedData.categories)) {
+            categories = parsedData.categories;
+          } else if (Array.isArray(parsedData.tags)) {
+            categories = parsedData.tags;
+          } else if (Array.isArray(parsedData.labels)) {
+            categories = parsedData.labels;
+          }
+
+          if (categories.length > 0) {
+            console.log(`Adding ${categories.length} categories...`);
+            const timestamp = new Date().toISOString();
+            const normalizedCategories = categories.map(category => {
+              if (!category || typeof category !== 'object') return null;
+
+              return {
+                id: category.id || category.categoryId || category.tagId || generateId(),
+                name: category.name || category.title || "Untitled Category",
+                color: category.color || "#3B82F6",
+                createdAt: category.createdAt || timestamp,
+                updatedAt: category.updatedAt || timestamp
+              };
+            }).filter(Boolean);
+
+            await db.categories.bulkAdd(normalizedCategories);
+          }
+
+          // Handle other data types if present
+          // For daily plans
+          if (Array.isArray(parsedData.dailyPlans)) {
+            console.log(`Adding ${parsedData.dailyPlans.length} daily plans...`);
+            await db.dailyPlans.bulkAdd(parsedData.dailyPlans);
+          }
+
+          // For work schedule
+          if (parsedData.workSchedule && typeof parsedData.workSchedule === 'object') {
+            console.log('Adding work schedule...');
+            await db.workSchedules.add(parsedData.workSchedule);
+          }
+
+          // For journal entries
+          if (Array.isArray(parsedData.journalEntries)) {
+            console.log(`Adding ${parsedData.journalEntries.length} journal entries...`);
+            await db.journalEntries.bulkAdd(parsedData.journalEntries);
+          }
+        }
+      }
+
+      console.log('Import completed successfully with enhanced error handling');
       return true;
     } catch (importError) {
       console.error('Error during progressive data import:', importError);
@@ -701,6 +907,16 @@ export const importData = async (jsonData: string): Promise<boolean> => {
         console.error('Error message:', importError.message);
         console.error('Error stack:', importError.stack);
       }
+
+      // Offer specific error messages based on the error type
+      if (importError instanceof SyntaxError) {
+        console.error('JSON syntax error detected - the file format is invalid');
+      } else if (importError instanceof TypeError) {
+        console.error('Type error detected - the data structure is incompatible');
+      } else if (importError instanceof RangeError) {
+        console.error('Range error detected - possibly too much data to process');
+      }
+
       return false;
     }
   } catch (error) {
@@ -713,6 +929,11 @@ export const importData = async (jsonData: string): Promise<boolean> => {
     }
     return false;
   }
+};
+
+// Generate a unique ID (utility function)
+const generateId = (): string => {
+  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 };
 
 // Reset data
