@@ -4,8 +4,8 @@ import { AppProvider } from './context/AppContext';
 import Layout from './components/layout/Layout';
 
 // Pages
-import SimpleDashboard from './pages/SimpleDashboard';
-import SimpleTasksPage from './pages/SimpleTasksPage';
+import Dashboard from './pages/Dashboard';
+import TasksPage from './pages/TasksPage';
 import ProjectsPage from './pages/ProjectsPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
 import CategoriesPage from './pages/CategoriesPage';
@@ -92,8 +92,8 @@ function App() {
       <Router>
         <Layout>
           <Routes>
-            <Route path="/" element={<SimpleDashboard />} />
-            <Route path="/tasks" element={<SimpleTasksPage />} />
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/tasks" element={<TasksPage />} />
             <Route path="/projects" element={<ProjectsPage />} />
             <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
             <Route path="/categories" element={<CategoriesPage />} />
