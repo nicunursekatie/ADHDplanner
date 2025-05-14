@@ -194,7 +194,7 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
           // Move to the next prompt
           setCurrentPromptIndex(currentPromptIndex + 1);
 
-          // Preserve journal visibility state after prompt change - for ALL sections
+          // Preserve journal visibility state after prompt change
           setTimeout(() => {
             if (isMounted.current) {
               setShowJournal(currentShowJournal);
@@ -291,11 +291,15 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
       } else {
         setCurrentJournalEntry(null);
         setJournalInput('');
-        // Preserve journal visibility when changing between sections
-        // Only reset to false when coming from the main section list
-        if (activeSectionId !== 'reflect' && activeSectionId !== 'overdue' && 
-            activeSectionId !== 'upcoming' && activeSectionId !== 'projects' && 
-            activeSectionId !== 'life-areas') {
+        
+        // NEW FIX: For all review sections except the first one (reflect),
+        // show the journal by default even if there's no entry yet.
+        // This ensures journal is visible across all sections.
+        if (activeSectionId === 'overdue' || activeSectionId === 'upcoming' || 
+            activeSectionId === 'projects' || activeSectionId === 'life-areas') {
+          setShowJournal(true);
+        } else if (!currentJournalEntry) {
+          // Only for the first section, hide journal if coming from section list
           setShowJournal(false);
         }
       }
@@ -371,8 +375,8 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
           if (isMounted.current) {
             setIsSavingJournal(false);
 
-            // Always keep the journal input available after saving for all sections
-            // This ensures journal visibility is maintained consistently across all review sections
+            // Keep the journal input available after saving
+            // This is the key fix: don't hide the journal after saving
             // We delay this to ensure it takes effect after any other state updates
             setTimeout(() => {
               if (isMounted.current) {
@@ -438,16 +442,8 @@ const WeeklyReviewSystem: React.FC<WeeklyReviewSystemProps> = ({ onTaskCreated }
                       : 'bg-gray-50 hover:bg-gray-100 border border-gray-100'
                   }`}
                   onClick={() => {
-                    // Store current journal state before changing sections
-                    const wasJournalVisible = showJournal;
                     setActiveSectionId(section.id);
                     setCurrentPromptIndex(0);
-                    // Restore journal visibility after a short delay
-                    setTimeout(() => {
-                      if (isMounted.current && wasJournalVisible) {
-                        setShowJournal(wasJournalVisible);
-                      }
-                    }, 50);
                   }}
                 >
                   <div className="flex items-center">
