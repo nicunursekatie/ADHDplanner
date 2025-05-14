@@ -13,13 +13,17 @@ const WeeklyReviewPage: React.FC = () => {
         </div>
       </div>
 
-      <WeeklyReviewStatus />
+      <div className="bg-white rounded-lg shadow-sm p-4">
+        <WeeklyReviewStatus />
+      </div>
 
-      <WeeklyReviewSystem />
-      
+      <div className="bg-white rounded-lg shadow-sm p-4">
+        <WeeklyReviewSystem />
+      </div>
+
       <div className="bg-white rounded-lg shadow-sm p-4">
         <h2 className="text-lg font-semibold text-gray-900 mb-3">Weekly Review Benefits</h2>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="p-4 rounded-lg bg-blue-50 border border-blue-100">
             <h3 className="font-medium text-gray-900 mb-2">Prevents Things From Slipping</h3>
@@ -27,14 +31,14 @@ const WeeklyReviewPage: React.FC = () => {
               Regular reviews ensure important tasks don't get forgotten or neglected over time.
             </p>
           </div>
-          
+
           <div className="p-4 rounded-lg bg-blue-50 border border-blue-100">
             <h3 className="font-medium text-gray-900 mb-2">Reduces Mental Load</h3>
             <p className="text-sm text-gray-700">
               When you trust your system, your brain can stop trying to remember everything.
             </p>
           </div>
-          
+
           <div className="p-4 rounded-lg bg-blue-50 border border-blue-100">
             <h3 className="font-medium text-gray-900 mb-2">Builds Better Habits</h3>
             <p className="text-sm text-gray-700">
@@ -42,7 +46,7 @@ const WeeklyReviewPage: React.FC = () => {
             </p>
           </div>
         </div>
-        
+
         <div className="mt-4 text-sm text-gray-600">
           <p>
             <strong>Pro Tip:</strong> Try to schedule your weekly review for the same time each week. 
